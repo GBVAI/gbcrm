@@ -1,7 +1,6 @@
 import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
 import { PageLayoutWidgetNoDataDisplay } from '@/page-layout/widgets/components/PageLayoutWidgetNoDataDisplay';
 import { GraphWidget } from '@/page-layout/widgets/graph/components/GraphWidget';
-import { GraphWidgetComponentInstanceContext } from '@/page-layout/widgets/graph/states/contexts/GraphWidgetComponentInstanceContext';
 import { isDefined } from 'twenty-shared/utils';
 import { GraphType } from '~/generated/graphql';
 
@@ -11,7 +10,7 @@ type GraphWidgetRendererProps = {
 
 export const GraphWidgetRenderer = ({ widget }: GraphWidgetRendererProps) => {
   if (!widget.configuration || !('graphType' in widget.configuration)) {
-    return <PageLayoutWidgetNoDataDisplay widgetId={widget.id} />;
+    return <PageLayoutWidgetNoDataDisplay />;
   }
 
   const graphType = widget.configuration.graphType;
@@ -20,18 +19,13 @@ export const GraphWidgetRenderer = ({ widget }: GraphWidgetRendererProps) => {
     !Object.values(GraphType).includes(graphType) ||
     !isDefined(widget.objectMetadataId)
   ) {
-    return <PageLayoutWidgetNoDataDisplay widgetId={widget.id} />;
+    return <PageLayoutWidgetNoDataDisplay />;
   }
 
   return (
-    <GraphWidgetComponentInstanceContext.Provider
-      value={{ instanceId: widget.id }}
-    >
-      <GraphWidget
-        widget={widget}
-        objectMetadataId={widget.objectMetadataId}
-        graphType={graphType}
-      />
-    </GraphWidgetComponentInstanceContext.Provider>
+    <GraphWidget
+      objectMetadataId={widget.objectMetadataId}
+      graphType={graphType}
+    />
   );
 };

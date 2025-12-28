@@ -1,13 +1,14 @@
 import { isDefined } from 'twenty-shared/utils';
 import { In } from 'typeorm';
+import { type ObjectRecordNonDestructiveEvent } from 'twenty-shared/database-events';
 
-import { type ObjectRecordNonDestructiveEvent } from 'src/engine/core-modules/event-emitter/types/object-record-non-destructive-event';
 import { Process } from 'src/engine/core-modules/message-queue/decorators/process.decorator';
 import { Processor } from 'src/engine/core-modules/message-queue/decorators/processor.decorator';
 import { MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceEventBatch } from 'src/engine/workspace-event-emitter/types/workspace-event-batch.type';
+import { SYSTEM_OBJECTS_WITH_TIMELINE_ACTIVITIES } from 'src/modules/timeline/constants/system-objects-with-timeline-activities.constant';
 import { TimelineActivityService } from 'src/modules/timeline/services/timeline-activity.service';
 import { WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
 
@@ -28,8 +29,9 @@ export class UpsertTimelineActivityFromInternalEvent {
 
     if (
       workspaceEventBatch.objectMetadata.isSystem &&
-      workspaceEventBatch.objectMetadata.nameSingular !== 'noteTarget' &&
-      workspaceEventBatch.objectMetadata.nameSingular !== 'taskTarget'
+      !SYSTEM_OBJECTS_WITH_TIMELINE_ACTIVITIES.includes(
+        workspaceEventBatch.objectMetadata.nameSingular,
+      )
     ) {
       return;
     }

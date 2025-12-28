@@ -3,7 +3,7 @@ import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataI
 import { getAggregateOperationLabel } from '@/object-record/record-board/record-board-column/utils/getAggregateOperationLabel';
 import { type ExtendedAggregateOperations } from '@/object-record/record-table/types/ExtendedAggregateOperations';
 import { getGroupByQueryResultGqlFieldName } from '@/page-layout/utils/getGroupByQueryResultGqlFieldName';
-import { GRAPH_DEFAULT_DATE_GRANULARITY } from '@/page-layout/widgets/graph/constants/GraphDefaultDateGranularity.constant';
+import { GRAPH_DEFAULT_DATE_GRANULARITY } from '@/page-layout/widgets/graph/constants/GraphDefaultDateGranularity';
 import { BarChartLayout } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartLayout';
 import { type BarChartSeries } from '@/page-layout/widgets/graph/graphWidgetBarChart/types/BarChartSeries';
 import { fillDateGapsInBarChartData } from '@/page-layout/widgets/graph/graphWidgetBarChart/utils/fillDateGapsInBarChartData';
@@ -15,7 +15,11 @@ import { filterGroupByResults } from '@/page-layout/widgets/graph/utils/filterGr
 import { getFieldKey } from '@/page-layout/widgets/graph/utils/getFieldKey';
 import { isRelationNestedFieldDateKind } from '@/page-layout/widgets/graph/utils/isRelationNestedFieldDateKind';
 import { type BarDatum } from '@nivo/bar';
-import { isDefined, isFieldMetadataDateKind } from 'twenty-shared/utils';
+import {
+  type FirstDayOfTheWeek,
+  isDefined,
+  isFieldMetadataDateKind,
+} from 'twenty-shared/utils';
 import { GraphType } from '~/generated-metadata/graphql';
 import {
   AxisNameDisplay,
@@ -28,6 +32,8 @@ type TransformGroupByDataToBarChartDataParams = {
   objectMetadataItems: ObjectMetadataItem[];
   configuration: BarChartConfiguration;
   aggregateOperation: string;
+  userTimezone: string;
+  firstDayOfTheWeek: FirstDayOfTheWeek;
 };
 
 type TransformGroupByDataToBarChartDataResult = {
@@ -65,6 +71,8 @@ export const transformGroupByDataToBarChartData = ({
   objectMetadataItems,
   configuration,
   aggregateOperation,
+  userTimezone,
+  firstDayOfTheWeek,
 }: TransformGroupByDataToBarChartDataParams): TransformGroupByDataToBarChartDataResult => {
   const groupByFieldX = objectMetadataItem.fields.find(
     (field: FieldMetadataItem) =>
@@ -243,6 +251,8 @@ export const transformGroupByDataToBarChartData = ({
         aggregateOperation,
         objectMetadataItem,
         primaryAxisSubFieldName,
+        userTimezone,
+        firstDayOfTheWeek,
       })
     : transformOneDimensionalGroupByToBarChartData({
         rawResults: filteredResultsWithDateGaps,
@@ -252,6 +262,8 @@ export const transformGroupByDataToBarChartData = ({
         aggregateOperation,
         objectMetadataItem,
         primaryAxisSubFieldName,
+        userTimezone,
+        firstDayOfTheWeek,
       });
 
   return {

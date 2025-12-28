@@ -1,4 +1,5 @@
 import {
+  DateDisplayFormat,
   FieldMetadataType,
   RelationOnDeleteAction,
   RelationType,
@@ -19,10 +20,10 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
   standardObjectMetadataRelatedEntityIds,
   dependencyFlatEntityMaps,
   twentyStandardApplicationId,
-}: Omit<CreateStandardFieldArgs<'favorite'>, 'context'>): Record<
-  AllStandardObjectFieldName<'favorite'>,
-  FlatFieldMetadata
-> => ({
+}: Omit<
+  CreateStandardFieldArgs<'favorite', FieldMetadataType>,
+  'context'
+>): Record<AllStandardObjectFieldName<'favorite'>, FlatFieldMetadata> => ({
   // Base fields from BaseWorkspaceEntity
   id: createStandardFieldFlatMetadata({
     objectName,
@@ -55,7 +56,7 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -74,7 +75,7 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -92,7 +93,7 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
       icon: 'IconCalendarMinus',
       isNullable: true,
       isUIReadOnly: true,
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -112,6 +113,7 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
       icon: 'IconList',
       isSystem: true,
       isNullable: false,
+      isUIReadOnly: true,
       defaultValue: 0,
     },
     standardObjectMetadataRelatedEntityIds,
@@ -119,16 +121,17 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  view: createStandardFieldFlatMetadata({
+  viewId: createStandardFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
-      fieldName: 'view',
+      fieldName: 'viewId',
       type: FieldMetadataType.UUID,
       label: 'ViewId',
       description: 'ViewId',
       icon: 'IconView',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -141,11 +144,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'forWorkspaceMember',
       label: 'Workspace Member',
       description: 'Favorite workspace member',
       icon: 'IconCircleUser',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workspaceMember',
       targetFieldName: 'favorites',
       settings: {
@@ -163,11 +169,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'person',
       label: 'Person',
       description: 'Favorite person',
       icon: 'IconUser',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'person',
       targetFieldName: 'favorites',
       settings: {
@@ -185,11 +194,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'company',
       label: 'Company',
       description: 'Favorite company',
       icon: 'IconBuildingSkyscraper',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'company',
       targetFieldName: 'favorites',
       settings: {
@@ -207,11 +219,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'opportunity',
       label: 'Opportunity',
       description: 'Favorite opportunity',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'opportunity',
       targetFieldName: 'favorites',
       settings: {
@@ -229,11 +244,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'workflow',
       label: 'Workflow',
       description: 'Favorite workflow',
       icon: 'IconSettingsAutomation',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflow',
       targetFieldName: 'favorites',
       settings: {
@@ -251,11 +269,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'workflowVersion',
       label: 'Workflow',
       description: 'Favorite workflow version',
       icon: 'IconSettingsAutomation',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflowVersion',
       targetFieldName: 'favorites',
       settings: {
@@ -273,11 +294,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'workflowRun',
       label: 'Workflow',
       description: 'Favorite workflow run',
       icon: 'IconSettingsAutomation',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflowRun',
       targetFieldName: 'favorites',
       settings: {
@@ -295,11 +319,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'task',
       label: 'Task',
       description: 'Favorite task',
       icon: 'IconCheckbox',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'task',
       targetFieldName: 'favorites',
       settings: {
@@ -317,11 +344,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'note',
       label: 'Note',
       description: 'Favorite note',
       icon: 'IconNotes',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'note',
       targetFieldName: 'favorites',
       settings: {
@@ -339,11 +369,14 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'dashboard',
       label: 'Dashboard',
       description: 'Favorite dashboard',
       icon: 'IconLayoutDashboard',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'dashboard',
       targetFieldName: 'favorites',
       settings: {
@@ -361,39 +394,20 @@ export const buildFavoriteStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'favoriteFolder',
       label: 'Favorite Folder',
       description: 'The folder this favorite belongs to',
       icon: 'IconFolder',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'favoriteFolder',
       targetFieldName: 'favorites',
       settings: {
         relationType: RelationType.MANY_TO_ONE,
         onDelete: RelationOnDeleteAction.SET_NULL,
         joinColumnName: 'favoriteFolderId',
-      },
-    },
-    standardObjectMetadataRelatedEntityIds,
-    dependencyFlatEntityMaps,
-    twentyStandardApplicationId,
-    now,
-  }),
-  custom: createStandardRelationFieldFlatMetadata({
-    objectName,
-    workspaceId,
-    context: {
-      fieldName: 'custom',
-      label: 'Custom',
-      description: 'Favorite custom object',
-      icon: 'IconHeart',
-      isNullable: true,
-      targetObjectName: 'note',
-      targetFieldName: 'favorites',
-      settings: {
-        relationType: RelationType.MANY_TO_ONE,
-        onDelete: RelationOnDeleteAction.CASCADE,
-        joinColumnName: 'customId',
       },
     },
     standardObjectMetadataRelatedEntityIds,

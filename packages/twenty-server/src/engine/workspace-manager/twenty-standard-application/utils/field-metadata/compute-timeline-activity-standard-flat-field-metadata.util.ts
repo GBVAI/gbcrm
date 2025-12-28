@@ -1,4 +1,5 @@
 import {
+  DateDisplayFormat,
   FieldMetadataType,
   RelationOnDeleteAction,
   RelationType,
@@ -11,7 +12,7 @@ import {
   type CreateStandardFieldArgs,
 } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-field-flat-metadata.util';
 import { createStandardRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-relation-field-flat-metadata.util';
-import { createStandardMorphRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-morph-relation-field-flat-metadata.util';
+import { TIMELINE_ACTIVITY_STANDARD_FIELD_IDS } from 'src/engine/workspace-manager/workspace-sync-metadata/constants/standard-field-ids';
 
 export const buildTimelineActivityStandardFlatFieldMetadatas = ({
   now,
@@ -20,7 +21,10 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
   standardObjectMetadataRelatedEntityIds,
   dependencyFlatEntityMaps,
   twentyStandardApplicationId,
-}: Omit<CreateStandardFieldArgs<'timelineActivity'>, 'context'>): Record<
+}: Omit<
+  CreateStandardFieldArgs<'timelineActivity', FieldMetadataType>,
+  'context'
+>): Record<
   AllStandardObjectFieldName<'timelineActivity'>,
   FlatFieldMetadata
 > => ({
@@ -56,7 +60,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -75,7 +79,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -93,7 +97,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       icon: 'IconCalendarMinus',
       isNullable: true,
       isUIReadOnly: true,
-      settings: { displayFormat: 'RELATIVE' },
+      settings: { displayFormat: DateDisplayFormat.RELATIVE },
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -112,6 +116,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Creation date',
       icon: 'IconCalendar',
       isNullable: false,
+      isUIReadOnly: true,
       defaultValue: 'now',
     },
     standardObjectMetadataRelatedEntityIds,
@@ -129,6 +134,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Event name',
       icon: 'IconAbc',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -145,6 +151,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Json value for event details',
       icon: 'IconListDetails',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -161,6 +168,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Cached record name',
       icon: 'IconAbc',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -177,6 +185,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Linked Record id',
       icon: 'IconAbc',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -193,6 +202,7 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
       description: 'Linked Object Metadata Id',
       icon: 'IconAbc',
       isNullable: true,
+      isUIReadOnly: true,
     },
     standardObjectMetadataRelatedEntityIds,
     dependencyFlatEntityMaps,
@@ -205,11 +215,14 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.RELATION,
+      morphId: null,
       fieldName: 'workspaceMember',
       label: 'Workspace Member',
       description: 'Event workspace member',
       icon: 'IconCircleUser',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workspaceMember',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -223,15 +236,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetPerson: createStandardMorphRelationFieldFlatMetadata({
+  targetPerson: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetPerson',
       label: 'Person',
       description: 'Event person',
       icon: 'IconUser',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'person',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -245,15 +261,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetCompany: createStandardMorphRelationFieldFlatMetadata({
+  targetCompany: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetCompany',
       label: 'Company',
       description: 'Event company',
       icon: 'IconBuildingSkyscraper',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'company',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -267,15 +286,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetOpportunity: createStandardMorphRelationFieldFlatMetadata({
+  targetOpportunity: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetOpportunity',
       label: 'Opportunity',
       description: 'Event opportunity',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'opportunity',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -289,15 +311,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetNote: createStandardMorphRelationFieldFlatMetadata({
+  targetNote: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetNote',
       label: 'Note',
       description: 'Event note',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'note',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -311,15 +336,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetTask: createStandardMorphRelationFieldFlatMetadata({
+  targetTask: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetTask',
       label: 'Task',
       description: 'Event task',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'task',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -333,15 +361,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetWorkflow: createStandardMorphRelationFieldFlatMetadata({
+  targetWorkflow: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetWorkflow',
       label: 'Workflow',
       description: 'Event workflow',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflow',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -355,15 +386,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetWorkflowVersion: createStandardMorphRelationFieldFlatMetadata({
+  targetWorkflowVersion: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetWorkflowVersion',
       label: 'WorkflowVersion',
       description: 'Event workflow version',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflowVersion',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -377,15 +411,18 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetWorkflowRun: createStandardMorphRelationFieldFlatMetadata({
+  targetWorkflowRun: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetWorkflowRun',
       label: 'Workflow Run',
       description: 'Event workflow run',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'workflowRun',
       targetFieldName: 'timelineActivities',
       settings: {
@@ -399,43 +436,24 @@ export const buildTimelineActivityStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  targetDashboard: createStandardMorphRelationFieldFlatMetadata({
+  targetDashboard: createStandardRelationFieldFlatMetadata({
     objectName,
     workspaceId,
     context: {
+      type: FieldMetadataType.MORPH_RELATION,
+      morphId: TIMELINE_ACTIVITY_STANDARD_FIELD_IDS.targetMorphId,
       fieldName: 'targetDashboard',
       label: 'Dashboard',
       description: 'Event dashboard',
       icon: 'IconTargetArrow',
       isNullable: true,
+      isUIReadOnly: true,
       targetObjectName: 'dashboard',
       targetFieldName: 'timelineActivities',
       settings: {
         relationType: RelationType.MANY_TO_ONE,
         onDelete: RelationOnDeleteAction.SET_NULL,
         joinColumnName: 'targetDashboardId',
-      },
-    },
-    standardObjectMetadataRelatedEntityIds,
-    dependencyFlatEntityMaps,
-    twentyStandardApplicationId,
-    now,
-  }),
-  targetCustom: createStandardMorphRelationFieldFlatMetadata({
-    objectName,
-    workspaceId,
-    context: {
-      fieldName: 'targetCustom',
-      label: 'Custom',
-      description: 'Timeline Activity custom object',
-      icon: 'IconTimeline',
-      isNullable: true,
-      targetObjectName: 'note',
-      targetFieldName: 'timelineActivities',
-      settings: {
-        relationType: RelationType.MANY_TO_ONE,
-        onDelete: RelationOnDeleteAction.CASCADE,
-        joinColumnName: 'targetCustomId',
       },
     },
     standardObjectMetadataRelatedEntityIds,
