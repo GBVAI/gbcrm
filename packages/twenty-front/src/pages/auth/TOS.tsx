@@ -1,5 +1,4 @@
 import styled from '@emotion/styled';
-import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AppPath } from 'twenty-shared/types';
 
@@ -42,7 +41,6 @@ const StyledListItem = styled.li`
 `;
 
 export const TOS = () => {
-  const { t } = useTranslation();
 
   return (
     <StyledContainer>

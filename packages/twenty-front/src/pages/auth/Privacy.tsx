@@ -1,5 +1,4 @@
 import styled from '@emotion/styled';
-import { useTranslation } from 'react-i18next';
 
 const StyledContainer = styled.div`
   display: flex;
@@ -40,7 +39,6 @@ const StyledListItem = styled.li`
 `;
 
 export const Privacy = () => {
-  const { t } = useTranslation();
 
   return (
     <StyledContainer>
