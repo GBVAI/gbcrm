@@ -5259,6 +5259,11 @@ msgstr "Грешка при учитавању догађаја календар
 msgid "Error loading message"
 msgstr "Грешка у учитавању поруке"
 
+#. js-lingui-id: 0StVpF
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Error loading phone call"
+msgstr ""
+
 #. js-lingui-id: bnJA0G
 #: src/modules/settings/admin-panel/health-status/components/SettingsAdminJobDetailsExpandable.tsx
 msgid "Error Message"
@@ -7670,6 +7675,11 @@ msgstr ""
 msgid "linked a calendar event with {labelIdentifierValue}"
 msgstr "повезао/ла догађај календара са {labelIdentifierValue}"
 
+#. js-lingui-id: nBm5pq
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall.tsx
+msgid "linked a phone call with {labelIdentifierValue}"
+msgstr ""
+
 #. js-lingui-id: fd8C68
 #: src/modules/activities/timeline-activities/rows/message/components/EventRowMessage.tsx
 msgid "linked an email with"
@@ -7784,6 +7794,7 @@ msgstr "Учитавање нити"
 #: src/pages/settings/emailing-domains/SettingsEmailingDomainDetail.tsx
 #: src/modules/settings/roles/role-assignment/components/SettingsRoleAssignmentEntityPickerDropdown.tsx
 #: src/modules/settings/admin-panel/components/SettingsAdminVersionDisplay.tsx
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
 #: src/modules/activities/timeline-activities/rows/message/components/EventCardMessage.tsx
 #: src/modules/activities/timeline-activities/rows/calendar/components/EventCardCalendarEvent.tsx
 msgid "Loading..."
@@ -9852,6 +9863,11 @@ msgstr "Дозволе · {objectLabelSingular}"
 #: src/modules/object-record/record-field/ui/meta-types/input/components/PhonesFieldInput.tsx
 msgid "Phone"
 msgstr "Телефон"
+
+#. js-lingui-id: XQ71Wy
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Phone call not found"
+msgstr ""
 
 #. js-lingui-id: HF6C2L
 #: src/modules/object-record/record-field/ui/form-types/components/FormPhoneFieldInput.tsx
