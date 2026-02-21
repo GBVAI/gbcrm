@@ -11,7 +11,7 @@ import { commandMenuSearchState } from '@/command-menu/states/commandMenuSearchS
 import { hasUserSelectedCommandState } from '@/command-menu/states/hasUserSelectedCommandState';
 import { isCommandMenuClosingState } from '@/command-menu/states/isCommandMenuClosingState';
 import { isCommandMenuOpenedState } from '@/command-menu/states/isCommandMenuOpenedState';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
+import { isCommandMenuOpenedStateV2 } from '@/command-menu/states/isCommandMenuOpenedStateV2';
 import { contextStoreTargetedRecordsRuleComponentState } from '@/context-store/states/contextStoreTargetedRecordsRuleComponentState';
 import { viewableRecordIdState } from '@/object-record/record-right-drawer/states/viewableRecordIdState';
 import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
@@ -23,9 +23,11 @@ import { emitSidePanelCloseEvent } from '@/ui/layout/right-drawer/utils/emitSide
 import { useSelectableList } from '@/ui/layout/selectable-list/hooks/useSelectableList';
 import { getShowPageTabListComponentId } from '@/ui/layout/show-page/utils/getShowPageTabListComponentId';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
-import { WORKFLOW_SERVERLESS_FUNCTION_TAB_LIST_COMPONENT_ID } from '@/workflow/workflow-steps/workflow-actions/code-action/constants/WorkflowServerlessFunctionTabListComponentId';
-import { WorkflowServerlessFunctionTabId } from '@/workflow/workflow-steps/workflow-actions/code-action/types/WorkflowServerlessFunctionTabId';
+import { WORKFLOW_LOGIC_FUNCTION_TAB_LIST_COMPONENT_ID } from '@/workflow/workflow-steps/workflow-actions/code-action/constants/WorkflowLogicFunctionTabListComponentId';
+import { WorkflowLogicFunctionTabId } from '@/workflow/workflow-steps/workflow-actions/code-action/types/WorkflowLogicFunctionTabId';
+import { useStore } from 'jotai';
 import { useRecoilCallback } from 'recoil';
+import { CommandMenuPages } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
 export const useCommandMenuCloseAnimationCompleteCleanup = () => {
@@ -36,6 +38,8 @@ export const useCommandMenuCloseAnimationCompleteCleanup = () => {
   const { resetContextStoreStates } = useResetContextStoreStates();
 
   const { closeDropdown } = useCloseDropdown();
+
+  const store = useStore();
 
   const commandMenuCloseAnimationCompleteCleanup = useRecoilCallback(
     ({ snapshot, set }) =>
@@ -104,6 +108,7 @@ export const useCommandMenuCloseAnimationCompleteCleanup = () => {
           instanceId: '',
         });
         set(isCommandMenuOpenedState, false);
+        store.set(isCommandMenuOpenedStateV2.atom, false);
         set(commandMenuSearchState, '');
         set(commandMenuNavigationMorphItemsByPageState, new Map());
         set(commandMenuNavigationStackState, []);
@@ -112,17 +117,17 @@ export const useCommandMenuCloseAnimationCompleteCleanup = () => {
 
         emitSidePanelCloseEvent();
         set(isCommandMenuClosingState, false);
-        set(
+        store.set(
           activeTabIdComponentState.atomFamily({
-            instanceId: WORKFLOW_SERVERLESS_FUNCTION_TAB_LIST_COMPONENT_ID,
+            instanceId: WORKFLOW_LOGIC_FUNCTION_TAB_LIST_COMPONENT_ID,
           }),
-          WorkflowServerlessFunctionTabId.CODE,
+          WorkflowLogicFunctionTabId.CODE,
         );
 
         for (const [pageId, morphItems] of snapshot
           .getLoadable(commandMenuNavigationMorphItemsByPageState)
           .getValue()) {
-          set(
+          store.set(
             activeTabIdComponentState.atomFamily({
               instanceId: getShowPageTabListComponentId({
                 pageId,
@@ -133,7 +138,7 @@ export const useCommandMenuCloseAnimationCompleteCleanup = () => {
           );
         }
       },
-    [closeDropdown, resetContextStoreStates, resetSelectedItem],
+    [closeDropdown, resetContextStoreStates, resetSelectedItem, store],
   );
 
   return {

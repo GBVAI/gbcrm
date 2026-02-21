@@ -11,8 +11,10 @@ export const getActionIconColorOrThrow = ({
 }) => {
   switch (actionType) {
     case 'CODE':
+    case 'LOGIC_FUNCTION':
     case 'HTTP_REQUEST':
     case 'SEND_EMAIL':
+    case 'DRAFT_EMAIL':
       return theme.color.red;
     case 'CREATE_RECORD':
     case 'UPDATE_RECORD':
@@ -25,6 +27,7 @@ export const getActionIconColorOrThrow = ({
     case 'ITERATOR':
     case 'EMPTY':
     case 'FILTER':
+    case 'IF_ELSE':
     case 'DELAY':
       return theme.color.green12;
     case 'AI_AGENT':

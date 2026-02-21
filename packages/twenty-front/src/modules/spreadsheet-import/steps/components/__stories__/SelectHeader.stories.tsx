@@ -1,4 +1,4 @@
-import { type Meta } from '@storybook/react';
+import { type Meta } from '@storybook/react-vite';
 
 import {
   headerSelectionTableFields,
@@ -10,8 +10,9 @@ import { SelectHeaderStep } from '@/spreadsheet-import/steps/components/SelectHe
 import { SpreadsheetImportStepType } from '@/spreadsheet-import/steps/types/SpreadsheetImportStepType';
 import { DialogComponentInstanceContext } from '@/ui/feedback/dialog-manager/contexts/DialogComponentInstanceContext';
 import { isModalOpenedComponentState } from '@/ui/layout/modal/states/isModalOpenedComponentState';
+import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
+import { Provider as JotaiProvider } from 'jotai';
 import { RecoilRoot } from 'recoil';
-import { I18nFrontDecorator } from '~/testing/decorators/I18nFrontDecorator';
 
 const meta: Meta<typeof SelectHeaderStep> = {
   title: 'Modules/SpreadsheetImport/SelectHeaderStep',
@@ -20,21 +21,21 @@ const meta: Meta<typeof SelectHeaderStep> = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => (
-      <RecoilRoot
-        initializeState={({ set }) => {
-          set(
-            isModalOpenedComponentState.atomFamily({
-              instanceId: 'select-header-step',
-            }),
-            true,
-          );
-        }}
-      >
-        <Story />
-      </RecoilRoot>
-    ),
-    I18nFrontDecorator,
+    (Story) => {
+      jotaiStore.set(
+        isModalOpenedComponentState.atomFamily({
+          instanceId: 'select-header-step',
+        }),
+        true,
+      );
+      return (
+        <JotaiProvider store={jotaiStore}>
+          <RecoilRoot>
+            <Story />
+          </RecoilRoot>
+        </JotaiProvider>
+      );
+    },
   ],
 };
 

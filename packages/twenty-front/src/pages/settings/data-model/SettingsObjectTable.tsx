@@ -2,14 +2,12 @@ import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { useDeleteOneObjectMetadataItem } from '@/object-metadata/hooks/useDeleteOneObjectMetadataItem';
 import { useUpdateOneObjectMetadataItem } from '@/object-metadata/hooks/useUpdateOneObjectMetadataItem';
 import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { isHiddenSystemField } from '@/object-metadata/utils/isHiddenSystemField';
 import { useCombinedGetTotalCount } from '@/object-record/multiple-objects/hooks/useCombinedGetTotalCount';
-import {
-  SettingsObjectMetadataItemTableRow,
-  StyledObjectTableRow,
-} from '@/settings/data-model/object-details/components/SettingsObjectItemTableRow';
+import { SettingsObjectMetadataItemTableRow } from '@/settings/data-model/object-details/components/SettingsObjectItemTableRow';
+import { StyledObjectTableRow } from '@/settings/data-model/object-details/components/SettingsObjectItemTableRowStyledComponents';
 import { SettingsObjectInactiveMenuDropDown } from '@/settings/data-model/objects/components/SettingsObjectInactiveMenuDropDown';
 import { getItemTagInfo } from '@/settings/data-model/utils/getItemTagInfo';
-import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
 import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
@@ -18,21 +16,16 @@ import { Table } from '@/ui/layout/table/components/Table';
 import { TableHeader } from '@/ui/layout/table/components/TableHeader';
 import { useSortedArray } from '@/ui/layout/table/hooks/useSortedArray';
 import { isAdvancedModeEnabledState } from '@/ui/navigation/navigation-drawer/states/isAdvancedModeEnabledState';
+import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
 import { useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import { useLingui } from '@lingui/react/macro';
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useRecoilValue } from 'recoil';
 import { SettingsPath } from 'twenty-shared/types';
 import { getSettingsPath } from 'twenty-shared/utils';
-import {
-  IconArchive,
-  IconChevronRight,
-  IconFilter,
-  IconSearch,
-  IconSettings,
-} from 'twenty-ui/display';
-import { Button } from 'twenty-ui/input';
+import { IconArchive, IconChevronRight, IconSettings } from 'twenty-ui/display';
+import { SearchInput } from 'twenty-ui/input';
 import { MenuItemToggle } from 'twenty-ui/navigation';
 import { GET_SETTINGS_OBJECT_TABLE_METADATA } from '~/pages/settings/data-model/constants/SettingsObjectTableMetadata';
 import type { SettingsObjectTableItem } from '~/pages/settings/data-model/types/SettingsObjectTableItem';
@@ -42,16 +35,8 @@ const StyledIconChevronRight = styled(IconChevronRight)`
   color: ${({ theme }) => theme.font.color.tertiary};
 `;
 
-const StyledSearchAndFilterContainer = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing(2)};
-  align-items: center;
+const StyledSearchInputContainer = styled.div`
   padding-bottom: ${({ theme }) => theme.spacing(2)};
-`;
-
-const StyledSearchInput = styled(SettingsTextInput)`
-  flex: 1;
-  width: 100%;
 `;
 
 export const SettingsObjectTable = ({
@@ -65,7 +50,7 @@ export const SettingsObjectTable = ({
 
   const theme = useTheme();
 
-  const isAdvancedModeEnabled = useRecoilValue(isAdvancedModeEnabledState);
+  const isAdvancedModeEnabled = useRecoilValueV2(isAdvancedModeEnabledState);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeactivated, setShowDeactivated] = useState(true);
@@ -75,11 +60,8 @@ export const SettingsObjectTable = ({
 
   const { updateOneObjectMetadataItem } = useUpdateOneObjectMetadataItem();
 
-  const { totalCountByObjectMetadataItemNamePlural } = useCombinedGetTotalCount(
-    {
-      objectMetadataItems,
-    },
-  );
+  const { totalCountByObjectMetadataItemNamePlural } =
+    useCombinedGetTotalCount();
 
   const currentWorkspace = useRecoilValue(currentWorkspaceState);
 
@@ -91,12 +73,12 @@ export const SettingsObjectTable = ({
             objectMetadataItem,
             labelPlural: objectMetadataItem.labelPlural,
             objectTypeLabel: getItemTagInfo({
-              objectMetadataItem,
+              item: objectMetadataItem,
               workspaceCustomApplicationId:
                 currentWorkspace?.workspaceCustomApplication?.id,
             }).labelText,
             fieldsCount: objectMetadataItem.fields.filter(
-              (field) => !field.isSystem,
+              (field) => !isHiddenSystemField(field),
             ).length,
             totalObjectCount:
               totalCountByObjectMetadataItemNamePlural[
@@ -146,53 +128,47 @@ export const SettingsObjectTable = ({
   return (
     <>
       {withSearchBar && (
-        <StyledSearchAndFilterContainer>
-          <StyledSearchInput
-            instanceId="settings-objects-search"
-            LeftIcon={IconSearch}
+        <StyledSearchInputContainer>
+          <SearchInput
             placeholder={t`Search for an object...`}
             value={searchTerm}
             onChange={setSearchTerm}
-          />
-          <Dropdown
-            dropdownId="settings-objects-filter-dropdown"
-            dropdownPlacement="bottom-end"
-            dropdownOffset={{ x: 0, y: 8 }}
-            clickableComponent={
-              <Button
-                Icon={IconFilter}
-                size="medium"
-                variant="secondary"
-                accent="default"
-                ariaLabel={t`Filter`}
+            filterDropdown={(filterButton: ReactNode) => (
+              <Dropdown
+                dropdownId="settings-objects-filter-dropdown"
+                dropdownPlacement="bottom-end"
+                dropdownOffset={{ x: 0, y: 8 }}
+                clickableComponent={filterButton}
+                dropdownComponents={
+                  <DropdownContent>
+                    <DropdownMenuItemsContainer>
+                      <MenuItemToggle
+                        LeftIcon={IconArchive}
+                        onToggleChange={() =>
+                          setShowDeactivated(!showDeactivated)
+                        }
+                        toggled={showDeactivated}
+                        text={t`Deactivated`}
+                        toggleSize="small"
+                      />
+                      {isAdvancedModeEnabled && (
+                        <MenuItemToggle
+                          LeftIcon={IconSettings}
+                          onToggleChange={() =>
+                            setShowSystemObjects(!showSystemObjects)
+                          }
+                          toggled={showSystemObjects}
+                          text={t`System objects`}
+                          toggleSize="small"
+                        />
+                      )}
+                    </DropdownMenuItemsContainer>
+                  </DropdownContent>
+                }
               />
-            }
-            dropdownComponents={
-              <DropdownContent>
-                <DropdownMenuItemsContainer>
-                  <MenuItemToggle
-                    LeftIcon={IconArchive}
-                    onToggleChange={() => setShowDeactivated(!showDeactivated)}
-                    toggled={showDeactivated}
-                    text={t`Deactivated`}
-                    toggleSize="small"
-                  />
-                  {isAdvancedModeEnabled && (
-                    <MenuItemToggle
-                      LeftIcon={IconSettings}
-                      onToggleChange={() =>
-                        setShowSystemObjects(!showSystemObjects)
-                      }
-                      toggled={showSystemObjects}
-                      text={t`System objects`}
-                      toggleSize="small"
-                    />
-                  )}
-                </DropdownMenuItemsContainer>
-              </DropdownContent>
-            }
+            )}
           />
-        </StyledSearchAndFilterContainer>
+        </StyledSearchInputContainer>
       )}
 
       <Table>

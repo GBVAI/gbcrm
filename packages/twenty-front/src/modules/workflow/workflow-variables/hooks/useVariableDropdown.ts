@@ -3,6 +3,7 @@ import { commandMenuNavigationStackState } from '@/command-menu/states/commandMe
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useSetRecoilComponentStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilComponentStateV2';
 import { workflowVisualizerWorkflowIdComponentState } from '@/workflow/states/workflowVisualizerWorkflowIdComponentState';
 import { workflowDiagramComponentState } from '@/workflow/workflow-diagram/states/workflowDiagramComponentState';
 import { workflowSelectedNodeComponentState } from '@/workflow/workflow-diagram/states/workflowSelectedNodeComponentState';
@@ -55,9 +56,9 @@ export const useVariableDropdown = ({
   const setWorkflowSelectedNode = useSetRecoilComponentState(
     workflowSelectedNodeComponentState,
   );
-  const setActiveTabId = useSetRecoilComponentState(
+  const setActiveTabId = useSetRecoilComponentStateV2(
     activeTabIdComponentState,
-    'workflow-serverless-function-tab-list-component-id',
+    'workflow-logic-function-tab-list-component-id',
   );
   const setWorkflowDiagram = useSetRecoilComponentState(
     workflowDiagramComponentState,

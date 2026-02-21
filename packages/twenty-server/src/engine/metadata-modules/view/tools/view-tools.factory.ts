@@ -2,100 +2,90 @@ import { Injectable } from '@nestjs/common';
 
 import { type ToolSet } from 'ai';
 import { z } from 'zod';
+import {
+  AggregateOperations,
+  ViewType,
+  ViewVisibility,
+} from 'twenty-shared/types';
 
 import { formatValidationErrors } from 'src/engine/core-modules/tool-provider/utils/format-validation-errors.util';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
-import { ViewType } from 'src/engine/metadata-modules/view/enums/view-type.enum';
-import { ViewVisibility } from 'src/engine/metadata-modules/view/enums/view-visibility.enum';
+import { buildObjectIdByNameMaps } from 'src/engine/metadata-modules/flat-object-metadata/utils/build-object-id-by-name-maps.util';
 import { ViewQueryParamsService } from 'src/engine/metadata-modules/view/services/view-query-params.service';
 import { ViewService } from 'src/engine/metadata-modules/view/services/view.service';
-import { WorkspaceMigrationBuilderExceptionV2 } from 'src/engine/workspace-manager/workspace-migration-v2/exceptions/workspace-migration-builder-exception-v2';
+import { WorkspaceMigrationBuilderException } from 'src/engine/workspace-manager/workspace-migration/exceptions/workspace-migration-builder-exception';
 
 const GetViewsInputSchema = z.object({
-  loadingMessage: z
+  objectNameSingular: z
     .string()
     .optional()
-    .describe('A clear description of the action being performed.'),
-  input: z.object({
-    objectNameSingular: z
-      .string()
-      .optional()
-      .describe(
-        'Filter views by object name (e.g., "task", "person", "company"). If omitted, returns all views.',
-      ),
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(100)
-      .default(50)
-      .describe('Maximum views to return.'),
-  }),
+    .describe(
+      'Filter views by object name (e.g., "task", "person", "company"). If omitted, returns all views.',
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(50)
+    .describe('Maximum views to return.'),
 });
 
 const GetViewQueryParamsInputSchema = z.object({
-  loadingMessage: z
+  viewId: z
     .string()
-    .optional()
-    .describe('A clear description of the action being performed.'),
-  input: z.object({
-    viewId: z
-      .string()
-      .uuid()
-      .describe('ID of the view to get query parameters for.'),
-  }),
+    .uuid()
+    .describe('ID of the view to get query parameters for.'),
 });
 
 const CreateViewInputSchema = z.object({
-  loadingMessage: z
+  name: z.string().describe('View name'),
+  objectNameSingular: z
+    .string()
+    .describe(
+      'Object name this view is for (e.g., "task", "person", "company")',
+    ),
+  icon: z
     .string()
     .optional()
-    .describe('A clear description of the action being performed.'),
-  input: z.object({
-    name: z.string().describe('View name'),
-    objectNameSingular: z
-      .string()
-      .describe(
-        'Object name this view is for (e.g., "task", "person", "company")',
-      ),
-    icon: z
-      .string()
-      .optional()
-      .default('IconList')
-      .describe('Icon identifier (e.g., "IconList", "IconCheckbox")'),
-    type: z
-      .enum([ViewType.TABLE, ViewType.KANBAN, ViewType.CALENDAR])
-      .optional()
-      .default(ViewType.TABLE)
-      .describe('View type'),
-    visibility: z
-      .enum([ViewVisibility.WORKSPACE, ViewVisibility.UNLISTED])
-      .optional()
-      .default(ViewVisibility.WORKSPACE)
-      .describe('View visibility'),
-  }),
+    .default('IconList')
+    .describe('Icon identifier (e.g., "IconList", "IconCheckbox")'),
+  type: z
+    .enum([ViewType.TABLE, ViewType.KANBAN, ViewType.CALENDAR])
+    .optional()
+    .default(ViewType.TABLE)
+    .describe('View type'),
+  visibility: z
+    .enum([ViewVisibility.WORKSPACE, ViewVisibility.UNLISTED])
+    .optional()
+    .default(ViewVisibility.WORKSPACE)
+    .describe('View visibility'),
+  mainGroupByFieldName: z
+    .string()
+    .optional()
+    .describe(
+      'Field name to group by (required for KANBAN views, must be a SELECT field, e.g., "stage", "status")',
+    ),
+  kanbanAggregateOperation: z
+    .enum(Object.values(AggregateOperations) as [string, ...string[]])
+    .optional()
+    .describe(
+      'Aggregate operation for kanban columns (e.g., "SUM", "AVG", "COUNT")',
+    ),
+  kanbanAggregateOperationFieldName: z
+    .string()
+    .optional()
+    .describe('Field name for the kanban aggregate operation (e.g., "amount")'),
 });
 
 const UpdateViewInputSchema = z.object({
-  loadingMessage: z
-    .string()
-    .optional()
-    .describe('A clear description of the action being performed.'),
-  input: z.object({
-    id: z.string().uuid().describe('View ID to update'),
-    name: z.string().optional().describe('New view name'),
-    icon: z.string().optional().describe('New icon identifier'),
-  }),
+  id: z.string().uuid().describe('View ID to update'),
+  name: z.string().optional().describe('New view name'),
+  icon: z.string().optional().describe('New icon identifier'),
 });
 
 const DeleteViewInputSchema = z.object({
-  loadingMessage: z
-    .string()
-    .optional()
-    .describe('A clear description of the action being performed.'),
-  input: z.object({
-    id: z.string().uuid().describe('View ID to delete'),
-  }),
+  id: z.string().uuid().describe('View ID to delete'),
 });
 
 @Injectable()
@@ -118,17 +108,49 @@ export class ViewToolsFactory {
         },
       );
 
-    const objectMetadata = Object.values(flatObjectMetadataMaps.byId).find(
-      (obj) => obj?.nameSingular === objectNameSingular,
+    const { idByNameSingular } = buildObjectIdByNameMaps(
+      flatObjectMetadataMaps,
     );
 
-    if (!objectMetadata) {
+    const objectMetadataId = idByNameSingular[objectNameSingular];
+
+    if (!objectMetadataId) {
       throw new Error(
         `Object "${objectNameSingular}" not found. Use get_object_metadata to list available objects.`,
       );
     }
 
-    return objectMetadata.id;
+    return objectMetadataId;
+  }
+
+  private async resolveFieldMetadataId(
+    workspaceId: string,
+    objectMetadataId: string,
+    fieldName: string,
+  ): Promise<string> {
+    const { flatFieldMetadataMaps } =
+      await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+        {
+          workspaceId,
+          flatMapsKeys: ['flatFieldMetadataMaps'],
+        },
+      );
+
+    const fieldMetadata = Object.values(
+      flatFieldMetadataMaps.byUniversalIdentifier,
+    ).find(
+      (field) =>
+        field?.name === fieldName &&
+        field?.objectMetadataId === objectMetadataId,
+    );
+
+    if (!fieldMetadata) {
+      throw new Error(
+        `Field "${fieldName}" not found on this object. Use get_field_metadata to list available fields.`,
+      );
+    }
+
+    return fieldMetadata.id;
   }
 
   generateReadTools(
@@ -142,14 +164,15 @@ export class ViewToolsFactory {
           'List views in the workspace. Views define how records are displayed, filtered, and sorted.',
         inputSchema: GetViewsInputSchema,
         execute: async (parameters: {
-          input: { objectNameSingular?: string; limit?: number };
+          objectNameSingular?: string;
+          limit?: number;
         }) => {
           let views;
 
-          if (parameters.input.objectNameSingular) {
+          if (parameters.objectNameSingular) {
             const objectMetadataId = await this.resolveObjectMetadataId(
               workspaceId,
-              parameters.input.objectNameSingular,
+              parameters.objectNameSingular,
             );
 
             views = await this.viewService.findByObjectMetadataId(
@@ -164,7 +187,7 @@ export class ViewToolsFactory {
             );
           }
 
-          const limitedViews = views.slice(0, parameters.input.limit ?? 50);
+          const limitedViews = views.slice(0, parameters.limit ?? 50);
 
           return limitedViews.map((view) => ({
             id: view.id,
@@ -181,9 +204,9 @@ export class ViewToolsFactory {
         description:
           'Get filter and sort parameters from a view. Use these parameters with find_* tools to query records matching the view.',
         inputSchema: GetViewQueryParamsInputSchema,
-        execute: async (parameters: { input: { viewId: string } }) => {
+        execute: async (parameters: { viewId: string }) => {
           return this.viewQueryParamsService.resolveViewToQueryParams(
-            parameters.input.viewId,
+            parameters.viewId,
             workspaceId,
             currentWorkspaceMemberId,
           );
@@ -196,31 +219,55 @@ export class ViewToolsFactory {
     return {
       create_view: {
         description:
-          'Create a new view for an object. Views define how records are displayed.',
+          'Create a new view for an object. Views define how records are displayed. For KANBAN views, mainGroupByFieldName is required and must be a SELECT field (e.g., "stage", "status").',
         inputSchema: CreateViewInputSchema,
         execute: async (parameters: {
-          input: {
-            name: string;
-            objectNameSingular: string;
-            icon?: string;
-            type?: ViewType;
-            visibility?: ViewVisibility;
-          };
+          name: string;
+          objectNameSingular: string;
+          icon?: string;
+          type?: ViewType;
+          visibility?: ViewVisibility;
+          mainGroupByFieldName?: string;
+          kanbanAggregateOperation?: string;
+          kanbanAggregateOperationFieldName?: string;
         }) => {
           try {
             const objectMetadataId = await this.resolveObjectMetadataId(
               workspaceId,
-              parameters.input.objectNameSingular,
+              parameters.objectNameSingular,
             );
+
+            let mainGroupByFieldMetadataId: string | undefined;
+            let kanbanAggregateOperationFieldMetadataId: string | undefined;
+
+            if (parameters.mainGroupByFieldName) {
+              mainGroupByFieldMetadataId = await this.resolveFieldMetadataId(
+                workspaceId,
+                objectMetadataId,
+                parameters.mainGroupByFieldName,
+              );
+            }
+
+            if (parameters.kanbanAggregateOperationFieldName) {
+              kanbanAggregateOperationFieldMetadataId =
+                await this.resolveFieldMetadataId(
+                  workspaceId,
+                  objectMetadataId,
+                  parameters.kanbanAggregateOperationFieldName,
+                );
+            }
 
             const view = await this.viewService.createOne({
               createViewInput: {
-                name: parameters.input.name,
+                name: parameters.name,
                 objectMetadataId,
-                icon: parameters.input.icon ?? 'IconList',
-                type: parameters.input.type ?? ViewType.TABLE,
-                visibility:
-                  parameters.input.visibility ?? ViewVisibility.WORKSPACE,
+                icon: parameters.icon ?? 'IconList',
+                type: parameters.type ?? ViewType.TABLE,
+                visibility: parameters.visibility ?? ViewVisibility.WORKSPACE,
+                mainGroupByFieldMetadataId,
+                kanbanAggregateOperation:
+                  parameters.kanbanAggregateOperation as AggregateOperations,
+                kanbanAggregateOperationFieldMetadataId,
               },
               workspaceId,
               createdByUserWorkspaceId: userWorkspaceId,
@@ -229,13 +276,13 @@ export class ViewToolsFactory {
             return {
               id: view.id,
               name: view.name,
-              objectNameSingular: parameters.input.objectNameSingular,
+              objectNameSingular: parameters.objectNameSingular,
               type: view.type,
               icon: view.icon,
               visibility: view.visibility,
             };
           } catch (error) {
-            if (error instanceof WorkspaceMigrationBuilderExceptionV2) {
+            if (error instanceof WorkspaceMigrationBuilderException) {
               throw new Error(formatValidationErrors(error));
             }
             throw error;
@@ -247,20 +294,18 @@ export class ViewToolsFactory {
           'Update an existing view. You can change the name and icon.',
         inputSchema: UpdateViewInputSchema,
         execute: async (parameters: {
-          input: {
-            id: string;
-            name?: string;
-            icon?: string;
-          };
+          id: string;
+          name?: string;
+          icon?: string;
         }) => {
           try {
             const existingView = await this.viewService.findById(
-              parameters.input.id,
+              parameters.id,
               workspaceId,
             );
 
             if (!existingView) {
-              throw new Error(`View with id ${parameters.input.id} not found`);
+              throw new Error(`View with id ${parameters.id} not found`);
             }
 
             if (
@@ -272,9 +317,9 @@ export class ViewToolsFactory {
 
             const view = await this.viewService.updateOne({
               updateViewInput: {
-                id: parameters.input.id,
-                name: parameters.input.name,
-                icon: parameters.input.icon,
+                id: parameters.id,
+                name: parameters.name,
+                icon: parameters.icon,
               },
               workspaceId,
               userWorkspaceId,
@@ -289,7 +334,7 @@ export class ViewToolsFactory {
               visibility: view.visibility,
             };
           } catch (error) {
-            if (error instanceof WorkspaceMigrationBuilderExceptionV2) {
+            if (error instanceof WorkspaceMigrationBuilderException) {
               throw new Error(formatValidationErrors(error));
             }
             throw error;
@@ -299,15 +344,15 @@ export class ViewToolsFactory {
       delete_view: {
         description: 'Delete a view by its ID.',
         inputSchema: DeleteViewInputSchema,
-        execute: async (parameters: { input: { id: string } }) => {
+        execute: async (parameters: { id: string }) => {
           try {
             const existingView = await this.viewService.findById(
-              parameters.input.id,
+              parameters.id,
               workspaceId,
             );
 
             if (!existingView) {
-              throw new Error(`View with id ${parameters.input.id} not found`);
+              throw new Error(`View with id ${parameters.id} not found`);
             }
 
             if (
@@ -318,7 +363,7 @@ export class ViewToolsFactory {
             }
 
             const view = await this.viewService.deleteOne({
-              deleteViewInput: { id: parameters.input.id },
+              deleteViewInput: { id: parameters.id },
               workspaceId,
             });
 
@@ -328,7 +373,7 @@ export class ViewToolsFactory {
               deleted: true,
             };
           } catch (error) {
-            if (error instanceof WorkspaceMigrationBuilderExceptionV2) {
+            if (error instanceof WorkspaceMigrationBuilderException) {
               throw new Error(formatValidationErrors(error));
             }
             throw error;

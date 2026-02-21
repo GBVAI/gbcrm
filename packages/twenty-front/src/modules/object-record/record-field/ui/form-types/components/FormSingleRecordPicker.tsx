@@ -1,4 +1,3 @@
-import { t } from '@lingui/core/macro';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { FormFieldInputContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputContainer';
 import { FormFieldInputInnerContainer } from '@/object-record/record-field/ui/form-types/components/FormFieldInputInnerContainer';
@@ -17,6 +16,7 @@ import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state
 import { isStandaloneVariableString } from '@/workflow/utils/isStandaloneVariableString';
 import { css, useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
+import { t } from '@lingui/core/macro';
 import { isNonEmptyString } from '@sniptt/guards';
 import { useCallback, useId } from 'react';
 import { CustomError, isDefined, isValidUuid } from 'twenty-shared/utils';
@@ -63,6 +63,7 @@ export type FormSingleRecordPickerProps = {
   label?: string;
   defaultValue?: RecordId | Variable;
   onChange: (value: RecordId | Variable | null) => void;
+  onClear?: () => void;
   objectNameSingulars: string[];
   disabled?: boolean;
   testId?: string;
@@ -74,6 +75,7 @@ export const FormSingleRecordPicker = ({
   defaultValue,
   objectNameSingulars,
   onChange,
+  onClear,
   disabled,
   testId,
   VariablePicker,
@@ -127,7 +129,7 @@ export const FormSingleRecordPicker = ({
     selectedMorphItem: RecordPickerPickableMorphItem | null | undefined,
   ) => {
     if (!isNonEmptyString(selectedMorphItem?.recordId)) {
-      onChange(null);
+      onClear?.();
 
       return;
     }
@@ -143,7 +145,7 @@ export const FormSingleRecordPicker = ({
   const handleUnlinkVariable = (event?: React.MouseEvent<HTMLDivElement>) => {
     // Prevents the dropdown to open when clicking on the chip
     event?.stopPropagation();
-    onChange(null);
+    onClear?.();
   };
 
   const setRecordPickerSelectedId = useSetRecoilComponentState(
@@ -159,8 +161,6 @@ export const FormSingleRecordPicker = ({
       setRecordPickerSelectedId(draftValue.value);
     }
   };
-
-  const objectNames = objectNameSingulars.join(' or ');
 
   return (
     <FormFieldInputContainer data-testid={testId}>
@@ -214,7 +214,7 @@ export const FormSingleRecordPicker = ({
                 focusId={dropdownId}
                 componentInstanceId={dropdownId}
                 EmptyIcon={IconForbid}
-                emptyLabel={t`No ${objectNames}`}
+                emptyLabel={t`No records`}
                 onCancel={() => closeDropdown(dropdownId)}
                 onMorphItemSelected={handleMorphItemSelected}
                 objectNameSingulars={objectNameSingulars}

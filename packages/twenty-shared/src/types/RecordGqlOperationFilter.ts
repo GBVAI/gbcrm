@@ -103,6 +103,7 @@ export type LinksFilter = {
 export type ActorFilter = {
   name?: StringFilter;
   source?: SelectFilter;
+  workspaceMemberId?: UUIDFilter;
 };
 
 export type EmailsFilter = {
@@ -140,6 +141,11 @@ export type RawJsonFilter = {
   is?: IsFilter;
 };
 
+export type FilesFilter = {
+  like?: string;
+  is?: IsFilter;
+};
+
 export type RichTextV2LeafFilter = {
   ilike?: string;
 };
@@ -169,6 +175,7 @@ export type LeafFilter =
   | PhonesFilter
   | ArrayFilter
   | RawJsonFilter
+  | FilesFilter
   | RichTextV2Filter
   | TSVectorFilter
   | undefined;

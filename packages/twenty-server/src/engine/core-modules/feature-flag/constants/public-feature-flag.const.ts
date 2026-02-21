@@ -3,7 +3,7 @@ import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/featu
 type FeatureFlagMetadata = {
   label: string;
   description: string;
-  imagePath: string;
+  imagePath?: string;
 };
 
 export type PublicFeatureFlag = {
@@ -13,11 +13,20 @@ export type PublicFeatureFlag = {
 
 export const PUBLIC_FEATURE_FLAGS: PublicFeatureFlag[] = [
   {
-    key: FeatureFlagKey.IS_PAGE_LAYOUT_ENABLED,
+    key: FeatureFlagKey.IS_JUNCTION_RELATIONS_ENABLED,
     metadata: {
-      label: 'Dashboards',
-      description: 'Enable dashboards',
-      imagePath: 'https://twenty.com/images/lab/is-dashboards-enabled.png',
+      label: 'Junction Relations',
+      description:
+        'Enable many-to-many relations through junction tables configuration',
+    },
+  },
+  {
+    key: FeatureFlagKey.IS_ROW_LEVEL_PERMISSION_PREDICATES_ENABLED,
+    metadata: {
+      label: 'Row Level Permissions',
+      description: 'Enable row level permission',
+      imagePath:
+        'https://twenty.com/images/lab/is-row-level-permission-predicates-enabled.png',
     },
   },
   ...(process.env.CLOUDFLARE_API_KEY

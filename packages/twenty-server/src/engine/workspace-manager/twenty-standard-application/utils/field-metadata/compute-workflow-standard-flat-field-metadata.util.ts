@@ -11,7 +11,7 @@ import {
   createStandardFieldFlatMetadata,
 } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-field-flat-metadata.util';
 import { createStandardRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-relation-field-flat-metadata.util';
-import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/workspace-sync-metadata/utils/get-ts-vector-column-expression.util';
+import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/utils/get-ts-vector-column-expression.util';
 import { SEARCH_FIELDS_FOR_WORKFLOWS } from 'src/modules/workflow/common/standard-objects/workflow.workspace-entity';
 
 export const buildWorkflowStandardFlatFieldMetadatas = ({
@@ -53,6 +53,7 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Creation date',
       description: 'Creation date',
       icon: 'IconCalendar',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -72,6 +73,7 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Last update',
       description: 'Last time the record was changed',
       icon: 'IconCalendarClock',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -91,6 +93,7 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Deleted at',
       description: 'Date when the record was deleted',
       icon: 'IconCalendarMinus',
+      isSystem: true,
       isNullable: true,
       isUIReadOnly: true,
       settings: { displayFormat: DateDisplayFormat.RELATIVE },
@@ -145,9 +148,22 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       isNullable: true,
       isUIReadOnly: true,
       options: [
-        { value: 'DRAFT', label: 'Draft', position: 0, color: 'yellow' },
-        { value: 'ACTIVE', label: 'Active', position: 1, color: 'green' },
         {
+          id: '20202020-e9d8-41df-8262-31bb04948366',
+          value: 'DRAFT',
+          label: 'Draft',
+          position: 0,
+          color: 'yellow',
+        },
+        {
+          id: '20202020-e47e-4d57-913a-7b29e1f140ef',
+          value: 'ACTIVE',
+          label: 'Active',
+          position: 1,
+          color: 'green',
+        },
+        {
+          id: '20202020-bdfa-4d35-bf5c-e410cccfc765',
           value: 'DEACTIVATED',
           label: 'Deactivated',
           position: 2,
@@ -187,6 +203,30 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Created by',
       description: 'The creator of the record',
       icon: 'IconCreativeCommonsSa',
+      isSystem: true,
+      isUIReadOnly: true,
+      isNullable: false,
+      defaultValue: {
+        source: "'MANUAL'",
+        name: "'System'",
+        workspaceMemberId: null,
+      },
+    },
+    standardObjectMetadataRelatedEntityIds,
+    dependencyFlatEntityMaps,
+    twentyStandardApplicationId,
+    now,
+  }),
+  updatedBy: createStandardFieldFlatMetadata({
+    objectName,
+    workspaceId,
+    context: {
+      fieldName: 'updatedBy',
+      type: FieldMetadataType.ACTOR,
+      label: 'Updated by',
+      description: 'The workspace member who last updated the record',
+      icon: 'IconUserCircle',
+      isSystem: true,
       isUIReadOnly: true,
       isNullable: false,
       defaultValue: {
@@ -279,7 +319,6 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Automated Triggers',
       description: 'Workflow automated triggers linked to the workflow.',
       icon: 'IconSettingsAutomation',
-      isSystem: true,
       isUIReadOnly: true,
       isNullable: false,
       targetObjectName: 'workflowAutomatedTrigger',
@@ -303,7 +342,6 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Favorites',
       description: 'Favorites linked to the workflow',
       icon: 'IconHeart',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'favorite',
       targetFieldName: 'workflow',
@@ -326,7 +364,6 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Timeline Activities',
       description: 'Timeline activities linked to the workflow',
       icon: 'IconTimelineEvent',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'timelineActivity',
       targetFieldName: 'targetWorkflow',
@@ -349,10 +386,9 @@ export const buildWorkflowStandardFlatFieldMetadatas = ({
       label: 'Attachments',
       description: 'Attachments linked to the workflow',
       icon: 'IconFileUpload',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'attachment',
-      targetFieldName: 'workflow',
+      targetFieldName: 'targetWorkflow',
       settings: {
         relationType: RelationType.ONE_TO_MANY,
       },

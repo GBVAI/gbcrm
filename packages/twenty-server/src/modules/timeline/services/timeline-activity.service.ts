@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
+import { type ObjectRecordBaseEvent } from 'twenty-shared/database-events';
 import { type ObjectRecord } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import { In } from 'typeorm';
-import { type ObjectRecordBaseEvent } from 'twenty-shared/database-events';
 
 import { getFlatFieldsFromFlatObjectMetadata } from 'src/engine/api/graphql/workspace-schema-builder/utils/get-flat-fields-for-flat-object-metadata.util';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
 import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
 import { InjectObjectMetadataRepository } from 'src/engine/object-metadata-repository/object-metadata-repository.decorator';
@@ -15,12 +14,14 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 import { WorkspaceEventBatch } from 'src/engine/workspace-event-emitter/types/workspace-event-batch.type';
 import { parseEventNameOrThrow } from 'src/engine/workspace-event-emitter/utils/parse-event-name';
 import { NoteWorkspaceEntity } from 'src/modules/note/standard-objects/note.workspace-entity';
+import { PhoneCallWorkspaceEntity } from 'src/modules/phone-call/standard-objects/phone-call.workspace-entity';
 import { TaskWorkspaceEntity } from 'src/modules/task/standard-objects/task.workspace-entity';
 import { TimelineActivityRepository } from 'src/modules/timeline/repositories/timeline-activity.repository';
 import { TimelineActivityWorkspaceEntity } from 'src/modules/timeline/standard-objects/timeline-activity.workspace-entity';
 import { type TimelineActivityPayload } from 'src/modules/timeline/types/timeline-activity-payload';
+import { extractObjectSingularNameFromTargetColumnName } from 'src/modules/timeline/utils/extract-object-singular-name-from-target-column-name.util';
 
-type ActivityType = 'note' | 'task';
+type ActivityType = 'note' | 'task' | 'phoneCall';
 
 @Injectable()
 export class TimelineActivityService {
@@ -35,6 +36,7 @@ export class TimelineActivityService {
   private targetObjects: Record<ActivityType, string> = {
     note: 'noteTarget',
     task: 'taskTarget',
+    phoneCall: 'phoneCallTarget',
   };
 
   async upsertEvents({
@@ -67,7 +69,7 @@ export class TimelineActivityService {
     const payloadsByObjectSingularName = timelineActivitiesPayloads.reduce(
       (acc, payload) => {
         const computedObjectSingularName =
-          payload.overrideObjectSingularName ?? objectSingularName;
+          payload.objectSingularName ?? objectSingularName;
 
         acc[computedObjectSingularName] = [
           ...(acc[computedObjectSingularName] || []),
@@ -79,18 +81,11 @@ export class TimelineActivityService {
       {} as Record<string, TimelineActivityPayload[]>,
     );
 
-    const isFeatureFlagTimelineActivityMigrated =
-      await this.featureFlagService.isFeatureEnabled(
-        FeatureFlagKey.IS_TIMELINE_ACTIVITY_MIGRATED,
-        workspaceId,
-      );
-
     for (const objectSingularName in payloadsByObjectSingularName) {
       await this.timelineActivityRepository.upsertTimelineActivities({
         objectSingularName,
         workspaceId,
         payloads: payloadsByObjectSingularName[objectSingularName],
-        isFeatureFlagTimelineActivityMigrated,
       });
     }
   }
@@ -149,13 +144,42 @@ export class TimelineActivityService {
       ];
     }
 
+    if (objectSingularName === 'phoneCall') {
+      const phoneCallEventsTimelineActivities =
+        await this.computeTimelineActivityPayloadsForActivities({
+          events: events as ObjectRecordBaseEvent<PhoneCallWorkspaceEntity>[],
+          activityType: 'phoneCall',
+          workspaceId,
+          objectMetadata,
+          name,
+        });
+
+      return [
+        ...phoneCallEventsTimelineActivities,
+        ...(events.map((event) => ({
+          name,
+          objectSingularName,
+          recordId: event.recordId,
+          workspaceMemberId: event.workspaceMemberId,
+          properties: event.properties,
+        })) satisfies TimelineActivityPayload[]),
+      ];
+    }
+
     if (
       objectSingularName === 'noteTarget' ||
-      objectSingularName === 'taskTarget'
+      objectSingularName === 'taskTarget' ||
+      objectSingularName === 'phoneCallTarget'
     ) {
+      const activityTypeMap: Record<string, ActivityType> = {
+        noteTarget: 'note',
+        taskTarget: 'task',
+        phoneCallTarget: 'phoneCall',
+      };
+
       return await this.computeTimelineActivityPayloadsForActivityTargets({
         events,
-        activityType: objectSingularName === 'noteTarget' ? 'note' : 'task',
+        activityType: activityTypeMap[objectSingularName],
         workspaceId,
         objectMetadata,
         name,
@@ -178,7 +202,9 @@ export class TimelineActivityService {
     workspaceId,
     objectMetadata,
   }: WorkspaceEventBatch<
-    ObjectRecordBaseEvent<NoteWorkspaceEntity | TaskWorkspaceEntity>
+    ObjectRecordBaseEvent<
+      NoteWorkspaceEntity | TaskWorkspaceEntity | PhoneCallWorkspaceEntity
+    >
   > & {
     activityType: ActivityType;
   }): Promise<TimelineActivityPayload[]> {
@@ -192,7 +218,6 @@ export class TimelineActivityService {
 
     const activityTargets =
       await this.globalWorkspaceOrmManager.executeInWorkspaceContext(
-        authContext,
         async () => {
           const activityTargetRepository =
             await this.globalWorkspaceOrmManager.getRepository(
@@ -209,6 +234,7 @@ export class TimelineActivityService {
             },
           });
         },
+        authContext,
       );
 
     if (activityTargets.length === 0) {
@@ -255,7 +281,7 @@ export class TimelineActivityService {
             linkedRecordId: activityId,
             linkedObjectMetadataId: objectMetadata.id,
             properties: event.properties,
-            overrideObjectSingularName: objectMetadata.nameSingular,
+            objectSingularName: objectMetadata.nameSingular,
           } satisfies TimelineActivityPayload;
         });
       })
@@ -277,7 +303,6 @@ export class TimelineActivityService {
 
     const activities =
       await this.globalWorkspaceOrmManager.executeInWorkspaceContext(
-        authContext,
         async () => {
           const activityRepository =
             await this.globalWorkspaceOrmManager.getRepository(
@@ -303,6 +328,7 @@ export class TimelineActivityService {
             },
           });
         },
+        authContext,
       );
 
     if (activities.length === 0) {
@@ -361,9 +387,12 @@ export class TimelineActivityService {
           targetColumnName
         ];
 
+        const objectSingularName =
+          extractObjectSingularNameFromTargetColumnName(targetColumnName);
+
         return {
           name: `linked-${activityType}.${action}`,
-          overrideObjectSingularName: targetColumnName.replace(/Id$/, ''),
+          objectSingularName,
           recordId,
           linkedRecordCachedName: activity.title,
           linkedRecordId: activity.id,

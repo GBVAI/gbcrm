@@ -1,5 +1,6 @@
 import { ActivityTargetsInlineCell } from '@/activities/inline-cell/components/ActivityTargetsInlineCell';
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
+import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { type CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { formatFieldMetadataItemAsColumnDefinition } from '@/object-metadata/utils/formatFieldMetadataItemAsColumnDefinition';
 import { useObjectPermissions } from '@/object-record/hooks/useObjectPermissions';
@@ -15,6 +16,7 @@ import { RecordFieldListComponentInstanceContext } from '@/object-record/record-
 import { recordFieldListHoverPositionComponentState } from '@/object-record/record-field-list/states/recordFieldListHoverPositionComponentState';
 import { FieldContext } from '@/object-record/record-field/ui/contexts/FieldContext';
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
+import { isJunctionRelationForbidden } from '@/object-record/record-field/ui/utils/junction/isJunctionRelationForbidden';
 import { RecordInlineCell } from '@/object-record/record-inline-cell/components/RecordInlineCell';
 import { PropertyBox } from '@/object-record/record-inline-cell/property-box/components/PropertyBox';
 import { PropertyBoxSkeletonLoader } from '@/object-record/record-inline-cell/property-box/components/PropertyBoxSkeletonLoader';
@@ -53,10 +55,10 @@ export const RecordFieldList = ({
   });
 
   const { objectPermissionsByObjectMetadataId } = useObjectPermissions();
+  const { objectMetadataItems } = useObjectMetadataItems();
 
   const { useUpdateOneObjectRecordMutation } = useRecordShowContainerActions({
     objectNameSingular,
-    objectRecordId,
   });
 
   const isRecordReadOnly = useIsRecordReadOnly({
@@ -75,7 +77,7 @@ export const RecordFieldList = ({
 
   const {
     inlineFieldMetadataItems,
-    inlineRelationFieldMetadataItems,
+    legacyActivityTargetFieldMetadataItems,
     boxedRelationFieldMetadataItems,
   } = useFieldListFieldMetadataItems({
     objectNameSingular,
@@ -95,7 +97,7 @@ export const RecordFieldList = ({
           <PropertyBoxSkeletonLoader />
         ) : (
           <>
-            {inlineRelationFieldMetadataItems?.map(
+            {legacyActivityTargetFieldMetadataItems?.map(
               (fieldMetadataItem, index) => (
                 <FieldContext.Provider
                   key={objectRecordId + fieldMetadataItem.id}
@@ -180,13 +182,20 @@ export const RecordFieldList = ({
                   }),
                   onMouseEnter: () =>
                     handleMouseEnter(
-                      index + (inlineRelationFieldMetadataItems?.length ?? 0),
+                      index +
+                        (legacyActivityTargetFieldMetadataItems?.length ?? 0),
                     ),
                   anchorId: `${getRecordFieldInputInstanceId({
                     recordId: objectRecordId,
                     fieldName: fieldMetadataItem.name,
                     prefix: instanceId,
                   })}`,
+                  isForbidden: isJunctionRelationForbidden({
+                    fieldMetadataItem,
+                    sourceObjectMetadataId: objectMetadataItem.id,
+                    objectMetadataItems,
+                    objectPermissionsByObjectMetadataId,
+                  }),
                 }}
               >
                 <RecordFieldComponentInstanceContext.Provider

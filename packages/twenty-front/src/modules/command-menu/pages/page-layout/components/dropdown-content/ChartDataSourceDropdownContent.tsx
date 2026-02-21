@@ -15,7 +15,7 @@ import { SelectableList } from '@/ui/layout/selectable-list/components/Selectabl
 import { SelectableListItem } from '@/ui/layout/selectable-list/components/SelectableListItem';
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
@@ -44,7 +44,7 @@ export const ChartDataSourceDropdownContent = () => {
     DropdownComponentInstanceContext,
   );
 
-  const selectedItemId = useRecoilComponentValue(
+  const selectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     dropdownId,
   );
@@ -91,17 +91,17 @@ export const ChartDataSourceDropdownContent = () => {
       updateCurrentWidgetConfig({
         objectMetadataId: newObjectMetadataItemId,
         configToUpdate: {
-          aggregateFieldMetadataId: null,
-          primaryAxisGroupByFieldMetadataId: null,
-          primaryAxisGroupBySubFieldName: null,
-          secondaryAxisGroupByFieldMetadataId: null,
-          secondaryAxisGroupBySubFieldName: null,
-          primaryAxisOrderBy: null,
-          secondaryAxisOrderBy: null,
-          groupByFieldMetadataId: null,
-          groupBySubFieldName: null,
+          aggregateFieldMetadataId: undefined,
+          primaryAxisGroupByFieldMetadataId: undefined,
+          primaryAxisGroupBySubFieldName: undefined,
+          secondaryAxisGroupByFieldMetadataId: undefined,
+          secondaryAxisGroupBySubFieldName: undefined,
+          primaryAxisOrderBy: undefined,
+          secondaryAxisOrderBy: undefined,
+          groupByFieldMetadataId: undefined,
+          groupBySubFieldName: undefined,
           filter: {},
-          ratioAggregateConfig: null,
+          ratioAggregateConfig: undefined,
         },
       });
 

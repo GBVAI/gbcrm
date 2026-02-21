@@ -1,4 +1,5 @@
 import { isNonEmptyString } from '@sniptt/guards';
+import { Temporal } from 'temporal-polyfill';
 
 import {
   FieldMetadataType,
@@ -9,6 +10,7 @@ import {
   type BooleanFilter,
   type CurrencyFilter,
   type DateFilter,
+  type FilesFilter,
   type FloatFilter,
   type MultiSelectFilter,
   type PhonesFilter,
@@ -51,7 +53,6 @@ import {
 import { arrayOfStringsOrVariablesSchema } from '@/utils/filter/utils/validation-schemas/arrayOfStringsOrVariablesSchema';
 import { arrayOfUuidOrVariableSchema } from '@/utils/filter/utils/validation-schemas/arrayOfUuidsOrVariablesSchema';
 import { jsonRelationFilterValueSchema } from '@/utils/filter/utils/validation-schemas/jsonRelationFilterValueSchema';
-import { Temporal } from 'temporal-polyfill';
 
 type FieldShared = {
   id: string;
@@ -62,7 +63,7 @@ type FieldShared = {
 
 type TurnRecordFilterIntoRecordGqlOperationFilterParams = {
   filterValueDependencies: RecordFilterValueDependencies;
-  recordFilter: RecordFilter;
+  recordFilter: Omit<RecordFilter, 'id'>;
   fieldMetadataItems: FieldShared[];
 };
 
@@ -167,8 +168,32 @@ export const turnRecordFilterIntoRecordGqlOperationFilter = ({
             `Unknown operand ${recordFilter.operand} for ${filterType} filter`,
           );
       }
+    case 'FILES':
+      switch (recordFilter.operand) {
+        case RecordFilterOperand.CONTAINS:
+          return {
+            [correspondingFieldMetadataItem.name]: {
+              like: `%${recordFilter.value}%`,
+            } as FilesFilter,
+          };
+        case RecordFilterOperand.DOES_NOT_CONTAIN:
+          return {
+            not: {
+              [correspondingFieldMetadataItem.name]: {
+                like: `%${recordFilter.value}%`,
+              } as FilesFilter,
+            },
+          };
+        default:
+          throw new Error(
+            `Unknown operand ${recordFilter.operand} for ${filterType} filter`,
+          );
+      }
     case 'DATE': {
-      if (recordFilter.operand === RecordFilterOperand.IS_RELATIVE) {
+      const itsARelativeDateFilter =
+        recordFilter.operand === RecordFilterOperand.IS_RELATIVE;
+
+      if (itsARelativeDateFilter) {
         const relativeDateFilterValue = resolveRelativeDateFilterStringified(
           recordFilter.value,
         );
@@ -204,62 +229,75 @@ export const turnRecordFilterIntoRecordGqlOperationFilter = ({
         };
       }
 
-      const nowAsPlainDate = Temporal.Now.plainDateISO(
-        filterValueDependencies.timeZone,
-      ).toString();
+      const operandIsTakingNowAsReference =
+        recordFilter.operand === RecordFilterOperand.IS_TODAY ||
+        recordFilter.operand === RecordFilterOperand.IS_IN_PAST ||
+        recordFilter.operand === RecordFilterOperand.IS_IN_FUTURE;
 
-      const plainDateFilter = recordFilter.value;
+      if (operandIsTakingNowAsReference) {
+        const nowAsPlainDate = Temporal.Now.plainDateISO(
+          filterValueDependencies.timeZone,
+        ).toString();
 
-      switch (recordFilter.operand) {
-        case RecordFilterOperand.IS_AFTER: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              gte: plainDateFilter,
-            } as DateFilter,
-          };
+        switch (recordFilter.operand) {
+          case RecordFilterOperand.IS_IN_PAST:
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                lt: nowAsPlainDate,
+              } as DateFilter,
+            };
+          case RecordFilterOperand.IS_IN_FUTURE:
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                gte: nowAsPlainDate,
+              } as DateFilter,
+            };
+          case RecordFilterOperand.IS_TODAY: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                eq: nowAsPlainDate,
+              } as DateFilter,
+            };
+          }
         }
-        case RecordFilterOperand.IS_BEFORE: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              lt: plainDateFilter,
-            } as DateFilter,
-          };
-        }
+      } else {
+        const plainDateFilter = recordFilter.value;
 
-        case RecordFilterOperand.IS: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              eq: plainDateFilter,
-            } as DateFilter,
-          };
+        switch (recordFilter.operand) {
+          case RecordFilterOperand.IS_AFTER: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                gte: plainDateFilter,
+              } as DateFilter,
+            };
+          }
+          case RecordFilterOperand.IS_BEFORE: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                lt: plainDateFilter,
+              } as DateFilter,
+            };
+          }
+
+          case RecordFilterOperand.IS: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                eq: plainDateFilter,
+              } as DateFilter,
+            };
+          }
         }
-        case RecordFilterOperand.IS_IN_PAST:
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              lt: nowAsPlainDate,
-            } as DateFilter,
-          };
-        case RecordFilterOperand.IS_IN_FUTURE:
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              gte: nowAsPlainDate,
-            } as DateFilter,
-          };
-        case RecordFilterOperand.IS_TODAY: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              eq: nowAsPlainDate,
-            } as DateFilter,
-          };
-        }
-        default:
-          throw new Error(
-            `Unknown operand ${recordFilter.operand} for ${filterType} filter`,
-          );
       }
+
+      throw new Error(
+        `Unknown operand ${recordFilter.operand} for ${filterType} filter`,
+      );
     }
     case 'DATE_TIME': {
-      if (recordFilter.operand === RecordFilterOperand.IS_RELATIVE) {
+      const itsARelativeDateTimeFilter =
+        recordFilter.operand === RecordFilterOperand.IS_RELATIVE;
+
+      if (itsARelativeDateTimeFilter) {
         const resolvedFilterValue = resolveDateTimeFilter(recordFilter);
 
         const parsedRelativeDateFilterValue =
@@ -307,81 +345,105 @@ export const turnRecordFilterIntoRecordGqlOperationFilter = ({
         };
       }
 
-      if (!isNonEmptyString(recordFilter.value)) {
-        throw new Error(`Date filter is empty`);
-      }
+      const operandIsTakingNowAsReference =
+        recordFilter.operand === RecordFilterOperand.IS_TODAY ||
+        recordFilter.operand === RecordFilterOperand.IS_IN_PAST ||
+        recordFilter.operand === RecordFilterOperand.IS_IN_FUTURE;
 
-      const resolvedDateTime = Temporal.Instant.from(recordFilter.value);
+      if (operandIsTakingNowAsReference) {
+        const now = Temporal.Now.zonedDateTimeISO(
+          filterValueDependencies.timeZone,
+        );
 
-      const now = Temporal.Now.zonedDateTimeISO(
-        filterValueDependencies.timeZone,
-      );
-
-      switch (recordFilter.operand) {
-        case RecordFilterOperand.IS_AFTER: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              gte: resolvedDateTime.toString(),
-            } as DateTimeFilter,
-          };
+        switch (recordFilter.operand) {
+          case RecordFilterOperand.IS_IN_PAST:
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                lt: now.toInstant().round('minute').toString(),
+              } as DateTimeFilter,
+            };
+          case RecordFilterOperand.IS_IN_FUTURE:
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                gt: now.toInstant().round('minute').toString(),
+              } as DateTimeFilter,
+            };
+          case RecordFilterOperand.IS_TODAY: {
+            return {
+              and: [
+                {
+                  [correspondingFieldMetadataItem.name]: {
+                    gte: getPeriodStart(now, 'DAY').toInstant().toString(),
+                  } as DateTimeFilter,
+                },
+                {
+                  [correspondingFieldMetadataItem.name]: {
+                    lt: getNextPeriodStart(now, 'DAY').toInstant().toString(),
+                  } as DateTimeFilter,
+                },
+              ],
+            };
+          }
         }
-        case RecordFilterOperand.IS_BEFORE: {
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              lt: resolvedDateTime.toString(),
-            } as DateTimeFilter,
-          };
+      } else {
+        if (!isNonEmptyString(recordFilter.value)) {
+          throw new Error(`Date filter is empty`);
         }
-        case RecordFilterOperand.IS: {
-          const start = resolvedDateTime
-            .toZonedDateTimeISO('UTC')
-            .with({ second: 0, millisecond: 0, microsecond: 0, nanosecond: 0 })
-            .toInstant();
 
-          const end = start.add({ minutes: 1 });
+        if (recordFilter.operand === RecordFilterOperand.IS) {
+          const timeZone = filterValueDependencies.timeZone ?? 'UTC';
+
+          let parsedPlainDate = null;
+
+          try {
+            parsedPlainDate = recordFilter.value.includes('T')
+              ? Temporal.Instant.from(recordFilter.value)
+                  .toZonedDateTimeISO(timeZone)
+                  .toPlainDate()
+              : Temporal.PlainDate.from(recordFilter.value);
+          } catch {
+            throw new Error(
+              `Cannot parse "${recordFilter.value}" for ${filterType} filter`,
+            );
+          }
+
+          const zonedDateTime = parsedPlainDate.toZonedDateTime(timeZone);
+          const start = zonedDateTime.toInstant();
+          const end = zonedDateTime.add({ days: 1 }).toInstant();
 
           return {
             and: [
-              {
-                [correspondingFieldMetadataItem.name]: {
-                  lt: end.toString(),
-                } as DateTimeFilter,
-              },
               {
                 [correspondingFieldMetadataItem.name]: {
                   gte: start.toString(),
                 } as DateTimeFilter,
               },
+              {
+                [correspondingFieldMetadataItem.name]: {
+                  lt: end.toString(),
+                } as DateTimeFilter,
+              },
             ],
           };
         }
-        case RecordFilterOperand.IS_IN_PAST:
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              lt: now.toInstant().round('minute').toString(),
-            } as DateTimeFilter,
-          };
-        case RecordFilterOperand.IS_IN_FUTURE:
-          return {
-            [correspondingFieldMetadataItem.name]: {
-              gt: now.toInstant().round('minute').toString(),
-            } as DateTimeFilter,
-          };
-        case RecordFilterOperand.IS_TODAY: {
-          return {
-            and: [
-              {
-                [correspondingFieldMetadataItem.name]: {
-                  gte: getPeriodStart(now, 'DAY').toInstant().toString(),
-                } as DateTimeFilter,
-              },
-              {
-                [correspondingFieldMetadataItem.name]: {
-                  lt: getNextPeriodStart(now, 'DAY').toInstant().toString(),
-                } as DateTimeFilter,
-              },
-            ],
-          };
+
+        const resolvedDateTime = Temporal.Instant.from(recordFilter.value);
+
+        switch (recordFilter.operand) {
+          case RecordFilterOperand.IS_AFTER: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                gte: resolvedDateTime.toString(),
+              } as DateTimeFilter,
+            };
+          }
+          case RecordFilterOperand.IS_BEFORE: {
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                lt: resolvedDateTime.toString(),
+              } as DateTimeFilter,
+            };
+          }
         }
       }
 
@@ -1077,6 +1139,71 @@ export const turnRecordFilterIntoRecordGqlOperationFilter = ({
                   } satisfies RelationFilter,
                 },
               },
+            };
+          }
+          default: {
+            const fieldForRecordFilter = fieldMetadataItems.find(
+              (field) => field.id === recordFilter.fieldMetadataId,
+            );
+
+            throw new Error(
+              `Unknown operand ${recordFilter.operand} for ${fieldForRecordFilter?.label ?? ''} filter`,
+            );
+          }
+        }
+      }
+
+      if (subFieldName === 'workspaceMemberId') {
+        const { isCurrentWorkspaceMemberSelected, selectedRecordIds } =
+          jsonRelationFilterValueSchema
+            .catch({
+              isCurrentWorkspaceMemberSelected: false,
+              selectedRecordIds: arrayOfUuidOrVariableSchema.parse(
+                recordFilter.value,
+              ),
+            })
+            .parse(recordFilter.value);
+
+        const workspaceMemberIds = isCurrentWorkspaceMemberSelected
+          ? [
+              ...selectedRecordIds,
+              filterValueDependencies?.currentWorkspaceMemberId,
+            ].filter(isDefined)
+          : selectedRecordIds;
+
+        if (!isDefined(workspaceMemberIds) || workspaceMemberIds.length === 0) {
+          return;
+        }
+
+        switch (recordFilter.operand) {
+          case RecordFilterOperand.IS:
+            return {
+              [correspondingFieldMetadataItem.name]: {
+                workspaceMemberId: {
+                  in: workspaceMemberIds,
+                } satisfies UUIDFilter,
+              },
+            };
+          case RecordFilterOperand.IS_NOT: {
+            return {
+              or: [
+                {
+                  not: {
+                    [correspondingFieldMetadataItem.name]: {
+                      workspaceMemberId: {
+                        in: workspaceMemberIds,
+                      } satisfies UUIDFilter,
+                    },
+                  },
+                },
+                {
+                  [correspondingFieldMetadataItem.name]: {
+                    workspaceMemberId: {
+                      is: 'NULL',
+                    } satisfies UUIDFilter,
+                  },
+                },
+              ],
             };
           }
           default: {

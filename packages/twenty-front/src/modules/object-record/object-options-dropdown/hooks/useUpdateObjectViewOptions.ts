@@ -1,5 +1,7 @@
 import { recordIndexOpenRecordInState } from '@/object-record/record-index/states/recordIndexOpenRecordInState';
+import { recordIndexOpenRecordInStateV2 } from '@/object-record/record-index/states/recordIndexOpenRecordInStateV2';
 import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useStore } from 'jotai';
 import { useUpdateCurrentView } from '@/views/hooks/useUpdateCurrentView';
 import { type GraphQLView } from '@/views/types/GraphQLView';
 import { type ViewOpenRecordInType } from '@/views/types/ViewOpenRecordInType';
@@ -9,6 +11,8 @@ import { useCallback } from 'react';
 import { useSetRecoilState } from 'recoil';
 
 export const useUpdateObjectViewOptions = () => {
+  const store = useStore();
+
   const setRecordIndexOpenRecordIn = useSetRecoilState(
     recordIndexOpenRecordInState,
   );
@@ -27,11 +31,12 @@ export const useUpdateObjectViewOptions = () => {
     (openRecordIn: ViewOpenRecordInType, view: GraphQLView | undefined) => {
       if (!view) return;
       setRecordIndexOpenRecordIn(openRecordIn);
+      store.set(recordIndexOpenRecordInStateV2.atom, openRecordIn);
       updateCurrentView({
         openRecordIn,
       });
     },
-    [setRecordIndexOpenRecordIn, updateCurrentView],
+    [setRecordIndexOpenRecordIn, updateCurrentView, store],
   );
 
   const setAndPersistViewName = useCallback(

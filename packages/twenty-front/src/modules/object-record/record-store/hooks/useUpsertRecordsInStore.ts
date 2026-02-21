@@ -3,7 +3,9 @@ import { useRecoilCallback } from 'recoil';
 import { filterRecordOnGqlFields } from '@/object-record/cache/utils/filterRecordOnGqlFields';
 import { type RecordGqlFields } from '@/object-record/graphql/record-gql-fields/types/RecordGqlFields';
 import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
+import { recordStoreFamilyStateV2 } from '@/object-record/record-store/states/recordStoreFamilyStateV2';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
+import { useStore } from 'jotai';
 import { isDefined } from 'twenty-shared/utils';
 import { isDeeplyEqual } from '~/utils/isDeeplyEqual';
 
@@ -13,6 +15,8 @@ type UpsertRecordsInStoreProps = {
 };
 
 export const useUpsertRecordsInStore = () => {
+  const store = useStore();
+
   const upsertRecordsInStore = useRecoilCallback(
     ({ set, snapshot }) =>
       ({ partialRecords, recordGqlFields }: UpsertRecordsInStoreProps) => {
@@ -29,11 +33,16 @@ export const useUpsertRecordsInStore = () => {
             : partialRecord;
 
           if (!isDefined(currentRecord)) {
-            set(recordStoreFamilyState(partialRecord.id), {
+            const newRecord = {
               id: partialRecord.id,
               __typename: partialRecord.__typename,
               ...filteredPartialRecord,
-            });
+            };
+            set(recordStoreFamilyState(partialRecord.id), newRecord);
+            store.set(
+              recordStoreFamilyStateV2.atomFamily(partialRecord.id),
+              newRecord,
+            );
             continue;
           }
 
@@ -45,14 +54,19 @@ export const useUpsertRecordsInStore = () => {
             : currentRecord;
 
           if (!isDeeplyEqual(filteredCurrentRecord, filteredPartialRecord)) {
-            set(recordStoreFamilyState(partialRecord.id), {
+            const updatedRecord = {
               ...currentRecord,
               ...filteredPartialRecord,
-            });
+            };
+            set(recordStoreFamilyState(partialRecord.id), updatedRecord);
+            store.set(
+              recordStoreFamilyStateV2.atomFamily(partialRecord.id),
+              updatedRecord,
+            );
           }
         }
       },
-    [],
+    [store],
   );
 
   return {

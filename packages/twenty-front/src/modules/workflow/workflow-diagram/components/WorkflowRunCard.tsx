@@ -1,7 +1,7 @@
 import { SKELETON_LOADER_HEIGHT_SIZES } from '@/activities/components/SkeletonLoader';
-import { ListenRecordUpdatesEffect } from '@/subscription/components/ListenRecordUpdatesEffect';
 import { useTargetRecord } from '@/ui/layout/contexts/useTargetRecord';
 import { getWorkflowVisualizerComponentInstanceId } from '@/workflow/utils/getWorkflowVisualizerComponentInstanceId';
+import { WorkflowRunSSESubscribeEffect } from '@/workflow/workflow-diagram/components/WorkflowRunSSESubscribeEffect';
 import { WorkflowRunVisualizer } from '@/workflow/workflow-diagram/components/WorkflowRunVisualizer';
 import { WorkflowRunVisualizerEffect } from '@/workflow/workflow-diagram/components/WorkflowRunVisualizerEffect';
 import { WorkflowRunVisualizerComponentInstanceContext } from '@/workflow/workflow-diagram/states/contexts/WorkflowRunVisualizerComponentInstanceContext';
@@ -56,11 +56,7 @@ export const WorkflowRunCard = () => {
         }}
       >
         <WorkflowRunVisualizerEffect workflowRunId={targetRecord.id} />
-        <ListenRecordUpdatesEffect
-          objectNameSingular={targetRecord.targetObjectNameSingular}
-          recordId={targetRecord.id}
-          listenedFields={['status', 'state']}
-        />
+        <WorkflowRunSSESubscribeEffect workflowRunId={targetRecord.id} />
         <Suspense fallback={<LoadingSkeleton />}>
           <WorkflowRunVisualizer workflowRunId={targetRecord.id} />
         </Suspense>

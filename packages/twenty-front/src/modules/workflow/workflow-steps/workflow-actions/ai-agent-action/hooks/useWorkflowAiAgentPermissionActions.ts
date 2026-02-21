@@ -4,12 +4,12 @@ import { useActionRolePermissionFlagConfig } from '@/settings/roles/role-permiss
 import { useSettingsRolePermissionFlagConfig } from '@/settings/roles/role-permissions/permission-flags/hooks/useSettingsRolePermissionFlagConfig';
 import { useSnackBar } from '@/ui/feedback/snack-bar-manager/hooks/useSnackBar';
 import { CRUD_PERMISSIONS } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/constants/WorkflowAiAgentCrudPermissions';
-import { workflowAiAgentActionAgentState } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentActionAgentState';
-import { workflowAiAgentPermissionsIsAddingPermissionState } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentPermissionsIsAddingPermissionState';
-import { workflowAiAgentPermissionsSelectedObjectIdState } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentPermissionsSelectedObjectIdState';
+import { useRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilStateV2';
+import { workflowAiAgentActionAgentStateV2 } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentActionAgentStateV2';
+import { workflowAiAgentPermissionsIsAddingPermissionStateV2 } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentPermissionsIsAddingPermissionStateV2';
+import { workflowAiAgentPermissionsSelectedObjectIdStateV2 } from '@/workflow/workflow-steps/workflow-actions/ai-agent-action/states/workflowAiAgentPermissionsSelectedObjectIdStateV2';
 import { t } from '@lingui/core/macro';
 import { useMemo } from 'react';
-import { useRecoilState } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
 import { v4 } from 'uuid';
 import {
@@ -37,7 +37,7 @@ export const useWorkflowAiAgentPermissionActions = ({
 }: UseWorkflowAiAgentPermissionActionsParams) => {
   const { enqueueSuccessSnackBar } = useSnackBar();
   const [workflowAiAgentActionAgent, setWorkflowAiAgentActionAgent] =
-    useRecoilState(workflowAiAgentActionAgentState);
+    useRecoilStateV2(workflowAiAgentActionAgentStateV2);
   const { alphaSortedActiveNonSystemObjectMetadataItems: objectMetadataItems } =
     useFilteredObjectMetadataItems();
   const settingsPermissionsConfig = useSettingsRolePermissionFlagConfig({
@@ -47,11 +47,11 @@ export const useWorkflowAiAgentPermissionActions = ({
     assignmentCapabilities: { canBeAssignedToAgents: true },
   });
 
-  const [, setWorkflowAiAgentPermissionsSelectedObjectId] = useRecoilState(
-    workflowAiAgentPermissionsSelectedObjectIdState,
+  const [, setWorkflowAiAgentPermissionsSelectedObjectId] = useRecoilStateV2(
+    workflowAiAgentPermissionsSelectedObjectIdStateV2,
   );
-  const [, setWorkflowAiAgentPermissionsIsAddingPermission] = useRecoilState(
-    workflowAiAgentPermissionsIsAddingPermissionState,
+  const [, setWorkflowAiAgentPermissionsIsAddingPermission] = useRecoilStateV2(
+    workflowAiAgentPermissionsIsAddingPermissionStateV2,
   );
 
   const [createRole] = useCreateOneRoleMutation();
@@ -116,7 +116,13 @@ export const useWorkflowAiAgentPermissionActions = ({
       },
     });
 
-    await refetchAgentAndRoles();
+    const { refetchedAgent } = await refetchAgentAndRoles();
+
+    // Update Recoil state with the refetched agent to ensure roleId is available
+    // Apollo's onCompleted is not called on refetch, so we need to update manually
+    if (isDefined(refetchedAgent)) {
+      setWorkflowAiAgentActionAgent(refetchedAgent);
+    }
 
     return generatedRoleId;
   };
@@ -294,7 +300,6 @@ export const useWorkflowAiAgentPermissionActions = ({
       return;
     }
 
-    const hadRoleBefore = isDefined(roleId);
     const ensuredRoleId = await ensureRoleId();
 
     if (!ensuredRoleId || permissionFlagKeys.includes(permissionFlagKey)) {
@@ -310,14 +315,7 @@ export const useWorkflowAiAgentPermissionActions = ({
       },
     });
 
-    const { refetchedAgent } = await refetchAgentAndRoles();
-    if (
-      !hadRoleBefore &&
-      isDefined(refetchedAgent) &&
-      isDefined(setWorkflowAiAgentActionAgent)
-    ) {
-      setWorkflowAiAgentActionAgent(refetchedAgent);
-    }
+    await refetchAgentAndRoles();
     setWorkflowAiAgentPermissionsIsAddingPermission(false);
     setWorkflowAiAgentPermissionsSelectedObjectId(undefined);
   };

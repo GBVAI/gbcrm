@@ -12,7 +12,7 @@ import { type FieldMorphRelationMetadata } from '@/object-record/record-field/ui
 import { getRecordFieldCardRelationPickerDropdownId } from '@/object-record/record-show/utils/getRecordFieldCardRelationPickerDropdownId';
 import { isDropdownOpenComponentState } from '@/ui/layout/dropdown/states/isDropdownOpenComponentState';
 import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 
 import { RecordDetailMorphRelationSectionDropdown } from '@/object-record/record-field-list/record-detail-section/relation/components/RecordDetailMorphRelationSectionDropdown';
 import { RecordDetailRelationRecordsList } from '@/object-record/record-field-list/record-detail-section/relation/components/RecordDetailRelationRecordsList';
@@ -49,7 +49,7 @@ export const RecordDetailMorphRelationSection = ({
     instanceId: scopeInstanceId,
   });
 
-  const isDropdownOpen = useRecoilComponentValue(
+  const isDropdownOpen = useRecoilComponentValueV2(
     isDropdownOpenComponentState,
     dropdownId,
   );
@@ -74,10 +74,12 @@ export const RecordDetailMorphRelationSection = ({
 
   const handleSubmit: FieldInputEvent = ({ newValue }) => {
     if (!isDefined(newValue)) {
-      throw new CustomError(
-        'Value to persist is required',
-        'VALUE_TO_PERSIST_IS_REQUIRED',
-      );
+      persistMorphManyToOne({
+        recordId,
+        fieldDefinition,
+        valueToPersist: null,
+      });
+      return;
     }
 
     const { id, objectMetadataId } = newValue as {

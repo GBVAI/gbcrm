@@ -4,6 +4,7 @@ import { EventRowActivity } from '@/activities/timeline-activities/rows/activity
 import { EventRowCalendarEvent } from '@/activities/timeline-activities/rows/calendar/components/EventRowCalendarEvent';
 import { EventRowMainObject } from '@/activities/timeline-activities/rows/main-object/components/EventRowMainObject';
 import { EventRowMessage } from '@/activities/timeline-activities/rows/message/components/EventRowMessage';
+import { EventRowPhoneCall } from '@/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall';
 import { type TimelineActivity } from '@/activities/timeline-activities/types/TimelineActivity';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
@@ -80,6 +81,16 @@ export const EventRowDynamicComponent = ({
           authorFullName={authorFullName}
           objectNameSingular={CoreObjectNameSingular.Note}
           createdAt={createdAt}
+        />
+      );
+    case 'phoneCall':
+      return (
+        <EventRowPhoneCall
+          labelIdentifierValue={labelIdentifierValue}
+          event={event}
+          mainObjectMetadataItem={mainObjectMetadataItem}
+          linkedObjectMetadataItem={linkedObjectMetadataItem}
+          authorFullName={authorFullName}
         />
       );
     default:

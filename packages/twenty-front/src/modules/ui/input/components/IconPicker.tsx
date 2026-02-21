@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useMemo, useState } from 'react';
 
 import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
@@ -9,15 +9,21 @@ import { SelectableList } from '@/ui/layout/selectable-list/components/Selectabl
 import { arrayToChunks } from '~/utils/array/arrayToChunks';
 
 import { ICON_PICKER_DROPDOWN_CONTENT_WIDTH } from '@/ui/input/components/constants/IconPickerDropdownContentWidth';
+import { IconPickerScrollEffect } from '@/ui/input/hooks/IconPickerScrollEffect';
+import {
+  ICON_PICKER_DEFAULT_VISIBLE_COUNT,
+  iconPickerVisibleCountState,
+} from '@/ui/input/states/iconPickerVisibleCountState';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
+import { useFamilyRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useFamilyRecoilValueV2';
 import { type DropdownOffset } from '@/ui/layout/dropdown/types/DropdownOffset';
 import { SelectableListItem } from '@/ui/layout/selectable-list/components/SelectableListItem';
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { ScrollWrapper } from '@/ui/utilities/scroll/components/ScrollWrapper';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { t } from '@lingui/core/macro';
-import { useRecoilValue, useResetRecoilState } from 'recoil';
+import { useStore } from 'jotai';
 import { IconApps, type IconComponent, useIcons } from 'twenty-ui/display';
 import {
   IconButton,
@@ -25,8 +31,6 @@ import {
   type IconButtonVariant,
   LightIconButton,
 } from 'twenty-ui/input';
-import { IconPickerScrollEffect } from '@/ui/input/hooks/IconPickerScrollEffect';
-import { iconPickerVisibleCountState } from '@/ui/input/states/iconPickerVisibleCountState';
 
 export type IconPickerProps = {
   disabled?: boolean;
@@ -86,7 +90,7 @@ const convertIconKeyToLabel = (iconKey: string) =>
 
 type IconPickerIconProps = {
   iconKey: string;
-  onClick: () => void;
+  onSelect: () => void;
   selectedIconKey?: string;
   Icon: IconComponent;
   focusedIconKey?: string;
@@ -94,19 +98,19 @@ type IconPickerIconProps = {
 
 const IconPickerIcon = ({
   iconKey,
-  onClick,
+  onSelect,
   selectedIconKey,
   Icon,
   focusedIconKey,
 }: IconPickerIconProps) => {
-  const isSelectedItemId = useRecoilComponentValue(
+  const isSelectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     iconKey,
   );
 
   return (
     <StyledMatrixItem>
-      <SelectableListItem itemId={iconKey} onEnter={onClick}>
+      <SelectableListItem itemId={iconKey} onEnter={onSelect}>
         <StyledLightIconButton
           key={iconKey}
           aria-label={convertIconKeyToLabel(iconKey)}
@@ -115,7 +119,7 @@ const IconPickerIcon = ({
           isSelected={iconKey === selectedIconKey || !!isSelectedItemId}
           isFocused={iconKey === focusedIconKey}
           Icon={Icon}
-          onClick={onClick}
+          onClick={onSelect}
         />
       </SelectableListItem>
     </StyledMatrixItem>
@@ -156,12 +160,18 @@ export const IconPicker = ({
 
   const { closeDropdown } = useCloseDropdown();
 
-  const iconPickerVisibleCount =
-    useRecoilValue(iconPickerVisibleCountState(dropdownId)) ?? maxIconsVisible;
+  const store = useStore();
 
-  const resetIconPickerVisibleCount = useResetRecoilState(
-    iconPickerVisibleCountState(dropdownId),
-  );
+  const iconPickerVisibleCount =
+    useFamilyRecoilValueV2(iconPickerVisibleCountState, dropdownId) ??
+    maxIconsVisible;
+
+  const resetIconPickerVisibleCount = useCallback(() => {
+    store.set(
+      iconPickerVisibleCountState.atomFamily(dropdownId),
+      ICON_PICKER_DEFAULT_VISIBLE_COUNT,
+    );
+  }, [store, dropdownId]);
 
   const { getIcons, getIcon } = useIcons();
   const icons = getIcons();
@@ -242,7 +252,7 @@ export const IconPicker = ({
   const selectableListInstanceId = 'icon-list';
 
   const focusedIconKey =
-    useRecoilComponentValue(
+    useRecoilComponentValueV2(
       selectedItemIdComponentState,
       selectableListInstanceId,
     ) ?? undefined;
@@ -301,7 +311,7 @@ export const IconPicker = ({
                         <IconPickerIcon
                           key={iconKey}
                           iconKey={iconKey}
-                          onClick={() => {
+                          onSelect={() => {
                             onChange({ iconKey, Icon: getIcon(iconKey) });
                             closeDropdown(dropdownId);
                           }}

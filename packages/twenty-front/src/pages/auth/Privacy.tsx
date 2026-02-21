@@ -17,7 +17,7 @@ const StyledTitle = styled.h1`
 `;
 
 const StyledSectionTitle = styled.h2`
-  font-size: ${({ theme }) => theme.font.size.large};
+  font-size: ${({ theme }) => theme.font.size.xl};
   margin-top: ${({ theme }) => theme.spacing(6)};
   margin-bottom: ${({ theme }) => theme.spacing(3)};
   align-self: flex-start;

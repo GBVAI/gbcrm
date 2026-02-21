@@ -124,6 +124,18 @@ export const buildTimelineActivityStandardFlatIndexMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
+  phoneCallIdIndex: createStandardIndexFlatMetadata({
+    objectName,
+    workspaceId,
+    context: {
+      indexName: 'phoneCallIdIndex',
+      relatedFieldNames: ['targetPhoneCall'],
+    },
+    standardObjectMetadataRelatedEntityIds,
+    dependencyFlatEntityMaps,
+    twentyStandardApplicationId,
+    now,
+  }),
   dashboardIdIndex: createStandardIndexFlatMetadata({
     objectName,
     workspaceId,

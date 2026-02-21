@@ -11,7 +11,7 @@ import {
   createStandardFieldFlatMetadata,
 } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-field-flat-metadata.util';
 import { createStandardRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-relation-field-flat-metadata.util';
-import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/workspace-sync-metadata/utils/get-ts-vector-column-expression.util';
+import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/utils/get-ts-vector-column-expression.util';
 import { SEARCH_FIELDS_FOR_DASHBOARD } from 'src/modules/dashboard/standard-objects/dashboard.workspace-entity';
 
 export const buildDashboardStandardFlatFieldMetadatas = ({
@@ -54,6 +54,7 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Creation date',
       description: 'Creation date',
       icon: 'IconCalendar',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -73,6 +74,7 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Last update',
       description: 'Last time the record was changed',
       icon: 'IconCalendarClock',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -92,6 +94,7 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Deleted at',
       description: 'Date when the record was deleted',
       icon: 'IconCalendarMinus',
+      isSystem: true,
       isNullable: true,
       isUIReadOnly: true,
       settings: { displayFormat: DateDisplayFormat.RELATIVE },
@@ -163,6 +166,30 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Created by',
       description: 'The creator of the record',
       icon: 'IconCreativeCommonsSa',
+      isSystem: true,
+      isUIReadOnly: true,
+      isNullable: false,
+      defaultValue: {
+        source: "'MANUAL'",
+        name: "'System'",
+        workspaceMemberId: null,
+      },
+    },
+    standardObjectMetadataRelatedEntityIds,
+    dependencyFlatEntityMaps,
+    twentyStandardApplicationId,
+    now,
+  }),
+  updatedBy: createStandardFieldFlatMetadata({
+    objectName,
+    workspaceId,
+    context: {
+      fieldName: 'updatedBy',
+      type: FieldMetadataType.ACTOR,
+      label: 'Updated by',
+      description: 'The workspace member who last updated the record',
+      icon: 'IconUserCircle',
+      isSystem: true,
       isUIReadOnly: true,
       isNullable: false,
       defaultValue: {
@@ -211,7 +238,6 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Timeline Activities',
       description: 'Timeline activities linked to the dashboard',
       icon: 'IconTimelineEvent',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'timelineActivity',
       targetFieldName: 'targetDashboard',
@@ -234,7 +260,6 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Favorites',
       description: 'Favorites linked to the dashboard',
       icon: 'IconHeart',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'favorite',
       targetFieldName: 'dashboard',
@@ -257,10 +282,9 @@ export const buildDashboardStandardFlatFieldMetadatas = ({
       label: 'Attachments',
       description: 'Attachments linked to the dashboard',
       icon: 'IconFileImport',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'attachment',
-      targetFieldName: 'dashboard',
+      targetFieldName: 'targetDashboard',
       settings: {
         relationType: RelationType.ONE_TO_MANY,
       },

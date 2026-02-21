@@ -79,6 +79,8 @@ function evaluateFilter(
       return evaluateRelationFilter(filterWithConvertedOperand);
     case 'CURRENCY':
       return evaluateCurrencyFilter(filterWithConvertedOperand);
+    case 'ACTOR':
+      return evaluateActorFilter(filterWithConvertedOperand);
     default:
       return evaluateDefaultFilter(filterWithConvertedOperand);
   }
@@ -305,9 +307,9 @@ function evaluateCurrencyFilter(filter: ResolvedFilter): boolean {
   if (filter.compositeFieldSubFieldName === 'currencyCode') {
     switch (filter.operand) {
       case ViewFilterOperand.IS:
-        return filter.leftOperand === filter.rightOperand;
+        return contains(filter.leftOperand, filter.rightOperand);
       case ViewFilterOperand.IS_NOT:
-        return filter.leftOperand !== filter.rightOperand;
+        return !contains(filter.leftOperand, filter.rightOperand);
       case ViewFilterOperand.IS_EMPTY:
         return !isNonEmptyString(filter.leftOperand);
       case ViewFilterOperand.IS_NOT_EMPTY:
@@ -396,6 +398,20 @@ function evaluateSelectFilter(filter: ResolvedFilter): boolean {
         `Operand ${filter.operand} not supported for select filter`,
       );
   }
+}
+
+function evaluateActorFilter(filter: ResolvedFilter): boolean {
+  const { compositeFieldSubFieldName } = filter;
+
+  if (compositeFieldSubFieldName === 'source') {
+    return evaluateSelectFilter(filter);
+  }
+
+  if (compositeFieldSubFieldName === 'workspaceMemberId') {
+    return evaluateRelationFilter(filter);
+  }
+
+  return evaluateTextAndArrayFilter(filter, 'TEXT', compositeFieldSubFieldName);
 }
 
 export function evaluateFilterConditions({

@@ -1,7 +1,8 @@
-import { expect, userEvent, waitFor, within } from '@storybook/test';
-import * as test from '@storybook/test';
-import { type Meta, type StoryObj } from '@storybook/react';
+import { type Meta, type StoryObj } from '@storybook/react-vite';
+import { Provider as JotaiProvider } from 'jotai';
 import { RecoilRoot } from 'recoil';
+import * as test from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { RecordIndexActionMenuDropdown } from '@/action-menu/components/RecordIndexActionMenuDropdown';
 import { ActionMenuContext } from '@/action-menu/contexts/ActionMenuContext';
@@ -10,12 +11,9 @@ import { ActionMenuComponentInstanceContext } from '@/action-menu/states/context
 import { recordIndexActionMenuDropdownPositionComponentState } from '@/action-menu/states/recordIndexActionMenuDropdownPositionComponentState';
 
 import { isDropdownOpenComponentState } from '@/ui/layout/dropdown/states/isDropdownOpenComponentState';
-import {
-  RouterDecorator,
-  getCanvasElementForDropdownTesting,
-} from 'twenty-ui/testing';
+import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
+import { RouterDecorator } from 'twenty-ui/testing';
 import { ContextStoreDecorator } from '~/testing/decorators/ContextStoreDecorator';
-import { I18nFrontDecorator } from '~/testing/decorators/I18nFrontDecorator';
 
 const deleteMock = test.fn();
 const addToFavoritesMock = test.fn();
@@ -25,45 +23,48 @@ const meta: Meta<typeof RecordIndexActionMenuDropdown> = {
   title: 'Modules/ActionMenu/RecordIndexActionMenuDropdown',
   component: RecordIndexActionMenuDropdown,
   decorators: [
-    I18nFrontDecorator,
-    (Story) => (
-      <RecoilRoot
-        initializeState={({ set }) => {
-          set(
-            recordIndexActionMenuDropdownPositionComponentState.atomFamily({
-              instanceId: 'action-menu-dropdown-story',
-            }),
-            { x: 10, y: 10 },
-          );
+    (Story) => {
+      jotaiStore.set(
+        isDropdownOpenComponentState.atomFamily({
+          instanceId: 'action-menu-dropdown-story-action-menu',
+        }),
+        true,
+      );
 
-          set(
-            isDropdownOpenComponentState.atomFamily({
-              instanceId: 'action-menu-dropdown-story-action-menu',
-            }),
-            true,
-          );
-        }}
-      >
-        <ActionMenuComponentInstanceContext.Provider
-          value={{ instanceId: 'story-action-menu' }}
-        >
-          <ActionMenuContext.Provider
-            value={{
-              isInRightDrawer: true,
-              displayType: 'dropdownItem',
-              actionMenuType: 'index-page-action-menu-dropdown',
-              actions: createMockActionMenuActions({
-                deleteMock,
-                addToFavoritesMock,
-                exportMock,
-              }),
+      return (
+        <JotaiProvider store={jotaiStore}>
+          <RecoilRoot
+            initializeState={({ set }) => {
+              set(
+                recordIndexActionMenuDropdownPositionComponentState.atomFamily({
+                  instanceId: 'action-menu-dropdown-story',
+                }),
+                { x: 10, y: 10 },
+              );
             }}
           >
-            <Story />
-          </ActionMenuContext.Provider>
-        </ActionMenuComponentInstanceContext.Provider>
-      </RecoilRoot>
-    ),
+            <ActionMenuComponentInstanceContext.Provider
+              value={{ instanceId: 'story-action-menu' }}
+            >
+              <ActionMenuContext.Provider
+                value={{
+                  isInRightDrawer: true,
+                  displayType: 'dropdownItem',
+                  actionMenuType: 'index-page-action-menu-dropdown',
+                  actions: createMockActionMenuActions({
+                    deleteMock,
+                    addToFavoritesMock,
+                    exportMock,
+                  }),
+                }}
+              >
+                <Story />
+              </ActionMenuContext.Provider>
+            </ActionMenuComponentInstanceContext.Provider>
+          </RecoilRoot>
+        </JotaiProvider>
+      );
+    },
     ContextStoreDecorator,
     RouterDecorator,
   ],
@@ -83,8 +84,8 @@ export const WithInteractions: Story = {
   args: {
     actionMenuId: 'story',
   },
-  play: async () => {
-    const canvas = within(getCanvasElementForDropdownTesting());
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
 
     const deleteButton = await canvas.findByText('Delete');
     await userEvent.click(deleteButton);

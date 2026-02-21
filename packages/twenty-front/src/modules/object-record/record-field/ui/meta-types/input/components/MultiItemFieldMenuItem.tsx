@@ -4,7 +4,7 @@ import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/Drop
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
 import { isDropdownOpenComponentState } from '@/ui/layout/dropdown/states/isDropdownOpenComponentState';
 import { MenuItemWithOptionDropdown } from '@/ui/navigation/menu-item/components/MenuItemWithOptionDropdown';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import React, { useState } from 'react';
 import {
   IconBookmark,
@@ -22,6 +22,7 @@ type MultiItemFieldMenuItemProps<T> = {
   onSetAsPrimary?: () => void;
   onDelete?: () => void;
   onCopy?: (value: T) => void;
+  onClick?: () => void;
   DisplayComponent: React.ComponentType<{ value: T }>;
   showPrimaryIcon: boolean;
   showSetAsPrimaryButton: boolean;
@@ -34,6 +35,7 @@ export const MultiItemFieldMenuItem = <T,>({
   onEdit,
   onSetAsPrimary,
   onDelete,
+  onClick,
   DisplayComponent,
   showPrimaryIcon,
   showSetAsPrimaryButton,
@@ -42,7 +44,7 @@ export const MultiItemFieldMenuItem = <T,>({
 }: MultiItemFieldMenuItemProps<T>) => {
   const [isHovered, setIsHovered] = useState(false);
   const { closeDropdown } = useCloseDropdown();
-  const isDropdownOpen = useRecoilComponentValue(
+  const isDropdownOpen = useRecoilComponentValueV2(
     isDropdownOpenComponentState,
     dropdownId,
   );
@@ -77,6 +79,7 @@ export const MultiItemFieldMenuItem = <T,>({
     <MenuItemWithOptionDropdown
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={onClick}
       text={<DisplayComponent value={value} />}
       isIconDisplayedOnHoverOnly={!showPrimaryIcon && !isDropdownOpen}
       RightIcon={!isHovered && showPrimaryIcon ? IconBookmark : null}

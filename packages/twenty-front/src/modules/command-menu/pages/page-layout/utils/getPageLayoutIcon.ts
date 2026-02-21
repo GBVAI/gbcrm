@@ -1,11 +1,13 @@
 import { type PageLayoutCommandMenuPage } from '@/command-menu/pages/page-layout/types/PageLayoutCommandMenuPage';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
+import { CommandMenuPages } from 'twenty-shared/types';
 import { assertUnreachable } from 'twenty-shared/utils';
 import {
   IconAppWindow,
   IconChartPie,
   IconFilter,
   IconFrame,
+  IconLayoutSidebarRight,
+  IconList,
 } from 'twenty-ui/display';
 
 export const getPageLayoutIcon = (page: PageLayoutCommandMenuPage) => {
@@ -20,6 +22,10 @@ export const getPageLayoutIcon = (page: PageLayoutCommandMenuPage) => {
       return IconFilter;
     case CommandMenuPages.PageLayoutTabSettings:
       return IconAppWindow;
+    case CommandMenuPages.PageLayoutFieldsSettings:
+      return IconList;
+    case CommandMenuPages.PageLayoutFieldsLayout:
+      return IconLayoutSidebarRight;
     default:
       assertUnreachable(page);
   }

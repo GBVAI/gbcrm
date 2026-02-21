@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { isDefined } from 'twenty-shared/utils';
+
 import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
 import {
   type TwentyORMException,
@@ -107,10 +109,9 @@ export class MessageImportExceptionHandlerService {
     messageChannel: Pick<MessageChannelWorkspaceEntity, 'id'>,
     workspaceId: string,
   ): Promise<void> {
-    await this.messageChannelSyncStatusService.markAsFailed(
+    await this.messageChannelSyncStatusService.resetAndMarkAsMessagesListFetchPending(
       [messageChannel.id],
       workspaceId,
-      MessageChannelSyncStatus.FAILED_UNKNOWN,
     );
   }
 
@@ -135,12 +136,14 @@ export class MessageImportExceptionHandlerService {
       this.exceptionHandlerService.captureExceptions(
         [
           new Error(
-            `Temporary error occurred ${MESSAGING_THROTTLE_MAX_ATTEMPTS} times while importing messages for message channel ${messageChannel.id.slice(0, 5)}... in workspace ${workspaceId}: ${exception?.message}`,
+            `Temporary error occurred ${MESSAGING_THROTTLE_MAX_ATTEMPTS} times while importing messages for message channel ${messageChannel.id} in workspace ${workspaceId}: ${exception?.message}`,
           ),
         ],
         {
           additionalData: {
             messageChannelId: messageChannel.id,
+            syncStep,
+            throttleFailureCount: messageChannel.throttleFailureCount,
           },
           workspace: { id: workspaceId },
         },
@@ -151,24 +154,35 @@ export class MessageImportExceptionHandlerService {
 
     const authContext = buildSystemAuthContext(workspaceId);
 
-    await this.globalWorkspaceOrmManager.executeInWorkspaceContext(
-      authContext,
-      async () => {
-        const messageChannelRepository =
-          await this.globalWorkspaceOrmManager.getRepository<MessageChannelWorkspaceEntity>(
-            workspaceId,
-            'messageChannel',
-          );
-
-        await messageChannelRepository.increment(
-          { id: messageChannel.id },
-          'throttleFailureCount',
-          1,
-          undefined,
-          ['throttleFailureCount', 'id'],
+    await this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
+      const messageChannelRepository =
+        await this.globalWorkspaceOrmManager.getRepository<MessageChannelWorkspaceEntity>(
+          workspaceId,
+          'messageChannel',
         );
-      },
-    );
+
+      await messageChannelRepository.increment(
+        { id: messageChannel.id },
+        'throttleFailureCount',
+        1,
+        undefined,
+        ['throttleFailureCount', 'id'],
+      );
+
+      const throttleRetryAfter =
+        exception instanceof MessageImportDriverException
+          ? exception.throttleRetryAfter
+          : undefined;
+
+      await messageChannelRepository.update(
+        { id: messageChannel.id },
+        {
+          throttleRetryAfter: isDefined(throttleRetryAfter)
+            ? throttleRetryAfter.toISOString()
+            : null,
+        },
+      );
+    }, authContext);
 
     switch (syncStep) {
       case MessageImportSyncStep.MESSAGE_LIST_FETCH:
@@ -251,6 +265,7 @@ export class MessageImportExceptionHandlerService {
         {
           additionalData: {
             messageChannelId: messageChannel.id,
+            syncStep,
           },
           workspace: { id: workspaceId },
         },

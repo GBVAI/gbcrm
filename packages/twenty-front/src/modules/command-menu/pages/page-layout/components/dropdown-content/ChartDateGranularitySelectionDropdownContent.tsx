@@ -3,9 +3,8 @@ import { useUpdateCurrentWidgetConfig } from '@/command-menu/pages/page-layout/h
 import { useWidgetInEditMode } from '@/command-menu/pages/page-layout/hooks/useWidgetInEditMode';
 import { type ChartConfiguration } from '@/command-menu/pages/page-layout/types/ChartConfiguration';
 import { getDateGranularityLabel } from '@/command-menu/pages/page-layout/utils/getDateGranularityLabel';
-import { isBarOrLineChartConfiguration } from '@/command-menu/pages/page-layout/utils/isBarOrLineChartConfiguration';
-import { isChartConfiguration } from '@/command-menu/pages/page-layout/utils/isChartConfiguration';
-import { isPieChartConfiguration } from '@/command-menu/pages/page-layout/utils/isPieChartConfiguration';
+import { isWidgetConfigurationOfType } from '@/command-menu/pages/page-layout/utils/isWidgetConfigurationOfType';
+import { type FieldConfiguration } from '@/page-layout/types/FieldConfiguration';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { DropdownComponentInstanceContext } from '@/ui/layout/dropdown/contexts/DropdownComponentInstanceContext';
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
@@ -13,10 +12,14 @@ import { SelectableList } from '@/ui/layout/selectable-list/components/Selectabl
 import { SelectableListItem } from '@/ui/layout/selectable-list/components/SelectableListItem';
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { ObjectRecordGroupByDateGranularity } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import { MenuItemSelect } from 'twenty-ui/navigation';
+import {
+  type FieldsConfiguration,
+  type WidgetConfiguration,
+} from '~/generated-metadata/graphql';
 
 type ChartDateGranularitySelectionDropdownContentProps = {
   axis?: 'primary' | 'secondary';
@@ -31,11 +34,15 @@ const getCurrentDateGranularity = ({
 }) => {
   const defaultGranularity = ObjectRecordGroupByDateGranularity.DAY;
 
-  if (isPieChartConfiguration(configuration)) {
+  if (isWidgetConfigurationOfType(configuration, 'PieChartConfiguration')) {
     return configuration.dateGranularity || defaultGranularity;
   }
 
-  if (!isBarOrLineChartConfiguration(configuration)) {
+  const isBarOrLineChart =
+    isWidgetConfigurationOfType(configuration, 'BarChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'LineChartConfiguration');
+
+  if (!isBarOrLineChart) {
     return defaultGranularity;
   }
 
@@ -45,6 +52,23 @@ const getCurrentDateGranularity = ({
 
   return (
     configuration.secondaryAxisGroupByDateGranularity || defaultGranularity
+  );
+};
+
+const isChartConfiguration = (
+  configuration:
+    | WidgetConfiguration
+    | FieldsConfiguration
+    | FieldConfiguration
+    | null
+    | undefined,
+): configuration is ChartConfiguration => {
+  return (
+    isWidgetConfigurationOfType(configuration, 'BarChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'LineChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'PieChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'AggregateChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'GaugeChartConfiguration')
   );
 };
 
@@ -60,11 +84,19 @@ export const ChartDateGranularitySelectionDropdownContent = ({
     throw new Error('Invalid configuration type');
   }
 
-  if (!isDefined(axis) && !isPieChartConfiguration(configuration)) {
+  const isPieChart = isWidgetConfigurationOfType(
+    configuration,
+    'PieChartConfiguration',
+  );
+  const isBarOrLineChart =
+    isWidgetConfigurationOfType(configuration, 'BarChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'LineChartConfiguration');
+
+  if (!isDefined(axis) && !isPieChart) {
     throw new Error('Invalid configuration type');
   }
 
-  if (isDefined(axis) && !isBarOrLineChartConfiguration(configuration)) {
+  if (isDefined(axis) && !isBarOrLineChart) {
     throw new Error('Invalid configuration type');
   }
 
@@ -77,7 +109,7 @@ export const ChartDateGranularitySelectionDropdownContent = ({
     DropdownComponentInstanceContext,
   );
 
-  const selectedItemId = useRecoilComponentValue(
+  const selectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     dropdownId,
   );

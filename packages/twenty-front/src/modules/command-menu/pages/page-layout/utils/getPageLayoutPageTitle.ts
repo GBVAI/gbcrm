@@ -1,6 +1,6 @@
 import { type PageLayoutCommandMenuPage } from '@/command-menu/pages/page-layout/types/PageLayoutCommandMenuPage';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
 import { t } from '@lingui/core/macro';
+import { CommandMenuPages } from 'twenty-shared/types';
 import { assertUnreachable } from 'twenty-shared/utils';
 
 export const getPageLayoutPageTitle = (page: PageLayoutCommandMenuPage) => {
@@ -15,6 +15,10 @@ export const getPageLayoutPageTitle = (page: PageLayoutCommandMenuPage) => {
       return t`Configure filters`;
     case CommandMenuPages.PageLayoutTabSettings:
       return t`Tab Settings`;
+    case CommandMenuPages.PageLayoutFieldsSettings:
+      return t`Fields Settings`;
+    case CommandMenuPages.PageLayoutFieldsLayout:
+      return t`Layout`;
     default:
       assertUnreachable(page);
   }

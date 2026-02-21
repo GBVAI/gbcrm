@@ -22,6 +22,7 @@ export type CreateMessageChannelInput = {
   handle: string;
   messageVisibility?: MessageChannelVisibility;
   manager: WorkspaceEntityManager;
+  skipMessageChannelConfiguration?: boolean;
 };
 
 @Injectable()
@@ -40,12 +41,12 @@ export class CreateMessageChannelService {
       handle,
       messageVisibility,
       manager,
+      skipMessageChannelConfiguration,
     } = input;
 
     const authContext = buildSystemAuthContext(workspaceId);
 
     return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
-      authContext,
       async () => {
         const messageChannelRepository =
           await this.globalWorkspaceOrmManager.getRepository<MessageChannelWorkspaceEntity>(
@@ -63,8 +64,12 @@ export class CreateMessageChannelService {
             handle,
             visibility:
               messageVisibility || MessageChannelVisibility.SHARE_EVERYTHING,
-            syncStatus: MessageChannelSyncStatus.NOT_SYNCED,
-            syncStage: MessageChannelSyncStage.PENDING_CONFIGURATION,
+            syncStatus: skipMessageChannelConfiguration
+              ? MessageChannelSyncStatus.ONGOING
+              : MessageChannelSyncStatus.NOT_SYNCED,
+            syncStage: skipMessageChannelConfiguration
+              ? MessageChannelSyncStage.MESSAGE_LIST_FETCH_PENDING
+              : MessageChannelSyncStage.PENDING_CONFIGURATION,
             pendingGroupEmailsAction:
               MessageChannelPendingGroupEmailsAction.NONE,
           },
@@ -87,6 +92,7 @@ export class CreateMessageChannelService {
 
         return newMessageChannelId;
       },
+      authContext,
     );
   }
 }

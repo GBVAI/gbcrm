@@ -12,7 +12,7 @@ import {
   createStandardFieldFlatMetadata,
 } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-field-flat-metadata.util';
 import { createStandardRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-relation-field-flat-metadata.util';
-import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/workspace-sync-metadata/utils/get-ts-vector-column-expression.util';
+import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/utils/get-ts-vector-column-expression.util';
 import { SEARCH_FIELDS_FOR_TASKS } from 'src/modules/task/standard-objects/task.workspace-entity';
 
 export const buildTaskStandardFlatFieldMetadatas = ({
@@ -55,6 +55,7 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Creation date',
       description: 'Creation date',
       icon: 'IconCalendar',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -76,6 +77,7 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Last update',
       description: 'Last time the record was changed',
       icon: 'IconCalendarClock',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -97,6 +99,7 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Deleted at',
       description: 'Date when the record was deleted',
       icon: 'IconCalendarMinus',
+      isSystem: true,
       isNullable: true,
       isUIReadOnly: true,
       settings: {
@@ -188,14 +191,27 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       isNullable: true,
       defaultValue: "'TODO'",
       options: [
-        { value: 'TODO', label: 'To do', position: 0, color: 'sky' },
         {
+          id: '20202020-3d31-4860-ad07-5c4603d44887',
+          value: 'TODO',
+          label: 'To do',
+          position: 0,
+          color: 'sky',
+        },
+        {
+          id: '20202020-c559-4f8e-8b8e-21136da8684d',
           value: 'IN_PROGRESS',
           label: 'In progress',
           position: 1,
           color: 'purple',
         },
-        { value: 'DONE', label: 'Done', position: 2, color: 'green' },
+        {
+          id: '20202020-c7a7-43ff-8226-f6a97a32759e',
+          value: 'DONE',
+          label: 'Done',
+          position: 2,
+          color: 'green',
+        },
       ],
     },
     standardObjectMetadataRelatedEntityIds,
@@ -212,6 +228,30 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Created by',
       description: 'The creator of the record',
       icon: 'IconCreativeCommonsSa',
+      isSystem: true,
+      isUIReadOnly: true,
+      isNullable: false,
+      defaultValue: {
+        source: "'MANUAL'",
+        name: "'System'",
+        workspaceMemberId: null,
+      },
+    },
+    standardObjectMetadataRelatedEntityIds,
+    dependencyFlatEntityMaps,
+    twentyStandardApplicationId,
+    now,
+  }),
+  updatedBy: createStandardFieldFlatMetadata({
+    objectName,
+    workspaceId,
+    context: {
+      fieldName: 'updatedBy',
+      type: FieldMetadataType.ACTOR,
+      label: 'Updated by',
+      description: 'The workspace member who last updated the record',
+      icon: 'IconUserCircle',
+      isSystem: true,
       isUIReadOnly: true,
       isNullable: false,
       defaultValue: {
@@ -260,7 +300,6 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Relations',
       description: 'Task targets',
       icon: 'IconArrowUpRight',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'taskTarget',
       targetFieldName: 'task',
@@ -283,10 +322,9 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Attachments',
       description: 'Task attachments',
       icon: 'IconFileImport',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'attachment',
-      targetFieldName: 'task',
+      targetFieldName: 'targetTask',
       settings: {
         relationType: RelationType.ONE_TO_MANY,
       },
@@ -330,7 +368,6 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Timeline Activities',
       description: 'Timeline Activities linked to the task.',
       icon: 'IconTimelineEvent',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'timelineActivity',
       targetFieldName: 'targetTask',
@@ -353,7 +390,6 @@ export const buildTaskStandardFlatFieldMetadatas = ({
       label: 'Favorites',
       description: 'Favorites linked to the task',
       icon: 'IconHeart',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'favorite',
       targetFieldName: 'task',

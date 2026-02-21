@@ -4,11 +4,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { msg } from '@lingui/core/macro';
 import { Strategy } from 'passport-jwt';
-import { assertIsDefinedOrThrow, isDefined } from 'twenty-shared/utils';
-import { Repository } from 'typeorm';
 import { PermissionFlagType } from 'twenty-shared/constants';
+import { assertIsDefinedOrThrow, isDefined } from 'twenty-shared/utils';
+import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
+import { Repository } from 'typeorm';
 
 import { ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
+import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
 import {
   AuthException,
   AuthExceptionCode,
@@ -16,9 +18,9 @@ import {
 import {
   type AccessTokenJwtPayload,
   type ApiKeyTokenJwtPayload,
-  ApplicationTokenJwtPayload,
+  ApplicationAccessTokenJwtPayload,
   type AuthContext,
-  type FileTokenJwtPayload,
+  FileTokenJwtPayloadLegacy,
   type JwtPayload,
   JwtTokenTypeEnum,
   type WorkspaceAgnosticTokenJwtPayload,
@@ -29,7 +31,7 @@ import { UserEntity } from 'src/engine/core-modules/user/user.entity';
 import { userValidator } from 'src/engine/core-modules/user/user.validate';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { PermissionsService } from 'src/engine/metadata-modules/permissions/permissions.service';
-import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
+import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 
 @Injectable()
 export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -46,13 +48,14 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
     @InjectRepository(ApiKeyEntity)
     private readonly apiKeyRepository: Repository<ApiKeyEntity>,
     private readonly permissionsService: PermissionsService,
+    private readonly workspaceCacheService: WorkspaceCacheService,
   ) {
     const jwtFromRequestFunction = jwtWrapperService.extractJwtFromRequest();
     // @ts-expect-error legacy noImplicitAny
     const secretOrKeyProviderFunction = async (_request, rawJwtToken, done) => {
       try {
         const decodedToken = jwtWrapperService.decode<
-          | FileTokenJwtPayload
+          | FileTokenJwtPayloadLegacy
           | AccessTokenJwtPayload
           | WorkspaceAgnosticTokenJwtPayload
         >(rawJwtToken);
@@ -146,6 +149,13 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
       where: { id: userId },
     });
 
+    if (!isDefined(user)) {
+      throw new AuthException(
+        'User not found',
+        AuthExceptionCode.USER_NOT_FOUND,
+      );
+    }
+
     if (!payload.userWorkspaceId) {
       throw new AuthException(
         'UserWorkspaceEntity not found',
@@ -179,7 +189,40 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
       workspaceMemberId: payload.workspaceMemberId,
     };
 
-    return context;
+    if (
+      workspace.activationStatus ===
+        WorkspaceActivationStatus.PENDING_CREATION ||
+      workspace.activationStatus === WorkspaceActivationStatus.ONGOING_CREATION
+    ) {
+      return context;
+    }
+
+    const { flatWorkspaceMemberMaps } =
+      await this.workspaceCacheService.getOrRecompute(workspace.id, [
+        'flatWorkspaceMemberMaps',
+      ]);
+
+    const workspaceMemberId = flatWorkspaceMemberMaps.idByUserId[user.id];
+
+    const workspaceMember = isDefined(workspaceMemberId)
+      ? flatWorkspaceMemberMaps.byId[workspaceMemberId]
+      : undefined;
+
+    assertIsDefinedOrThrow(
+      workspaceMember,
+      new AuthException(
+        'User is not a member of the workspace',
+        AuthExceptionCode.FORBIDDEN_EXCEPTION,
+        {
+          userFriendlyMessage: msg`User is not a member of the workspace.`,
+        },
+      ),
+    );
+
+    return {
+      ...context,
+      workspaceMember,
+    };
   }
 
   private async validateImpersonation(payload: AccessTokenJwtPayload) {
@@ -290,7 +333,7 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   private async validateApplicationToken(
-    payload: ApplicationTokenJwtPayload,
+    payload: ApplicationAccessTokenJwtPayload,
   ): Promise<AuthContext> {
     const workspace = await this.workspaceRepository.findOneBy({
       id: payload.workspaceId,
@@ -316,6 +359,8 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
       );
     }
 
+    // TODO: Token carries userId/userWorkspaceId but they are unused.
+    // Compute the intersection of user and application permissions instead.
     return {
       application,
       workspace,
@@ -345,7 +390,7 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
       return await this.validateAccessToken(payload);
     }
 
-    if (payload.type === JwtTokenTypeEnum.APPLICATION) {
+    if (payload.type === JwtTokenTypeEnum.APPLICATION_ACCESS) {
       return await this.validateApplicationToken(payload);
     }
 

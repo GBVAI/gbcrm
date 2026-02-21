@@ -44,13 +44,11 @@ export class ImapGetMessagesService {
     const client = await this.imapClientProvider.getClient(connectedAccount);
 
     try {
-      const messages = await this.fetchFromAllFolders(
+      return await this.fetchFromAllFolders(
         messagesByFolder,
         client,
         connectedAccount,
       );
-
-      return messages;
     } finally {
       await this.imapClientProvider.closeClient(client);
     }
@@ -107,16 +105,21 @@ export class ImapGetMessagesService {
     client: ImapFlow,
     connectedAccount: ConnectedAccount,
   ): Promise<MessageWithParticipants[]> {
-    this.logger.log(
+    this.logger.debug(
       `Fetching ${messageUids.length} messages from ${folderPath}`,
     );
     const startTime = Date.now();
 
-    const results = await this.messageParser.parseMessagesFromFolder(
-      messageUids,
-      folderPath,
-      client,
-    );
+    const { messages: results, uidValidity } =
+      await this.messageParser.parseMessagesFromFolder(
+        messageUids,
+        folderPath,
+        client,
+      );
+
+    const folderExternalId = uidValidity
+      ? `${folderPath}:${uidValidity}`
+      : folderPath;
 
     const messages: MessageWithParticipants[] = [];
 
@@ -141,12 +144,13 @@ export class ImapGetMessagesService {
           result.parsed,
           result.uid,
           folderPath,
+          folderExternalId,
           connectedAccount,
         ),
       );
     }
 
-    this.logger.log(
+    this.logger.debug(
       `Parsed ${messages.length}/${results.length} messages from ${folderPath} in ${Date.now() - startTime}ms`,
     );
 
@@ -157,6 +161,7 @@ export class ImapGetMessagesService {
     parsed: ParsedMail,
     uid: number,
     folderPath: string,
+    folderExternalId: string,
     connectedAccount: Pick<
       ConnectedAccountWorkspaceEntity,
       'handle' | 'handleAliases'
@@ -179,6 +184,7 @@ export class ImapGetMessagesService {
       direction: computeMessageDirection(senderAddress, connectedAccount),
       attachments: this.extractAttachments(parsed),
       participants: this.extractParticipants(parsed),
+      messageFolderExternalIds: [folderExternalId],
     };
   }
 

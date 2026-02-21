@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 
 import assert from 'assert';
 
@@ -8,7 +8,7 @@ import { TypeOrmQueryService } from '@ptc-org/nestjs-query-typeorm';
 import { PermissionFlagType } from 'twenty-shared/constants';
 import { assertIsDefinedOrThrow, isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { Repository } from 'typeorm';
+import { DataSource, QueryRunner, Repository } from 'typeorm';
 
 import { ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
 import { BillingSubscriptionService } from 'src/engine/core-modules/billing/services/billing-subscription.service';
@@ -17,8 +17,8 @@ import { DnsManagerService } from 'src/engine/core-modules/dns-manager/services/
 import { CustomDomainManagerService } from 'src/engine/core-modules/domain/custom-domain-manager/services/custom-domain-manager.service';
 import { SubdomainManagerService } from 'src/engine/core-modules/domain/subdomain-manager/services/subdomain-manager.service';
 import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
 import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
+import { FileCorePictureService } from 'src/engine/core-modules/file/file-core-picture/services/file-core-picture.service';
 import {
   FileWorkspaceFolderDeletionJob,
   type FileWorkspaceFolderDeletionJobData,
@@ -37,6 +37,9 @@ import {
   WorkspaceExceptionCode,
   WorkspaceNotFoundDefaultError,
 } from 'src/engine/core-modules/workspace/workspace.exception';
+import { FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
+import { ALL_METADATA_ENTITY_BY_METADATA_NAME } from 'src/engine/metadata-modules/flat-entity/constant/all-metadata-entity-by-metadata-name.constant';
+import { ALL_METADATA_NAMES_SORTED_ATOMICALLY } from 'src/engine/metadata-modules/flat-entity/constant/all-metadata-names-sorted-atomically.constant';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
 import {
   PermissionsException,
@@ -45,12 +48,19 @@ import {
 } from 'src/engine/metadata-modules/permissions/permissions.exception';
 import { PermissionsService } from 'src/engine/metadata-modules/permissions/permissions.service';
 import { WorkspaceCacheStorageService } from 'src/engine/workspace-cache-storage/workspace-cache-storage.service';
+import { getWorkspaceSchemaName } from 'src/engine/workspace-datasource/utils/get-workspace-schema-name.util';
+import { WorkspaceDataSourceService } from 'src/engine/workspace-datasource/workspace-datasource.service';
+import { prefillCompanies } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-companies';
+import { prefillDashboards } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-dashboards';
+import { prefillOpportunities } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-opportunities';
+import { prefillPeople } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-people';
+import { prefillWorkflows } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-workflows';
 import { WorkspaceManagerService } from 'src/engine/workspace-manager/workspace-manager.service';
-import { DEFAULT_FEATURE_FLAGS } from 'src/engine/workspace-manager/workspace-sync-metadata/constants/default-feature-flags';
+import { DEFAULT_FEATURE_FLAGS } from 'src/engine/workspace-manager/workspace-migration/constant/default-feature-flags';
 import { extractVersionMajorMinorPatch } from 'src/utils/version/extract-version-major-minor-patch';
 
 @Injectable()
-// eslint-disable-next-line @nx/workspace-inject-workspace-repository
+// eslint-disable-next-line twenty/inject-workspace-repository
 export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
   protected readonly logger = new Logger(WorkspaceService.name);
 
@@ -63,6 +73,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     displayName: PermissionFlagType.WORKSPACE,
     logo: PermissionFlagType.WORKSPACE,
     trashRetentionDays: PermissionFlagType.WORKSPACE,
+    eventLogRetentionDays: PermissionFlagType.SECURITY,
     inviteHash: PermissionFlagType.WORKSPACE_MEMBERS,
     isPublicInviteLinkEnabled: PermissionFlagType.SECURITY,
     allowImpersonation: PermissionFlagType.SECURITY,
@@ -74,6 +85,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     defaultRoleId: PermissionFlagType.ROLES,
     fastModel: PermissionFlagType.WORKSPACE,
     smartModel: PermissionFlagType.WORKSPACE,
+    aiAdditionalInstructions: PermissionFlagType.WORKSPACE,
   };
 
   constructor(
@@ -95,9 +107,13 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     private readonly flatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
     private readonly workspaceCacheStorageService: WorkspaceCacheStorageService,
     private readonly subdomainManagerService: SubdomainManagerService,
+    private readonly workspaceDataSourceService: WorkspaceDataSourceService,
     private readonly customDomainManagerService: CustomDomainManagerService,
+    private readonly fileCorePictureService: FileCorePictureService,
     @InjectMessageQueue(MessageQueue.deleteCascadeQueue)
     private readonly messageQueueService: MessageQueueService,
+    @InjectDataSource()
+    private readonly coreDataSource: DataSource,
   ) {
     super(workspaceRepository);
   }
@@ -200,8 +216,10 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       );
     }
 
+    let updatedWorkspace: WorkspaceEntity;
+
     try {
-      return await this.workspaceRepository.save({
+      updatedWorkspace = await this.workspaceRepository.save({
         ...workspace,
         ...payload,
       });
@@ -216,6 +234,15 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       }
       throw error;
     }
+
+    if (payload.logo === null && isDefined(workspace.logoFileId)) {
+      await this.fileCorePictureService.deleteCorePicture({
+        fileId: workspace.logoFileId,
+        workspaceId: workspace.id,
+      });
+    }
+
+    return updatedWorkspace;
   }
 
   async activateWorkspace(
@@ -243,17 +270,8 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       activationStatus: WorkspaceActivationStatus.ONGOING_CREATION,
     });
 
-    const isV2SyncEnabled = this.twentyConfigService.get(
-      'IS_WORKSPACE_CREATION_V2_ENABLED',
-    );
-
     await this.featureFlagService.enableFeatureFlags(
-      [
-        ...DEFAULT_FEATURE_FLAGS,
-        ...(isV2SyncEnabled
-          ? [FeatureFlagKey.IS_WORKSPACE_CREATION_V2_ENABLED]
-          : []),
-      ],
+      DEFAULT_FEATURE_FLAGS,
       workspace.id,
     );
 
@@ -261,7 +279,13 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       workspace,
       userId: user.id,
     });
+
     await this.userWorkspaceService.createWorkspaceMember(workspace.id, user);
+
+    await this.prefillCreatedWorkspaceRecords({
+      workspaceId: workspace.id,
+      schemaName: getWorkspaceSchemaName(workspace.id),
+    });
 
     const appVersion = this.twentyConfigService.get('APP_VERSION');
 
@@ -274,20 +298,6 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     return await this.workspaceRepository.findOneBy({
       id: workspace.id,
     });
-  }
-
-  async deleteMetadataSchemaCacheAndUserWorkspace(workspace: WorkspaceEntity) {
-    await this.userWorkspaceService.deleteUserWorkspace({
-      userWorkspaceId: workspace.id,
-    });
-
-    if (this.billingService.isBillingEnabled()) {
-      await this.billingSubscriptionService.deleteSubscriptions(workspace.id);
-    }
-
-    await this.workspaceManagerService.delete(workspace.id);
-
-    return workspace;
   }
 
   async deleteWorkspace(id: string, softDelete = false) {
@@ -314,20 +324,13 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     }
     this.logger.log(`workspace ${id} user workspaces deleted`);
 
-    await this.workspaceCacheStorageService.flush(
-      workspace.id,
-      workspace.metadataVersion,
-    );
-    await this.flatEntityMapsCacheService.flushFlatEntityMaps({
-      workspaceId: workspace.id,
-    });
     this.logger.log(`workspace ${id} cache flushed`);
 
-    if (softDelete) {
-      if (this.billingService.isBillingEnabled()) {
-        await this.billingSubscriptionService.deleteSubscriptions(workspace.id);
-      }
+    if (this.billingService.isBillingEnabled()) {
+      await this.billingSubscriptionService.deleteSubscriptions(workspace.id);
+    }
 
+    if (softDelete) {
       await this.workspaceRepository.softDelete({ id });
 
       this.logger.log(`workspace ${id} soft deleted`);
@@ -335,7 +338,17 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       return workspace;
     }
 
-    await this.deleteMetadataSchemaCacheAndUserWorkspace(workspace);
+    await this.deleteWorkspaceSyncableMetadataEntities(workspace);
+
+    await this.workspaceDataSourceService.deleteWorkspaceDBSchema(workspace.id);
+
+    await this.workspaceCacheStorageService.flush(
+      workspace.id,
+      workspace.metadataVersion,
+    );
+    await this.flatEntityMapsCacheService.flushFlatEntityMaps({
+      workspaceId: workspace.id,
+    });
 
     await this.messageQueueService.add<FileWorkspaceFolderDeletionJobData>(
       FileWorkspaceFolderDeletionJob.name,
@@ -354,6 +367,132 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     this.logger.log(`workspace ${id} hard deleted`);
 
     return workspace;
+  }
+
+  private async deleteWorkspaceSyncableMetadataEntities(
+    workspace: WorkspaceEntity,
+  ): Promise<void> {
+    const queryRunner = this.coreDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+
+    try {
+      await queryRunner.startTransaction();
+
+      for (const metadataName of ALL_METADATA_NAMES_SORTED_ATOMICALLY) {
+        if (metadataName === 'fieldMetadata') {
+          const deletedCount = await this.deleteFieldMetadataInChunks(
+            queryRunner,
+            workspace.id,
+          );
+
+          if (deletedCount > 0) {
+            this.logger.log(
+              `workspace ${workspace.id}: deleted ${deletedCount} ${metadataName} record(s)`,
+            );
+          }
+
+          continue;
+        }
+
+        const entity = ALL_METADATA_ENTITY_BY_METADATA_NAME[metadataName];
+
+        const result = await queryRunner.manager.delete(entity, {
+          workspaceId: workspace.id,
+        });
+
+        if (result.affected && result.affected > 0) {
+          this.logger.log(
+            `workspace ${workspace.id}: deleted ${result.affected} ${metadataName} record(s)`,
+          );
+        }
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // FieldMetadataEntity has a self-referencing FK (relationTargetFieldMetadataId)
+  // Related fields must be deleted together to avoid constraint violations
+  private async deleteFieldMetadataInChunks(
+    queryRunner: QueryRunner,
+    workspaceId: string,
+  ): Promise<number> {
+    const CHUNK_SIZE = 50;
+    let totalDeleted = 0;
+
+    const { flatFieldMetadataMaps } =
+      await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+        {
+          workspaceId,
+          flatMapsKeys: ['flatFieldMetadataMaps'],
+        },
+      );
+
+    const fields = Object.values(
+      flatFieldMetadataMaps.byUniversalIdentifier,
+    ).filter(isDefined);
+
+    if (fields.length === 0) {
+      return 0;
+    }
+
+    const processedIds = new Set<string>();
+    const fieldsMap = new Map(fields.map((field) => [field.id, field]));
+    const chunks: string[][] = [];
+    let currentChunk: string[] = [];
+
+    for (const field of fields) {
+      if (processedIds.has(field.id)) {
+        continue;
+      }
+
+      currentChunk.push(field.id);
+      processedIds.add(field.id);
+
+      if (field.relationTargetFieldMetadataId) {
+        const relatedField = fieldsMap.get(field.relationTargetFieldMetadataId);
+
+        if (relatedField && !processedIds.has(relatedField.id)) {
+          currentChunk.push(relatedField.id);
+          processedIds.add(relatedField.id);
+        }
+      }
+
+      if (currentChunk.length >= CHUNK_SIZE) {
+        chunks.push([...currentChunk]);
+        currentChunk = [];
+      }
+    }
+
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+
+    for (const [index, chunk] of chunks.entries()) {
+      const result = await queryRunner.manager
+        .createQueryBuilder()
+        .delete()
+        .from(FieldMetadataEntity)
+        .whereInIds(chunk)
+        .execute();
+
+      const deletedInChunk = result.affected || 0;
+
+      totalDeleted += deletedInChunk;
+
+      this.logger.log(
+        `workspace ${workspaceId}: fieldMetadata chunk ${index + 1}/${chunks.length} - deleted ${deletedInChunk} record(s)`,
+      );
+    }
+
+    return totalDeleted;
   }
 
   async handleRemoveWorkspaceMember(
@@ -464,6 +603,72 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
           },
         );
       }
+    }
+  }
+
+  private async prefillCreatedWorkspaceRecords({
+    workspaceId,
+    schemaName,
+  }: {
+    workspaceId: string;
+    schemaName: string;
+  }): Promise<void> {
+    const {
+      flatObjectMetadataMaps,
+      flatFieldMetadataMaps,
+      flatPageLayoutMaps,
+    } =
+      await this.flatEntityMapsCacheService.getOrRecomputeManyOrAllFlatEntityMaps(
+        {
+          workspaceId,
+          flatMapsKeys: [
+            'flatObjectMetadataMaps',
+            'flatFieldMetadataMaps',
+            'flatPageLayoutMaps',
+          ],
+        },
+      );
+
+    const queryRunner = this.coreDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+
+    try {
+      await queryRunner.startTransaction();
+
+      await prefillCompanies(queryRunner.manager, schemaName);
+
+      await prefillPeople(queryRunner.manager, schemaName);
+
+      await prefillWorkflows(
+        queryRunner.manager,
+        schemaName,
+        flatObjectMetadataMaps,
+        flatFieldMetadataMaps,
+      );
+
+      await prefillOpportunities(queryRunner.manager, schemaName);
+
+      await prefillDashboards(
+        queryRunner.manager,
+        schemaName,
+        flatPageLayoutMaps,
+      );
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        try {
+          await queryRunner.rollbackTransaction();
+        } catch (rollbackError) {
+          this.logger.error(
+            `Failed to rollback prefill transaction: ${rollbackError.message}`,
+          );
+        }
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 }

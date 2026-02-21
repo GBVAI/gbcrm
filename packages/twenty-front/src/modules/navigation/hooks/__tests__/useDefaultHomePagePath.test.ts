@@ -13,7 +13,7 @@ import {
   ViewOpenRecordIn,
   ViewType,
   ViewVisibility,
-} from '~/generated/graphql';
+} from '~/generated-metadata/graphql';
 import { getMockCompanyObjectMetadataItem } from '~/testing/mock-data/companies';
 import { mockedUserData } from '~/testing/mock-data/users';
 import { generatedMockObjectMetadataItems } from '~/testing/utils/generatedMockObjectMetadataItems';
@@ -50,13 +50,15 @@ const renderHooks = ({
               isCompact: false,
               openRecordIn: ViewOpenRecordIn.SIDE_PANEL,
               viewFields: [],
+              viewFieldGroups: [],
               viewGroups: [],
               viewSorts: [],
+              viewFilters: [],
+              viewFilterGroups: [],
               kanbanAggregateOperation: AggregateOperations.COUNT,
               icon: '',
               kanbanAggregateOperationFieldMetadataId: '',
               position: 0,
-              viewFilters: [],
               visibility: ViewVisibility.WORKSPACE,
               createdByUserWorkspaceId: null,
               shouldHideEmptyGroups: false,

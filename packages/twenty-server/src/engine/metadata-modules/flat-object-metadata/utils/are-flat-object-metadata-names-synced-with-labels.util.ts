@@ -1,14 +1,16 @@
 import { computeMetadataNameFromLabel } from 'twenty-shared/metadata';
 
-import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
+import { isCallerTwentyStandardApp } from 'src/engine/metadata-modules/utils/is-caller-twenty-standard-app.util';
+import { type UniversalFlatObjectMetadata } from 'src/engine/workspace-manager/workspace-migration/universal-flat-entity/types/universal-flat-object-metadata.type';
+import { type WorkspaceMigrationBuilderOptions } from 'src/engine/workspace-manager/workspace-migration/workspace-migration-builder/types/workspace-migration-builder-options.type';
 
 export const areFlatObjectMetadataNamesSyncedWithLabels = ({
   flatObjectdMetadata,
-  isSystemBuild,
+  buildOptions,
 }: {
-  isSystemBuild: boolean;
+  buildOptions: WorkspaceMigrationBuilderOptions;
   flatObjectdMetadata: Pick<
-    FlatObjectMetadata,
+    UniversalFlatObjectMetadata,
     'namePlural' | 'nameSingular' | 'labelPlural' | 'labelSingular'
   >;
 }) => {
@@ -18,7 +20,7 @@ export const areFlatObjectMetadataNamesSyncedWithLabels = ({
   ].map((label) =>
     computeMetadataNameFromLabel({
       label,
-      applyCustomSuffix: !isSystemBuild,
+      applyCustomSuffix: !isCallerTwentyStandardApp(buildOptions),
     }),
   );
 

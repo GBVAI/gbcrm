@@ -6,14 +6,14 @@ import { RecordShowContainerContextStoreTargetedRecordsEffect } from '@/object-r
 import { RecordShowEffect } from '@/object-record/record-show/components/RecordShowEffect';
 import { recordStoreFamilySelector } from '@/object-record/record-store/states/selectors/recordStoreFamilySelector';
 import { PageLayoutRenderer } from '@/page-layout/components/PageLayoutRenderer';
-import { useRecordPageLayoutId } from '@/page-layout/hooks/useRecordPageLayoutId';
+import { usePageLayoutIdForRecord } from '@/page-layout/hooks/usePageLayoutIdForRecord';
 import { LayoutRenderingProvider } from '@/ui/layout/contexts/LayoutRenderingContext';
 import { type TargetRecordIdentifier } from '@/ui/layout/contexts/TargetRecordIdentifier';
 import { RightDrawerFooter } from '@/ui/layout/right-drawer/components/RightDrawerFooter';
 import styled from '@emotion/styled';
 import { useRecoilValue } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
-import { PageLayoutType } from '~/generated/graphql';
+import { PageLayoutType } from '~/generated-metadata/graphql';
 
 const StyledShowPageBannerContainer = styled.div`
   z-index: 1;
@@ -50,7 +50,7 @@ export const PageLayoutRecordPageRenderer = ({
     }),
   );
 
-  const { pageLayoutId } = useRecordPageLayoutId({
+  const { pageLayoutId } = usePageLayoutIdForRecord({
     id: targetRecordIdentifier.id,
     targetObjectNameSingular: targetRecordIdentifier.targetObjectNameSingular,
   });

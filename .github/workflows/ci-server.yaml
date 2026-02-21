@@ -1,11 +1,9 @@
 name: CI Server
 
 on:
-  push:
-    branches:
-      - main
-
   pull_request:
+
+  merge_group:
 
 permissions:
   contents: read
@@ -33,7 +31,7 @@ jobs:
     needs: changed-files-check
     if: needs.changed-files-check.outputs.any_changed == 'true'
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     services:
       postgres:
         image: twentycrm/twenty-postgres-spilo
@@ -145,7 +143,7 @@ jobs:
           key: ${{ steps.restore-server-setup-cache.outputs.cache-primary-key }}
   server-test:
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     needs: server-setup
     steps:
       - name: Fetch custom Github Actions and base branch history
@@ -166,12 +164,12 @@ jobs:
 
   server-integration-test:
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     needs: server-setup
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     services:
       postgres:
         image: twentycrm/twenty-postgres-spilo
@@ -209,7 +207,7 @@ jobs:
       ANALYTICS_ENABLED: true
       CLICKHOUSE_URL: "http://default:clickhousePassword@localhost:8123/twenty"
       CLICKHOUSE_PASSWORD: clickhousePassword
-      SHARD_COUNTER: 6
+      SHARD_COUNTER: 8
     steps:
       - name: Fetch custom Github Actions and base branch history
         uses: actions/checkout@v4
