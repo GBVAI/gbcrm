@@ -14,13 +14,14 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 import { WorkspaceEventBatch } from 'src/engine/workspace-event-emitter/types/workspace-event-batch.type';
 import { parseEventNameOrThrow } from 'src/engine/workspace-event-emitter/utils/parse-event-name';
 import { NoteWorkspaceEntity } from 'src/modules/note/standard-objects/note.workspace-entity';
+import { PhoneCallWorkspaceEntity } from 'src/modules/phone-call/standard-objects/phone-call.workspace-entity';
 import { TaskWorkspaceEntity } from 'src/modules/task/standard-objects/task.workspace-entity';
 import { TimelineActivityRepository } from 'src/modules/timeline/repositories/timeline-activity.repository';
 import { TimelineActivityWorkspaceEntity } from 'src/modules/timeline/standard-objects/timeline-activity.workspace-entity';
 import { type TimelineActivityPayload } from 'src/modules/timeline/types/timeline-activity-payload';
 import { extractObjectSingularNameFromTargetColumnName } from 'src/modules/timeline/utils/extract-object-singular-name-from-target-column-name.util';
 
-type ActivityType = 'note' | 'task';
+type ActivityType = 'note' | 'task' | 'phoneCall';
 
 @Injectable()
 export class TimelineActivityService {
@@ -35,6 +36,7 @@ export class TimelineActivityService {
   private targetObjects: Record<ActivityType, string> = {
     note: 'noteTarget',
     task: 'taskTarget',
+    phoneCall: 'phoneCallTarget',
   };
 
   async upsertEvents({
@@ -142,13 +144,42 @@ export class TimelineActivityService {
       ];
     }
 
+    if (objectSingularName === 'phoneCall') {
+      const phoneCallEventsTimelineActivities =
+        await this.computeTimelineActivityPayloadsForActivities({
+          events: events as ObjectRecordBaseEvent<PhoneCallWorkspaceEntity>[],
+          activityType: 'phoneCall',
+          workspaceId,
+          objectMetadata,
+          name,
+        });
+
+      return [
+        ...phoneCallEventsTimelineActivities,
+        ...(events.map((event) => ({
+          name,
+          objectSingularName,
+          recordId: event.recordId,
+          workspaceMemberId: event.workspaceMemberId,
+          properties: event.properties,
+        })) satisfies TimelineActivityPayload[]),
+      ];
+    }
+
     if (
       objectSingularName === 'noteTarget' ||
-      objectSingularName === 'taskTarget'
+      objectSingularName === 'taskTarget' ||
+      objectSingularName === 'phoneCallTarget'
     ) {
+      const activityTypeMap: Record<string, ActivityType> = {
+        noteTarget: 'note',
+        taskTarget: 'task',
+        phoneCallTarget: 'phoneCall',
+      };
+
       return await this.computeTimelineActivityPayloadsForActivityTargets({
         events,
-        activityType: objectSingularName === 'noteTarget' ? 'note' : 'task',
+        activityType: activityTypeMap[objectSingularName],
         workspaceId,
         objectMetadata,
         name,
@@ -171,7 +202,9 @@ export class TimelineActivityService {
     workspaceId,
     objectMetadata,
   }: WorkspaceEventBatch<
-    ObjectRecordBaseEvent<NoteWorkspaceEntity | TaskWorkspaceEntity>
+    ObjectRecordBaseEvent<
+      NoteWorkspaceEntity | TaskWorkspaceEntity | PhoneCallWorkspaceEntity
+    >
   > & {
     activityType: ActivityType;
   }): Promise<TimelineActivityPayload[]> {

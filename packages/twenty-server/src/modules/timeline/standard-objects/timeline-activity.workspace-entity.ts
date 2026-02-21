@@ -8,6 +8,7 @@ import { type CompanyWorkspaceEntity } from 'src/modules/company/standard-object
 import { type DashboardWorkspaceEntity } from 'src/modules/dashboard/standard-objects/dashboard.workspace-entity';
 import { type NoteWorkspaceEntity } from 'src/modules/note/standard-objects/note.workspace-entity';
 import { type OpportunityWorkspaceEntity } from 'src/modules/opportunity/standard-objects/opportunity.workspace-entity';
+import { type PhoneCallWorkspaceEntity } from 'src/modules/phone-call/standard-objects/phone-call.workspace-entity';
 import { type PersonWorkspaceEntity } from 'src/modules/person/standard-objects/person.workspace-entity';
 import { type TaskWorkspaceEntity } from 'src/modules/task/standard-objects/task.workspace-entity';
 import { type WorkflowRunWorkspaceEntity } from 'src/modules/workflow/common/standard-objects/workflow-run.workspace-entity';
@@ -46,6 +47,8 @@ export class TimelineActivityWorkspaceEntity extends BaseWorkspaceEntity {
   targetWorkflowVersionId: string | null;
   targetWorkflowRun: EntityRelation<WorkflowRunWorkspaceEntity> | null;
   targetWorkflowRunId: string | null;
+  targetPhoneCall: EntityRelation<PhoneCallWorkspaceEntity> | null;
+  targetPhoneCallId: string | null;
   targetDashboard: EntityRelation<DashboardWorkspaceEntity> | null;
   targetDashboardId: string | null;
   custom: EntityRelation<CustomWorkspaceEntity>;

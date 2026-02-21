@@ -537,6 +537,62 @@ export const STANDARD_FLAT_OBJECT_METADATA_BUILDERS_BY_OBJECT_NAME = {
       twentyStandardApplicationId,
       now,
     }),
+  phoneCall: ({
+    now,
+    workspaceId,
+    standardObjectMetadataRelatedEntityIds,
+    twentyStandardApplicationId,
+    dependencyFlatEntityMaps,
+  }: Omit<CreateStandardObjectArgs<'phoneCall'>, 'context' | 'objectName'>) =>
+    createStandardObjectFlatMetadata({
+      objectName: 'phoneCall',
+      dependencyFlatEntityMaps,
+      context: {
+        universalIdentifier: STANDARD_OBJECTS.phoneCall.universalIdentifier,
+        nameSingular: 'phoneCall',
+        namePlural: 'phoneCalls',
+        labelSingular: 'Phone Call',
+        labelPlural: 'Phone Calls',
+        description: 'A phone call',
+        icon: 'IconPhone',
+        isSearchable: true,
+        labelIdentifierFieldMetadataName: 'title',
+      },
+      workspaceId,
+      standardObjectMetadataRelatedEntityIds,
+      twentyStandardApplicationId,
+      now,
+    }),
+  phoneCallTarget: ({
+    now,
+    workspaceId,
+    standardObjectMetadataRelatedEntityIds,
+    twentyStandardApplicationId,
+    dependencyFlatEntityMaps,
+  }: Omit<
+    CreateStandardObjectArgs<'phoneCallTarget'>,
+    'context' | 'objectName'
+  >) =>
+    createStandardObjectFlatMetadata({
+      objectName: 'phoneCallTarget',
+      dependencyFlatEntityMaps,
+      context: {
+        universalIdentifier:
+          STANDARD_OBJECTS.phoneCallTarget.universalIdentifier,
+        nameSingular: 'phoneCallTarget',
+        namePlural: 'phoneCallTargets',
+        labelSingular: 'Phone Call Target',
+        labelPlural: 'Phone Call Targets',
+        description: 'A phone call target',
+        icon: 'IconPhone',
+        isSystem: true,
+        labelIdentifierFieldMetadataName: 'id',
+      },
+      workspaceId,
+      standardObjectMetadataRelatedEntityIds,
+      twentyStandardApplicationId,
+      now,
+    }),
   note: ({
     now,
     workspaceId,

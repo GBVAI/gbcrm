@@ -22,6 +22,8 @@ export enum CoreObjectNameSingular {
   NoteTarget = 'noteTarget',
   Opportunity = 'opportunity',
   Person = 'person',
+  PhoneCall = 'phoneCall',
+  PhoneCallTarget = 'phoneCallTarget',
   Task = 'task',
   TaskTarget = 'taskTarget',
   Webhook = 'webhook',

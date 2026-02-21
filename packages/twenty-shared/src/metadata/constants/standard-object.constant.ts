@@ -53,6 +53,9 @@ export const STANDARD_OBJECTS = {
       targetWorkflow: {
         universalIdentifier: '20202020-f1e8-4c9d-8a7b-3f5e1d2c9a8b',
       },
+      targetPhoneCall: {
+        universalIdentifier: '20202020-at-pc01-4c9d-8a7b-3f5e1d2c9a8c',
+      },
       position: {
         universalIdentifier: 'cef8f62c-cd46-4444-8cbb-17d463b7464a',
       },
@@ -489,6 +492,9 @@ export const STANDARD_OBJECTS = {
       noteTargets: {
         universalIdentifier: '20202020-bae0-4556-a74a-a9c686f77a88',
       },
+      phoneCallTargets: {
+        universalIdentifier: '20202020-co-pc01-4a61-8f8f-3be6730480df',
+      },
       opportunities: {
         universalIdentifier: '20202020-add3-4658-8e23-d70dccb6d0ec',
       },
@@ -758,6 +764,9 @@ export const STANDARD_OBJECTS = {
       },
       task: { universalIdentifier: '20202020-1b1b-4b3b-8b1b-7f8d6a1d7d5c' },
       note: { universalIdentifier: '20202020-1f25-43fe-8b00-af212fdde824' },
+      phoneCall: {
+        universalIdentifier: '20202020-fv-pc01-4d12-8b4d-248356aa4bd0',
+      },
       viewId: { universalIdentifier: '20202020-5a93-4fa9-acce-e73481a0bbdf' },
       favoriteFolder: {
         universalIdentifier: '20202020-f658-4d12-8b4d-248356aa4bd9',
@@ -1280,6 +1289,183 @@ export const STANDARD_OBJECTS = {
       },
     },
   },
+  phoneCall: {
+    universalIdentifier: '20202020-pc01-4a01-8a01-1b2c3d4e5f60',
+    fields: {
+      id: { universalIdentifier: '20202020-pc0a-4101-8a01-a1b2c3d4e5f6' },
+      createdAt: {
+        universalIdentifier: '20202020-pc0b-4102-9b02-b2c3d4e5f6a7',
+      },
+      updatedAt: {
+        universalIdentifier: '20202020-pc0c-4103-8c03-c3d4e5f6a7b8',
+      },
+      deletedAt: {
+        universalIdentifier: '20202020-pc0d-4104-9d04-d4e5f6a7b8c9',
+      },
+      position: {
+        universalIdentifier: '20202020-pc10-4105-8a05-e5f6a7b8c9d0',
+      },
+      title: { universalIdentifier: '20202020-pc11-4106-9b06-f6a7b8c9d0e1' },
+      direction: {
+        universalIdentifier: '20202020-pc12-4107-8c07-a7b8c9d0e1f2',
+      },
+      callStatus: {
+        universalIdentifier: '20202020-pc13-4108-9d08-b8c9d0e1f2a3',
+      },
+      callerPhone: {
+        universalIdentifier: '20202020-pc14-4109-8a09-c9d0e1f2a3b4',
+      },
+      callerName: {
+        universalIdentifier: '20202020-pc15-410a-9b0a-d0e1f2a3b4c5',
+      },
+      receiverPhone: {
+        universalIdentifier: '20202020-pc16-410b-8c0b-e1f2a3b4c5d6',
+      },
+      agentName: {
+        universalIdentifier: '20202020-pc17-410c-9d0c-f2a3b4c5d6e7',
+      },
+      startedAt: {
+        universalIdentifier: '20202020-pc18-410d-8a0d-a3b4c5d6e7f8',
+      },
+      endedAt: {
+        universalIdentifier: '20202020-pc19-410e-9b0e-b4c5d6e7f8a9',
+      },
+      durationSeconds: {
+        universalIdentifier: '20202020-pc1a-410f-8c0f-c5d6e7f8a9b0',
+      },
+      waitSeconds: {
+        universalIdentifier: '20202020-pc1b-4110-9d10-d6e7f8a9b0c1',
+      },
+      endCause: {
+        universalIdentifier: '20202020-pc1c-4111-8a11-e7f8a9b0c1d2',
+      },
+      recordingUrl: {
+        universalIdentifier: '20202020-pc1d-4112-9b12-f8a9b0c1d2e3',
+      },
+      transcript: {
+        universalIdentifier: '20202020-pc1e-4113-8c13-a9b0c1d2e3f4',
+      },
+      summary: {
+        universalIdentifier: '20202020-pc1f-4114-9d14-b0c1d2e3f4a5',
+      },
+      wildixCallId: {
+        universalIdentifier: '20202020-pc20-4115-8a15-c1d2e3f4a5b6',
+      },
+      bodyV2: {
+        universalIdentifier: '20202020-pc21-4116-9b16-d2e3f4a5b6c7',
+      },
+      createdBy: {
+        universalIdentifier: '20202020-pc22-4117-8c17-e3f4a5b6c7d8',
+      },
+      updatedBy: {
+        universalIdentifier: '20202020-pc23-4118-9d18-f4a5b6c7d8e9',
+      },
+      phoneCallTargets: {
+        universalIdentifier: '20202020-pc24-4119-8a19-a5b6c7d8e9f0',
+      },
+      attachments: {
+        universalIdentifier: '20202020-pc25-411a-9b1a-b6c7d8e9f0a1',
+      },
+      timelineActivities: {
+        universalIdentifier: '20202020-pc26-411b-8c1b-c7d8e9f0a1b2',
+      },
+      favorites: {
+        universalIdentifier: '20202020-pc27-411c-9d1c-d8e9f0a1b2c3',
+      },
+      searchVector: {
+        universalIdentifier: '20202020-pc28-411d-8a1d-e9f0a1b2c3d4',
+      },
+    },
+    indexes: {
+      wildixCallIdIndex: {
+        universalIdentifier: '20202020-pc30-4120-9b20-f0a1b2c3d4e5',
+      },
+      searchVectorGinIndex: {
+        universalIdentifier: '20202020-pc31-4121-8c21-a1b2c3d4e5f6',
+      },
+    },
+    views: {
+      allPhoneCalls: {
+        universalIdentifier: '20202020-pc40-4130-8a30-b2c3d4e5f6a7',
+        viewFields: {
+          title: {
+            universalIdentifier: '20202020-pc41-4131-9b31-c3d4e5f6a7b8',
+          },
+          direction: {
+            universalIdentifier: '20202020-pc42-4132-8c32-d4e5f6a7b8c9',
+          },
+          callStatus: {
+            universalIdentifier: '20202020-pc43-4133-9d33-e5f6a7b8c9d0',
+          },
+          durationSeconds: {
+            universalIdentifier: '20202020-pc44-4134-8a34-f6a7b8c9d0e1',
+          },
+          startedAt: {
+            universalIdentifier: '20202020-pc45-4135-9b35-a7b8c9d0e1f2',
+          },
+          phoneCallTargets: {
+            universalIdentifier: '20202020-pc46-4136-8c36-b8c9d0e1f2a3',
+          },
+        },
+      },
+    },
+  },
+  phoneCallTarget: {
+    universalIdentifier: '20202020-pct1-4b01-8b01-2c3d4e5f6a70',
+    fields: {
+      id: { universalIdentifier: '20202020-pct0a-4201-8a01-3d4e5f6a7b81' },
+      createdAt: {
+        universalIdentifier: '20202020-pct0b-4202-9b02-4e5f6a7b8c92',
+      },
+      updatedAt: {
+        universalIdentifier: '20202020-pct0c-4203-8c03-5f6a7b8c9d03',
+      },
+      deletedAt: {
+        universalIdentifier: '20202020-pct0d-4204-9d04-6a7b8c9d0e14',
+      },
+      phoneCall: {
+        universalIdentifier: '20202020-pct1-4205-8a05-7b8c9d0e1f25',
+      },
+      targetPerson: {
+        universalIdentifier: '20202020-pct2-4206-9b06-8c9d0e1f2a36',
+      },
+      targetCompany: {
+        universalIdentifier: '20202020-pct3-4207-8c07-9d0e1f2a3b47',
+      },
+      targetOpportunity: {
+        universalIdentifier: '20202020-pct4-4208-9d08-0e1f2a3b4c58',
+      },
+      createdBy: {
+        universalIdentifier: '20202020-pct5-4209-8a09-1f2a3b4c5d69',
+      },
+      updatedBy: {
+        universalIdentifier: '20202020-pct6-420a-9b0a-2a3b4c5d6e70',
+      },
+      position: {
+        universalIdentifier: '20202020-pct7-420b-8c0b-3b4c5d6e7f81',
+      },
+      searchVector: {
+        universalIdentifier: '20202020-pct8-420c-9d0c-4c5d6e7f8a92',
+      },
+    },
+    morphIds: {
+      targetMorphId: { morphId: '20202020-pct9-420d-8a0d-5d6e7f8a9b03' },
+    },
+    indexes: {
+      phoneCallIdIndex: {
+        universalIdentifier: '20202020-pcta-420e-9b0e-6e7f8a9b0c14',
+      },
+      personIdIndex: {
+        universalIdentifier: '20202020-pctb-420f-8c0f-7f8a9b0c1d25',
+      },
+      companyIdIndex: {
+        universalIdentifier: '20202020-pctc-4210-9d10-8a9b0c1d2e36',
+      },
+      opportunityIdIndex: {
+        universalIdentifier: '20202020-pctd-4211-8a11-9b0c1d2e3f47',
+      },
+    },
+  },
   note: {
     universalIdentifier: '20202020-0b00-45cd-b6f6-6cd806fc6804',
     fields: {
@@ -1489,6 +1675,9 @@ export const STANDARD_OBJECTS = {
       noteTargets: {
         universalIdentifier: '20202020-dd3f-42d5-a382-db58aabf43d3',
       },
+      phoneCallTargets: {
+        universalIdentifier: '20202020-op-pc01-42d5-a382-db58aabf43d4',
+      },
       attachments: {
         universalIdentifier: '20202020-87c7-4118-83d6-2f4031005209',
       },
@@ -1663,6 +1852,9 @@ export const STANDARD_OBJECTS = {
       },
       noteTargets: {
         universalIdentifier: '20202020-c8fc-4258-8250-15905d3fcfec',
+      },
+      phoneCallTargets: {
+        universalIdentifier: '20202020-pe-pc01-4258-8250-15905d3fcfed',
       },
       favorites: {
         universalIdentifier: '20202020-4073-4117-9cf1-203bcdc91cbd',
@@ -2092,6 +2284,9 @@ export const STANDARD_OBJECTS = {
       targetWorkflowRun: {
         universalIdentifier: '20202020-96f0-401b-9186-a3a0759225ac',
       },
+      targetPhoneCall: {
+        universalIdentifier: '20202020-ta-pc01-8a01-1a2b3c4d5e6f',
+      },
       targetDashboard: {
         universalIdentifier: '20202020-7864-48f5-af7c-9e4b60140948',
       },
@@ -2147,6 +2342,9 @@ export const STANDARD_OBJECTS = {
       },
       workflowRunIdIndex: {
         universalIdentifier: '4749e4f8-5770-4d2a-4e1f-78c9d70c1c79',
+      },
+      phoneCallIdIndex: {
+        universalIdentifier: '20202020-ti-pc01-4e3b-5f2a-a1b2c3d4e5f6',
       },
       dashboardIdIndex: {
         universalIdentifier: '5850f5a9-6881-4e3b-5f2a-89d0e81d2d80',
