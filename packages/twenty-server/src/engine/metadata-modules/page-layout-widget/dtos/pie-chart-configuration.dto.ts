@@ -1,8 +1,10 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -14,26 +16,29 @@ import {
 } from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 import { CalendarStartDay } from 'twenty-shared/constants';
+import {
+  AggregateOperations,
+  type ChartFilter,
+  type PieChartConfiguration,
+  SerializedRelation,
+} from 'twenty-shared/types';
 
-import { ObjectRecordFilter } from 'src/engine/api/graphql/workspace-query-builder/interfaces/object-record.interface';
-
-import { AggregateOperations } from 'src/engine/api/graphql/graphql-query-runner/constants/aggregate-operations.constant';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 import { ObjectRecordGroupByDateGranularity } from 'src/engine/metadata-modules/page-layout-widget/enums/date-granularity.enum';
 import { GraphOrderBy } from 'src/engine/metadata-modules/page-layout-widget/enums/graph-order-by.enum';
-import { GraphType } from 'src/engine/metadata-modules/page-layout-widget/enums/graph-type.enum';
+import { WidgetConfigurationType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-configuration-type.type';
 
 @ObjectType('PieChartConfiguration')
-export class PieChartConfigurationDTO {
-  @Field(() => GraphType)
-  @IsEnum(GraphType)
+export class PieChartConfigurationDTO implements PieChartConfiguration {
+  @Field(() => WidgetConfigurationType)
+  @IsIn([WidgetConfigurationType.PIE_CHART])
   @IsNotEmpty()
-  graphType: GraphType.PIE;
+  configurationType: WidgetConfigurationType.PIE_CHART;
 
   @Field(() => UUIDScalarType)
   @IsUUID()
   @IsNotEmpty()
-  aggregateFieldMetadataId: string;
+  aggregateFieldMetadataId: SerializedRelation;
 
   @Field(() => AggregateOperations)
   @IsEnum(AggregateOperations)
@@ -43,7 +48,7 @@ export class PieChartConfigurationDTO {
   @Field(() => UUIDScalarType)
   @IsUUID()
   @IsNotEmpty()
-  groupByFieldMetadataId: string;
+  groupByFieldMetadataId: SerializedRelation;
 
   @Field(() => String, { nullable: true })
   @IsString()
@@ -66,6 +71,12 @@ export class PieChartConfigurationDTO {
   @IsOptional()
   orderBy?: GraphOrderBy;
 
+  @Field(() => [String], { nullable: true })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  manualSortOrder?: string[];
+
   @Field(() => Boolean, { nullable: true, defaultValue: false })
   @IsBoolean()
   @IsOptional()
@@ -86,6 +97,11 @@ export class PieChartConfigurationDTO {
   @IsOptional()
   hideEmptyCategory?: boolean;
 
+  @Field(() => Boolean, { nullable: true, defaultValue: true })
+  @IsBoolean()
+  @IsOptional()
+  splitMultiValueFields?: boolean;
+
   @Field(() => String, { nullable: true })
   @IsString()
   @IsOptional()
@@ -99,7 +115,7 @@ export class PieChartConfigurationDTO {
   @Field(() => GraphQLJSON, { nullable: true })
   @IsObject()
   @IsOptional()
-  filter?: ObjectRecordFilter;
+  filter?: ChartFilter;
 
   @Field(() => String, { nullable: true, defaultValue: 'UTC' })
   @IsTimeZone()

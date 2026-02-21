@@ -7,6 +7,7 @@ import { type ChartConfiguration } from '@/command-menu/pages/page-layout/types/
 import { buildChartGroupByFieldConfigUpdate } from '@/command-menu/pages/page-layout/utils/buildChartGroupByFieldConfigUpdate';
 import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
+import { isHiddenSystemField } from '@/object-metadata/utils/isHiddenSystemField';
 import { isCompositeFieldType } from '@/object-record/object-filter-dropdown/utils/isCompositeFieldType';
 import { isFieldRelation } from '@/object-record/record-field/ui/types/guards/isFieldRelation';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
@@ -18,13 +19,13 @@ import { SelectableList } from '@/ui/layout/selectable-list/components/Selectabl
 import { SelectableListItem } from '@/ui/layout/selectable-list/components/SelectableListItem';
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { t } from '@lingui/core/macro';
 import { useMemo, useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { useIcons } from 'twenty-ui/display';
 import { MenuItemSelect } from 'twenty-ui/navigation';
-import { RelationType } from '~/generated/graphql';
+import { RelationType } from '~/generated-metadata/graphql';
 import { filterBySearchQuery } from '~/utils/filterBySearchQuery';
 
 type ChartGroupByFieldSelectionDropdownContentBaseProps<
@@ -71,7 +72,7 @@ export const ChartGroupByFieldSelectionDropdownContentBase = <
     DropdownComponentInstanceContext,
   );
 
-  const selectedItemId = useRecoilComponentValue(
+  const selectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     dropdownId,
   );
@@ -83,7 +84,7 @@ export const ChartGroupByFieldSelectionDropdownContentBase = <
         searchQuery,
         getSearchableValues: (item) => [item.label, item.name],
       }).filter((field) => {
-        if (field.isSystem === true) {
+        if (isHiddenSystemField(field)) {
           return false;
         }
         if (isFieldRelation(field)) {
@@ -100,6 +101,13 @@ export const ChartGroupByFieldSelectionDropdownContentBase = <
   const { closeDropdown } = useCloseDropdown();
 
   const { getIcon } = useIcons();
+
+  const isSecondaryAxisGroupBy =
+    fieldMetadataIdKey === 'secondaryAxisGroupByFieldMetadataId';
+
+  const selectableItemIdArray = isSecondaryAxisGroupBy
+    ? ['none', ...availableFieldMetadataItems.map((item) => item.id)]
+    : availableFieldMetadataItems.map((item) => item.id);
 
   if (!isDefined(sourceObjectMetadataItem)) {
     return null;
@@ -227,19 +235,18 @@ export const ChartGroupByFieldSelectionDropdownContentBase = <
         <SelectableList
           selectableListInstanceId={dropdownId}
           focusId={dropdownId}
-          selectableItemIdArray={[
-            'none',
-            ...availableFieldMetadataItems.map((item) => item.id),
-          ]}
+          selectableItemIdArray={selectableItemIdArray}
         >
-          <SelectableListItem itemId="none" onEnter={handleSelectNone}>
-            <MenuItemSelect
-              text={t`None`}
-              selected={!isDefined(currentGroupByFieldMetadataId)}
-              focused={selectedItemId === 'none'}
-              onClick={handleSelectNone}
-            />
-          </SelectableListItem>
+          {isSecondaryAxisGroupBy && (
+            <SelectableListItem itemId="none" onEnter={handleSelectNone}>
+              <MenuItemSelect
+                text={t`None`}
+                selected={!isDefined(currentGroupByFieldMetadataId)}
+                focused={selectedItemId === 'none'}
+                onClick={handleSelectNone}
+              />
+            </SelectableListItem>
+          )}
 
           {availableFieldMetadataItems.map((fieldMetadataItem) => (
             <SelectableListItem

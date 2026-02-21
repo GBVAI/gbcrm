@@ -3,7 +3,9 @@ import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadat
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { buildFindOneRecordForShowPageOperationSignature } from '@/object-record/record-show/graphql/operations/factories/findOneRecordForShowPageOperationSignatureFactory';
 import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
+import { recordStoreFamilyStateV2 } from '@/object-record/record-store/states/recordStoreFamilyStateV2';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
+import { useStore } from 'jotai';
 import { useEffect } from 'react';
 import { useRecoilCallback } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
@@ -26,6 +28,8 @@ export const RecordShowEffect = ({
       objectMetadataItems,
     });
 
+  const store = useStore();
+
   const { record, loading } = useFindOneRecord({
     objectRecordId: recordId,
     objectNameSingular,
@@ -42,9 +46,10 @@ export const RecordShowEffect = ({
 
         if (JSON.stringify(previousRecordValue) !== JSON.stringify(newRecord)) {
           set(recordStoreFamilyState(recordId), newRecord);
+          store.set(recordStoreFamilyStateV2.atomFamily(recordId), newRecord);
         }
       },
-    [recordId],
+    [recordId, store],
   );
 
   useEffect(() => {

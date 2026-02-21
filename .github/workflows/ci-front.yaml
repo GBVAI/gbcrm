@@ -1,11 +1,9 @@
 name: CI Front and E2E
 
 on:
-  push:
-    branches:
-      - main
-
   pull_request:
+
+  merge_group:
 
 permissions:
   contents: read
@@ -15,8 +13,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  STORYBOOK_BUILD_CACHE_KEY_FOR_RESTORE_ACTION: storybook-build-depot-ubuntu-24.04-8-runner
-  STORYBOOK_BUILD_CACHE_KEY_FOR_SAVE_ACTION: v3-storybook-build-depot-ubuntu-24.04-8-runner-${{ github.ref_name }}-${{ github.sha }}
+  # restore-cache action adds 'v4-' prefix and '-<branch>-<sha>' suffix to the key
+  STORYBOOK_BUILD_CACHE_KEY_FOR_RESTORE_ACTION: storybook-build-ubuntu-latest-8-cores-runner
+  STORYBOOK_BUILD_CACHE_KEY_FOR_SAVE_ACTION: v4-storybook-build-ubuntu-latest-8-cores-runner-${{ github.ref_name }}-${{ github.sha }}
 
 jobs:
   changed-files-check:
@@ -28,18 +27,22 @@ jobs:
         packages/twenty-front/**
         packages/twenty-ui/**
         packages/twenty-shared/**
+        packages/twenty-sdk/**
+        !packages/twenty-sdk/package.json
   changed-files-check-e2e:
     uses: ./.github/workflows/changed-files.yaml
     with:
       files: |
         packages/**
+        !packages/create-twenty-app/package.json
+        !packages/twenty-sdk/package.json
         playwright.config.ts
         .github/workflows/ci-front.yaml
   front-sb-build:
     needs: changed-files-check
     if: needs.changed-files-check.outputs.any_changed == 'true'
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     env:
       REACT_APP_SERVER_BASE_URL: http://localhost:3000
     steps:
@@ -65,7 +68,7 @@ jobs:
           key: ${{ env.STORYBOOK_BUILD_CACHE_KEY_FOR_SAVE_ACTION }}
   front-sb-test:
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     needs: front-sb-build
     strategy:
       fail-fast: false
@@ -82,18 +85,28 @@ jobs:
           fetch-depth: 0
       - name: Install dependencies
         uses: ./.github/actions/yarn-install
+      - name: Build dependencies
+        run: |
+          npx nx build twenty-shared
+          npx nx build twenty-ui
+          npx nx build twenty-sdk
       - name: Install Playwright
-        run: cd packages/twenty-front && npx playwright install
-      - name: Restore storybook build cache
-        uses: ./.github/actions/restore-cache
-        with:
-          key: ${{ env.STORYBOOK_BUILD_CACHE_KEY_FOR_RESTORE_ACTION }}
+        run: |
+          cd packages/twenty-front
+          npx playwright install
       - name: Front / Write .env
         run: npx nx reset:env twenty-front
       - name: Run storybook tests
-        run: npx nx storybook:serve-and-test:static twenty-front --configuration=${{ matrix.storybook_scope }} --shard=${{ matrix.shard }}/${{ env.SHARD_COUNTER }} --checkCoverage=false
+        run: npx nx storybook:test twenty-front --configuration=${{ matrix.storybook_scope }} --shard=${{ matrix.shard }}/${{ env.SHARD_COUNTER }}
       - name: Rename coverage file
-        run: mv packages/twenty-front/coverage/storybook/coverage-storybook.json packages/twenty-front/coverage/storybook/coverage-shard-${{matrix.shard}}.json
+        run: |
+          if [ -f "packages/twenty-front/coverage/storybook/coverage-final.json" ]; then
+            mv packages/twenty-front/coverage/storybook/coverage-final.json packages/twenty-front/coverage/storybook/coverage-shard-${{matrix.shard}}.json
+          else
+            echo "Error: coverage-final.json not found"
+            ls -la packages/twenty-front/coverage/storybook/ || echo "Coverage directory does not exist"
+            exit 1
+          fi
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,9 +141,9 @@ jobs:
         run: npx nx storybook:coverage twenty-front --checkCoverage=true --configuration=${{ matrix.storybook_scope }}
   front-chromatic-deployment:
     timeout-minutes: 30
-    if: contains(github.event.pull_request.labels.*.name, 'run-chromatic') || github.event_name == 'push'
+    if: false
     needs: front-sb-build
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     env:
       REACT_APP_SERVER_BASE_URL: http://127.0.0.1:3000
       CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
@@ -143,7 +156,7 @@ jobs:
       - name: Restore storybook build cache
         uses: ./.github/actions/restore-cache
         with:
-          key: ${{ env.STORYBOOK_BUILD_CACHE_KEY }}
+          key: ${{ env.STORYBOOK_BUILD_CACHE_KEY_FOR_RESTORE_ACTION }}
       - name: Front / Write .env
         run: |
           cd packages/twenty-front
@@ -184,6 +197,7 @@ jobs:
           tag: scope:frontend
           tasks: reset:env
       - name: Run ${{ matrix.task }} task
+        id: run-task
         uses: ./.github/actions/nx-affected
         with:
           tag: scope:frontend
@@ -196,7 +210,7 @@ jobs:
     needs: changed-files-check
     if: needs.changed-files-check.outputs.any_changed == 'true'
     timeout-minutes: 30
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest-8-cores
     env:
       NODE_OPTIONS: "--max-old-space-size=10240"
     steps:
@@ -227,7 +241,7 @@ jobs:
       always() &&
       needs.changed-files-check-e2e.outputs.any_changed == 'true' &&
       (needs.front-build.result == 'success' || needs.front-build.result == 'skipped') &&
-      (github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-e2e')))
+      (github.event_name == 'push' || github.event_name == 'merge_group' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-e2e')))
     timeout-minutes: 30
     env:
       NODE_OPTIONS: "--max-old-space-size=10240"
@@ -337,7 +351,6 @@ jobs:
         changed-files-check,
         front-task,
         front-build,
-        front-chromatic-deployment,
         merge-reports-and-check-coverage,
         front-sb-test,
         front-sb-build,

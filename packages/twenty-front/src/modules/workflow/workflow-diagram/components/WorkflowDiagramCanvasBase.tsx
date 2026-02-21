@@ -1,18 +1,21 @@
 import { ActionMenuContext } from '@/action-menu/contexts/ActionMenuContext';
 import { commandMenuWidthState } from '@/command-menu/states/commandMenuWidthState';
-import { isCommandMenuOpenedState } from '@/command-menu/states/isCommandMenuOpenedState';
+import { isCommandMenuOpenedStateV2 } from '@/command-menu/states/isCommandMenuOpenedStateV2';
 import { useListenToSidePanelClosing } from '@/ui/layout/right-drawer/hooks/useListenToSidePanelClosing';
 import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
 import { getSnapshotValue } from '@/ui/utilities/state/utils/getSnapshotValue';
 import { WorkflowDiagramRightClickCommandMenu } from '@/workflow/workflow-diagram/components/WorkflowDiagramRightClickCommandMenu';
+import { WORKFLOW_DIAGRAM_EMPTY_NODE_DEFINITION } from '@/workflow/workflow-diagram/constants/WorkflowDiagramEmptyNodeDefinition';
 import { useResetWorkflowInsertStepIds } from '@/workflow/workflow-diagram/hooks/useResetWorkflowInsertStepIds';
+import { useWorkflowDiagramScreenToFlowPosition } from '@/workflow/workflow-diagram/hooks/useWorkflowDiagramScreenToFlowPosition';
 import { workflowDiagramComponentState } from '@/workflow/workflow-diagram/states/workflowDiagramComponentState';
 import { workflowDiagramPanOnDragComponentState } from '@/workflow/workflow-diagram/states/workflowDiagramPanOnDragComponentState';
 import { workflowDiagramWaitingNodesDimensionsComponentState } from '@/workflow/workflow-diagram/states/workflowDiagramWaitingNodesDimensionsComponentState';
 import { workflowSelectedNodeComponentState } from '@/workflow/workflow-diagram/states/workflowSelectedNodeComponentState';
 import {
+  type StartNodeCreationParams,
   type WorkflowConnection,
   type WorkflowDiagram,
   type WorkflowDiagramEdge,
@@ -23,8 +26,13 @@ import {
 import { assertWorkflowConnectionOrThrow } from '@/workflow/workflow-diagram/utils/assertWorkflowConnectionOrThrow';
 import { WorkflowDiagramConnection } from '@/workflow/workflow-diagram/workflow-edges/components/WorkflowDiagramConnection';
 import { WorkflowDiagramCustomMarkers } from '@/workflow/workflow-diagram/workflow-edges/components/WorkflowDiagramCustomMarkers';
+import { EDGE_BRANCH_ARROW_MARKER } from '@/workflow/workflow-diagram/workflow-edges/constants/EdgeBranchArrowMarker';
 import { useEdgeState } from '@/workflow/workflow-diagram/workflow-edges/hooks/useEdgeState';
 import { type WorkflowDiagramEdgeComponentProps } from '@/workflow/workflow-diagram/workflow-edges/types/WorkflowDiagramEdgeComponentProps';
+import { getConnectionOptionsForSourceHandle } from '@/workflow/workflow-diagram/workflow-edges/utils/getConnectionOptionsForSourceHandle';
+import { WORKFLOW_DIAGRAM_NODE_DEFAULT_SOURCE_HANDLE_ID } from '@/workflow/workflow-diagram/workflow-nodes/constants/WorkflowDiagramNodeDefaultSourceHandleId';
+import { WORKFLOW_DIAGRAM_NODE_DEFAULT_TARGET_HANDLE_ID } from '@/workflow/workflow-diagram/workflow-nodes/constants/WorkflowDiagramNodeDefaultTargetHandleId';
+import { workflowInsertStepIdsComponentState } from '@/workflow/workflow-steps/states/workflowInsertStepIdsComponentState';
 import { useTheme } from '@emotion/react';
 import styled from '@emotion/styled';
 import {
@@ -39,6 +47,7 @@ import {
   type NodeChange,
   type NodeProps,
   type OnBeforeDelete,
+  type OnConnectStartParams,
   type OnDelete,
   type OnNodeDrag,
   type OnReconnect,
@@ -52,7 +61,8 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useRecoilCallback, useRecoilValue } from 'recoil';
+import { useRecoilCallback } from 'recoil';
+import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
 import { isDefined } from 'twenty-shared/utils';
 import { Tag, type TagColor } from 'twenty-ui/components';
 
@@ -105,6 +115,7 @@ export const WorkflowDiagramCanvasBase = ({
   onReconnect,
   onReconnectStart,
   onReconnectEnd,
+  startNodeCreation,
   handlePaneContextMenu,
   nodesConnectable = false,
   nodesDraggable = false,
@@ -142,6 +153,7 @@ export const WorkflowDiagramCanvasBase = ({
   onReconnect?: OnReconnect;
   onReconnectStart?: () => void;
   onReconnectEnd?: () => void;
+  startNodeCreation?: (params: StartNodeCreationParams) => void;
   nodesConnectable?: boolean;
   nodesDraggable?: boolean;
   handlePaneContextMenu?: ({
@@ -182,19 +194,70 @@ export const WorkflowDiagramCanvasBase = ({
     workflowDiagramWaitingNodesDimensionsComponentState,
   );
 
+  const workflowInsertStepIds = useRecoilComponentValue(
+    workflowInsertStepIdsComponentState,
+  );
+
+  const { workflowDiagramScreenToFlowPosition } =
+    useWorkflowDiagramScreenToFlowPosition();
+
   const { setEdgeHovered, clearEdgeHover } = useEdgeState();
 
   const [workflowDiagramFlowInitialized, setWorkflowDiagramFlowInitialized] =
     useState<boolean>(false);
 
-  const { nodes, edges } = useMemo(() => {
-    if (isDefined(workflowDiagram)) {
-      return workflowDiagram;
-    }
-    return { nodes: [], edges: [] };
-  }, [workflowDiagram]);
+  const [connectionStartInfo, setConnectionStartInfo] = useState<{
+    nodeId: string;
+    handleId: string;
+    startPosition: { x: number; y: number };
+  } | null>(null);
 
-  const isCommandMenuOpened = useRecoilValue(isCommandMenuOpenedState);
+  const { nodes, edges } = useMemo(() => {
+    if (!isDefined(workflowDiagram)) {
+      return { nodes: [], edges: [] };
+    }
+
+    const nodes = [...workflowDiagram.nodes];
+    const edges = [...workflowDiagram.edges];
+
+    if (
+      isDefined(workflowInsertStepIds.position) &&
+      !isDefined(workflowInsertStepIds.nextStepId)
+    ) {
+      const emptyNode = {
+        ...WORKFLOW_DIAGRAM_EMPTY_NODE_DEFINITION,
+        position: workflowInsertStepIds.position,
+        data: {
+          ...WORKFLOW_DIAGRAM_EMPTY_NODE_DEFINITION.data,
+          position: workflowInsertStepIds.position,
+        },
+      };
+
+      nodes.push(emptyNode);
+
+      if (isDefined(workflowInsertStepIds.parentStepId)) {
+        edges.push({
+          id: 'empty-edge',
+          type: 'blank',
+          source: workflowInsertStepIds.parentStepId,
+          sourceHandle: WORKFLOW_DIAGRAM_NODE_DEFAULT_SOURCE_HANDLE_ID,
+          target: WORKFLOW_DIAGRAM_EMPTY_NODE_DEFINITION.id,
+          targetHandle: WORKFLOW_DIAGRAM_NODE_DEFAULT_TARGET_HANDLE_ID,
+          markerStart: undefined,
+          ...EDGE_BRANCH_ARROW_MARKER.Default,
+          deletable: false,
+          selectable: false,
+          data: {
+            edgeType: 'default',
+          },
+        });
+      }
+    }
+
+    return { nodes, edges };
+  }, [workflowDiagram, workflowInsertStepIds]);
+
+  const isCommandMenuOpened = useRecoilValueV2(isCommandMenuOpenedStateV2);
   const { isInRightDrawer } = useContext(ActionMenuContext);
 
   const handleEdgesChange = (
@@ -328,11 +391,20 @@ export const WorkflowDiagramCanvasBase = ({
           snapshot,
           workflowDiagramState,
         );
+
+        const filteredChanges = changes.filter(
+          (change) =>
+            !(
+              'id' in change &&
+              change.id === WORKFLOW_DIAGRAM_EMPTY_NODE_DEFINITION.id
+            ),
+        );
+
         let updatedWorkflowDiagram = workflowDiagram;
-        if (isDefined(workflowDiagram)) {
+        if (isDefined(workflowDiagram) && filteredChanges.length > 0) {
           updatedWorkflowDiagram = {
             ...workflowDiagram,
-            nodes: applyNodeChanges(changes, workflowDiagram.nodes),
+            nodes: applyNodeChanges(filteredChanges, workflowDiagram.nodes),
           };
         }
 
@@ -430,10 +502,95 @@ export const WorkflowDiagramCanvasBase = ({
     clearEdgeHover();
   }, [clearEdgeHover]);
 
+  const handleConnectStart = (
+    event: MouseEvent | TouchEvent,
+    params: OnConnectStartParams,
+  ) => {
+    if (isDefined(params.nodeId) && isDefined(params.handleId)) {
+      const clientX =
+        event instanceof MouseEvent ? event.clientX : event.touches[0]?.clientX;
+      const clientY =
+        event instanceof MouseEvent ? event.clientY : event.touches[0]?.clientY;
+      if (
+        !isDefined(clientX) ||
+        !isDefined(clientY) ||
+        !isDefined(containerRef.current)
+      ) {
+        return;
+      }
+
+      const bounds = containerRef.current.getBoundingClientRect();
+
+      setConnectionStartInfo({
+        nodeId: params.nodeId,
+        handleId: params.handleId,
+        startPosition: {
+          x: clientX - bounds.left,
+          y: clientY - bounds.top,
+        },
+      });
+    }
+  };
+
   const handleConnect = (connection: Connection) => {
     assertWorkflowConnectionOrThrow(connection);
-
+    setConnectionStartInfo(null);
     onConnect?.(connection);
+  };
+
+  const handleConnectEnd = (event: MouseEvent | TouchEvent) => {
+    let startInfo = connectionStartInfo;
+
+    setConnectionStartInfo((prev) => {
+      startInfo = prev;
+      return null;
+    });
+
+    if (
+      !isDefined(startInfo) ||
+      !isDefined(startNodeCreation) ||
+      !(event instanceof MouseEvent) ||
+      !isDefined(containerRef.current)
+    ) {
+      return;
+    }
+
+    const bounds = containerRef.current.getBoundingClientRect();
+
+    const screenPosition = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
+    };
+
+    const MIN_DRAG_DISTANCE = 5;
+    const deltaX = screenPosition.x - startInfo.startPosition.x;
+    const deltaY = screenPosition.y - startInfo.startPosition.y;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (distance < MIN_DRAG_DISTANCE) {
+      return;
+    }
+
+    const flowPosition = workflowDiagramScreenToFlowPosition(screenPosition);
+
+    if (!isDefined(flowPosition)) {
+      return;
+    }
+
+    const DEFAULT_NODE_WIDTH = 200;
+    const adjustedPosition = {
+      x: flowPosition.x - DEFAULT_NODE_WIDTH / 2,
+      y: flowPosition.y + 50,
+    };
+
+    startNodeCreation({
+      parentStepId: startInfo.nodeId,
+      nextStepId: undefined,
+      position: adjustedPosition,
+      connectionOptions: getConnectionOptionsForSourceHandle({
+        sourceHandleId: startInfo.handleId,
+      }),
+    });
   };
 
   return (
@@ -455,6 +612,8 @@ export const WorkflowDiagramCanvasBase = ({
         onNodesChange={handleNodesChanges}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
         onReconnect={onReconnect}
         onReconnectStart={onReconnectStart}
         onReconnectEnd={onReconnectEnd}

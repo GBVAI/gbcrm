@@ -10,7 +10,7 @@ import { settingsAllRolesSelector } from '@/settings/roles/states/settingsAllRol
 import { settingsDraftRoleFamilyState } from '@/settings/roles/states/settingsDraftRoleFamilyState';
 import { useModal } from '@/ui/layout/modal/hooks/useModal';
 import { isModalOpenedComponentState } from '@/ui/layout/modal/states/isModalOpenedComponentState';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
 import { useState } from 'react';
 import { useRecoilValue } from 'recoil';
@@ -19,8 +19,9 @@ import {
   useFindManyAgentsQuery,
   useGetApiKeysQuery,
   type Agent,
+  FeatureFlagKey,
+  type ApiKeyForRole,
 } from '~/generated-metadata/graphql';
-import { FeatureFlagKey, type ApiKeyForRole } from '~/generated/graphql';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 import { type PartialWorkspaceMember } from '@/settings/roles/types/RoleWithPartialMembers';
 import { ROLE_ASSIGNMENT_CONFIRMATION_MODAL_ID } from '@/settings/roles/role-assignment/constants/RoleAssignmentConfirmationModalId';
@@ -84,7 +85,7 @@ export const SettingsRoleAssignment = ({
     setSelectRoleTarget(null);
   };
 
-  const isModalOpened = useRecoilComponentValue(
+  const isModalOpened = useRecoilComponentValueV2(
     isModalOpenedComponentState,
     ROLE_ASSIGNMENT_CONFIRMATION_MODAL_ID,
   );

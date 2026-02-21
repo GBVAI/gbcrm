@@ -3,7 +3,6 @@ import { useDebouncedCallback } from 'use-debounce';
 
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
-import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { useImpersonationAuth } from '@/settings/admin-panel/hooks/useImpersonationAuth';
 import { SettingsPageContainer } from '@/settings/components/SettingsPageContainer';
 import { SettingsRolesQueryEffect } from '@/settings/roles/components/SettingsRolesQueryEffect';
@@ -14,7 +13,7 @@ import { useModal } from '@/ui/layout/modal/hooks/useModal';
 import { SubMenuTopBarContainer } from '@/ui/layout/page/components/SubMenuTopBarContainer';
 import { TabList } from '@/ui/layout/tab-list/components/TabList';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { t } from '@lingui/core/macro';
 import { useRecoilValue } from 'recoil';
 import { SettingsPath } from 'twenty-shared/types';
@@ -24,15 +23,16 @@ import { useNavigateSettings } from '~/hooks/useNavigateSettings';
 
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { isImpersonatingState } from '@/auth/states/isImpersonatingState';
+import { useUpdateOneRecord } from '@/object-record/hooks/useUpdateOneRecord';
 import { MemberInfosTab } from '@/settings/members/components/MemberInfosTab';
 import { MemberPermissionsTab } from '@/settings/members/components/MemberPermissionsTab';
 import { useWorkspaceMemberRoles } from '@/settings/members/hooks/useWorkspaceMemberRoles';
 import { type WorkspaceMember } from '@/workspace-member/types/WorkspaceMember';
 import {
+  PermissionFlagType,
   useDeleteUserWorkspaceMutation,
   useImpersonateMutation,
 } from '~/generated-metadata/graphql';
-import { PermissionFlagType } from '~/generated/graphql';
 
 const SETTINGS_WORKSPACE_MEMBER_TABS = {
   COMPONENT_INSTANCE_ID: 'settings-workspace-member-tabs',
@@ -75,14 +75,12 @@ export const SettingsWorkspaceMember = () => {
   });
 
   const tabListComponentId = `${SETTINGS_WORKSPACE_MEMBER_TABS.COMPONENT_INSTANCE_ID}-${workspaceMemberId}`;
-  const activeTabId = useRecoilComponentValue(
+  const activeTabId = useRecoilComponentValueV2(
     activeTabIdComponentState,
     tabListComponentId,
   );
 
-  const { updateOneRecord } = useUpdateOneRecord<WorkspaceMember>({
-    objectNameSingular: CoreObjectNameSingular.WorkspaceMember,
-  });
+  const { updateOneRecord } = useUpdateOneRecord();
 
   const [deleteUserFromWorkspace, { loading: isDeleting }] =
     useDeleteUserWorkspaceMutation();
@@ -98,6 +96,7 @@ export const SettingsWorkspaceMember = () => {
       }
       try {
         await updateOneRecord({
+          objectNameSingular: CoreObjectNameSingular.WorkspaceMember,
           idToUpdate: member.id,
           updateOneRecordInput: {
             name: { firstName, lastName },

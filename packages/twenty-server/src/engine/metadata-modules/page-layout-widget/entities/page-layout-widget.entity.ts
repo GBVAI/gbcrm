@@ -1,6 +1,11 @@
 import { ObjectType } from '@nestjs/graphql';
 
 import {
+  PageLayoutWidgetConditionalDisplay,
+  PageLayoutWidgetPosition,
+  type GridPosition,
+} from 'twenty-shared/types';
+import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
@@ -9,18 +14,17 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  Relation,
   UpdateDateColumn,
+  type Relation,
 } from 'typeorm';
 
-import { SyncableEntity } from 'src/engine/workspace-manager/workspace-sync/interfaces/syncable-entity.interface';
-
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
 import { PageLayoutTabEntity } from 'src/engine/metadata-modules/page-layout-tab/entities/page-layout-tab.entity';
-import { WidgetConfigurationInterface } from 'src/engine/metadata-modules/page-layout-widget/dtos/widget-configuration.interface';
+import { WidgetConfigurationType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-configuration-type.type';
 import { WidgetType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-type.enum';
-import { GridPosition } from 'src/engine/metadata-modules/page-layout-widget/types/grid-position.type';
+import { PageLayoutWidgetConfigurationTypeSettings } from 'src/engine/metadata-modules/page-layout-widget/types/page-layout-widget-configuration.type';
+import { SyncableEntity } from 'src/engine/workspace-manager/types/syncable-entity.interface';
+import { type JsonbProperty } from 'src/engine/workspace-manager/workspace-migration/universal-flat-entity/types/jsonb-property.type';
 
 @Entity({ name: 'pageLayoutWidget', schema: 'core' })
 @ObjectType('PageLayoutWidget')
@@ -29,7 +33,11 @@ import { GridPosition } from 'src/engine/metadata-modules/page-layout-widget/typ
   ['workspaceId', 'pageLayoutTabId'],
   { where: '"deletedAt" IS NULL' },
 )
-export class PageLayoutWidgetEntity
+@Index('IDX_PAGE_LAYOUT_WIDGET_OBJECT_METADATA_ID', ['objectMetadataId'])
+export class PageLayoutWidgetEntity<
+    TWidgetConfigurationType extends
+      WidgetConfigurationType = WidgetConfigurationType,
+  >
   extends SyncableEntity
   implements Required<PageLayoutWidgetEntity>
 {
@@ -38,15 +46,6 @@ export class PageLayoutWidgetEntity
 
   @Column({ nullable: false, type: 'uuid' })
   pageLayoutTabId: string;
-
-  @Column({ nullable: false, type: 'uuid' })
-  workspaceId: string;
-
-  @ManyToOne(() => WorkspaceEntity, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'workspaceId' })
-  workspace: Relation<WorkspaceEntity>;
 
   @ManyToOne(() => PageLayoutTabEntity, {
     onDelete: 'CASCADE',
@@ -75,11 +74,19 @@ export class PageLayoutWidgetEntity
   @JoinColumn({ name: 'objectMetadataId' })
   objectMetadata: Relation<ObjectMetadataEntity> | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  conditionalDisplay: JsonbProperty<PageLayoutWidgetConditionalDisplay | null>;
+
   @Column({ type: 'jsonb', nullable: false })
-  gridPosition: GridPosition;
+  gridPosition: JsonbProperty<GridPosition>;
 
   @Column({ type: 'jsonb', nullable: true })
-  configuration: WidgetConfigurationInterface | null;
+  position: JsonbProperty<PageLayoutWidgetPosition | null>;
+
+  @Column({ type: 'jsonb', nullable: false })
+  configuration: JsonbProperty<
+    PageLayoutWidgetConfigurationTypeSettings<TWidgetConfigurationType>
+  >;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

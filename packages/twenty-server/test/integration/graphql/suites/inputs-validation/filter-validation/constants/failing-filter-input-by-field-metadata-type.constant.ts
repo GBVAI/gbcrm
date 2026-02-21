@@ -2,7 +2,7 @@ import { type FieldMetadataTypesToTestForFilterInputValidation } from 'test/inte
 import { joinColumnNameForManyToOneMorphRelationField1 } from 'test/integration/graphql/suites/inputs-validation/utils/setup-test-objects-with-all-field-types.util';
 import { FieldMetadataType } from 'twenty-shared/types';
 
-import { type CompositeFieldMetadataType } from 'src/engine/metadata-modules/workspace-migration/factories/composite-column-action.factory';
+import { type CompositeFieldMetadataType } from 'src/engine/metadata-modules/field-metadata/types/composite-field-metadata-type.type';
 
 export const failingFilterInputByFieldMetadataType: {
   [K in Exclude<
@@ -25,8 +25,7 @@ export const failingFilterInputByFieldMetadataType: {
       gqlErrorMessage: 'is not defined by type',
       restFilterInput:
         'manyToOneRelationField[eq]:"6dd71a46-68fe-4420-82b3-0d5b00ad2642"',
-      restErrorMessage:
-        'column apiInputValidationTestObject.manyToOneRelationField does not exist',
+      restErrorMessage: 'Data validation error',
     },
     {
       gqlFilterInput: {
@@ -78,7 +77,7 @@ export const failingFilterInputByFieldMetadataType: {
       },
       gqlErrorMessage: 'is not defined by type',
       restFilterInput: `${[joinColumnNameForManyToOneMorphRelationField1.replace('Id', '')]}[eq]:"6dd71a46-68fe-4420-82b3-0d5b00ad2642"`,
-      restErrorMessage: `column apiInputValidationTestObject.${joinColumnNameForManyToOneMorphRelationField1.replace('Id', '')} does not exist`,
+      restErrorMessage: `Data validation error`,
     },
   ],
   [FieldMetadataType.UUID]: [
@@ -147,27 +146,21 @@ export const failingFilterInputByFieldMetadataType: {
   [FieldMetadataType.DATE_TIME]: [
     {
       gqlFilterInput: { dateTimeField: { eq: 'not-a-date-time' } },
-      gqlErrorMessage:
-        'invalid input syntax for type timestamp with time zone: "not-a-date-time"',
+      gqlErrorMessage: 'Data validation error.',
       restFilterInput: 'dateTimeField[eq]:"not-a-date-time"',
-      restErrorMessage:
-        'invalid input syntax for type timestamp with time zone',
+      restErrorMessage: 'Data validation error.',
     },
     {
       gqlFilterInput: { dateTimeField: { eq: {} } },
-      gqlErrorMessage:
-        'invalid input syntax for type timestamp with time zone: "{}"',
+      gqlErrorMessage: 'Data validation error.',
       restFilterInput: 'dateTimeField[eq]:"{}"',
-      restErrorMessage:
-        'invalid input syntax for type timestamp with time zone',
+      restErrorMessage: 'Data validation error.',
     },
     {
       gqlFilterInput: { dateTimeField: { eq: [] } },
-      gqlErrorMessage:
-        'invalid input syntax for type timestamp with time zone: "{}"',
+      gqlErrorMessage: 'Data validation error.',
       restFilterInput: 'dateTimeField[eq]:"[]"',
-      restErrorMessage:
-        'invalid input syntax for type timestamp with time zone',
+      restErrorMessage: 'Data validation error.',
     },
     // TODO - fix this, should throw an error
     // {
@@ -179,51 +172,43 @@ export const failingFilterInputByFieldMetadataType: {
   [FieldMetadataType.DATE]: [
     {
       gqlFilterInput: { dateField: { eq: 'not-a-date' } },
-      gqlErrorMessage: 'invalid input syntax for type date: "not-a-date"',
+      gqlErrorMessage: 'Data validation error',
       restFilterInput: 'dateField[eq]:"{}"',
-      restErrorMessage: 'invalid input syntax for type date',
+      restErrorMessage: 'Data validation error',
     },
     {
       gqlFilterInput: { dateField: { eq: {} } },
-      gqlErrorMessage: 'invalid input syntax for type date: "{}"',
+      gqlErrorMessage: 'Data validation error',
       restFilterInput: 'dateField[eq]:"{}"',
-      restErrorMessage: 'invalid input syntax for type date',
+      restErrorMessage: 'Data validation error',
     },
     {
       gqlFilterInput: { dateField: { eq: [] } },
-      gqlErrorMessage: 'invalid input syntax for type date: "{}"',
+      gqlErrorMessage: 'Data validation error',
       restFilterInput: 'dateField[eq]:"[]"',
-      restErrorMessage: 'invalid input syntax for type date',
+      restErrorMessage: 'Data validation error',
     },
   ],
   [FieldMetadataType.BOOLEAN]: [
-    // {
-    //   gqlFilterInput: { booleanField: { eq: 'not-a-boolean' } },
-    //   gqlErrorMessage:
-    //     'Boolean cannot represent a non boolean value: "not-a-boolean"',
-    //   // TODO - fix this, should throw an error
-    //   // restFilterInput: 'booleanField[eq]:"not-a-boolean"',
-    //   // restErrorMessage: 'invalid input syntax for type boolean',
-    // },
-    // {
-    //   gqlFilterInput: { booleanField: { eq: [] } },
-    //   gqlErrorMessage: 'Boolean cannot represent a non boolean value: []',
-    //   // TODO - fix this, should throw an error
-    //   // restFilterInput: 'booleanField[eq]:"[]"',
-    //   // restErrorMessage: 'invalid input syntax for type boolean',
-    // },
-    // {
-    //   gqlFilterInput: { booleanField: { eq: 2 } },
-    //   gqlErrorMessage: 'Boolean cannot represent a non boolean value: 2',
-    //   // TODO - fix this, should throw an error
-    //   // restFilterInput: 'booleanField[eq]:2',
-    //   // restErrorMessage: 'invalid input syntax for type boolean',
-    // },
-    // TODO - fix this, should throw an error
-    // {
-    //   gqlFilterInput: { booleanField: { eq: null } },
-    //   gqlErrorMessage: 'Boolean cannot represent a non boolean value: null',
-    // },
+    {
+      gqlFilterInput: { booleanField: { eq: 'not-a-boolean' } },
+      gqlErrorMessage:
+        'Boolean cannot represent a non boolean value: "not-a-boolean"',
+      restFilterInput: 'booleanField[eq]:"not-a-boolean"',
+      restErrorMessage: 'invalid input syntax for type boolean',
+    },
+    {
+      gqlFilterInput: { booleanField: { eq: [] } },
+      gqlErrorMessage: 'Boolean cannot represent a non boolean value: []',
+      restFilterInput: 'booleanField[eq]:"[]"',
+      restErrorMessage: 'invalid input syntax for type boolean',
+    },
+    {
+      gqlFilterInput: { booleanField: { eq: 2 } },
+      gqlErrorMessage: 'Boolean cannot represent a non boolean value: 2',
+      restFilterInput: 'booleanField[eq]:2',
+      restErrorMessage: 'invalid input syntax for type boolean',
+    },
   ],
   [FieldMetadataType.NUMBER]: [
     // {
@@ -403,38 +388,55 @@ export const failingFilterInputByFieldMetadataType: {
     // },
   ],
   [FieldMetadataType.ARRAY]: [
-    // {
-    //   gqlFilterInput: { arrayField: { containsIlike: {} } },
-    //   gqlErrorMessage: 'cannot represent a non string value',
-    //   // TODO - fix this ? containsIlike not existing for rest
-    //   // restFilterInput: 'arrayField[containsIlike]:"{}"',
-    //   // restErrorMessage: '',
-    // },
-    // {
-    //   gqlFilterInput: { arrayField: { containsIlike: [] } },
-    //   gqlErrorMessage: 'cannot represent a non string value',
-    //   // TODO - fix this ? containsIlike not existing for rest
-    //   // restFilterInput: 'arrayField[containsIlike]:"[]"',
-    //   // restErrorMessage: '',
-    // },
-    // {
-    //   gqlFilterInput: { arrayField: { containsIlike: true } },
-    //   gqlErrorMessage: 'cannot represent a non string value',
-    //   // TODO - fix this ? containsIlike not existing for rest
-    //   // restFilterInput: 'arrayField[containsIlike]:"true"',
-    //   // restErrorMessage: '',
-    // },
-    // {
-    //   gqlFilterInput: { arrayField: { containsIlike: 2 } },
-    //   gqlErrorMessage: 'cannot represent a non string value',
-    //   // TODO - fix this ? containsIlike not existing for rest
-    //   // restFilterInput: 'arrayField[containsIlike]:2',
-    //   // restErrorMessage: '',
-    // },
-    // TODO - ensure it should throw
-    // {
-    //   gqlFilterInput: { arrayField: { containsIlike: null } },
-    //   gqlErrorMessage: 'cannot represent a non string value',
-    // },
+    {
+      gqlFilterInput: { arrayField: { containsIlike: {} } },
+      gqlErrorMessage: 'cannot represent a non string value',
+      restFilterInput: 'arrayField[containsAny]:"{}"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { arrayField: { containsIlike: [] } },
+      gqlErrorMessage: 'cannot represent a non string value',
+      restFilterInput: 'arrayField[containsAny]:"[]"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { arrayField: { containsIlike: true } },
+      gqlErrorMessage: 'cannot represent a non string value',
+      restFilterInput: 'arrayField[containsAny]:"true"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { arrayField: { containsIlike: 2 } },
+      gqlErrorMessage: 'cannot represent a non string value',
+      restFilterInput: 'arrayField[containsAny]:2',
+      restErrorMessage: 'array value expected',
+    },
+  ],
+  [FieldMetadataType.FILES]: [
+    {
+      gqlFilterInput: { filesField: { containsIlike: {} } },
+      gqlErrorMessage: 'is not defined by type',
+      restFilterInput: 'filesField[containsAny]:"{}"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { filesField: { containsIlike: [] } },
+      gqlErrorMessage: 'is not defined by type',
+      restFilterInput: 'filesField[containsAny]:"[]"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { filesField: { containsIlike: true } },
+      gqlErrorMessage: 'is not defined by type',
+      restFilterInput: 'filesField[containsAny]:"true"',
+      restErrorMessage: 'array value expected',
+    },
+    {
+      gqlFilterInput: { filesField: { containsIlike: 2 } },
+      gqlErrorMessage: 'is not defined by type',
+      restFilterInput: 'filesField[containsAny]:2',
+      restErrorMessage: 'array value expected',
+    },
   ],
 };

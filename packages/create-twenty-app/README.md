@@ -15,8 +15,11 @@
 Create Twenty App is the official scaffolding CLI for building apps on top of [Twenty CRM](https://twenty.com). It sets up a ready‑to‑run project that works seamlessly with the [twenty-sdk](https://www.npmjs.com/package/twenty-sdk).
 
 - Zero‑config project bootstrap
-- Preconfigured scripts for auth, generate, dev sync, one‑off sync, uninstall
+- Preconfigured scripts for auth, dev mode (watch & sync), uninstall, and function management
 - Strong TypeScript support and typed client generation
+
+## Documentation
+See Twenty application documentation https://docs.twenty.com/developers/extend/capabilities/apps
 
 ## Prerequisites
 - Node.js 24+ (recommended) and Yarn 4
@@ -28,41 +31,90 @@ Create Twenty App is the official scaffolding CLI for building apps on top of [T
 npx create-twenty-app@latest my-twenty-app
 cd my-twenty-app
 
+# If you don't use yarn@4
+corepack enable
+yarn install
+
+# Get help and list all available commands
+yarn twenty help
+
 # Authenticate using your API key (you'll be prompted)
-yarn auth
+yarn twenty auth:login
 
 # Add a new entity to your application (guided)
-yarn create-entity
+yarn twenty entity:add
 
-# Generate a typed Twenty client and workspace entity types
-yarn generate
+# Start dev mode: watches, builds, and syncs local changes to your workspace
+# (also auto-generates a typed API client in node_modules/twenty-sdk/generated)
+yarn twenty app:dev
 
-# Start dev mode: automatically syncs local changes to your workspace
-yarn dev
+# Watch your application's function logs
+yarn twenty function:logs
 
-# Or run a one‑time sync
-yarn sync
+# Execute a function with a JSON payload
+yarn twenty function:execute -n my-function -p '{"key": "value"}'
 
-# Watch your application's functions logs
-yarn logs
+# Execute the post-install function
+yarn twenty function:execute --postInstall
 
 # Uninstall the application from the current workspace
-yarn uninstall
-
-# Display commands' help
-yarn help
+yarn twenty app:uninstall
 ```
 
+## Scaffolding modes
+
+Control which example files are included when creating a new app:
+
+| Flag | Behavior |
+|------|----------|
+| `-e, --exhaustive` | **(default)** Creates all example files without prompting |
+| `-m, --minimal` | Creates only core files (`application-config.ts` and `default-role.ts`) |
+| `-i, --interactive` | Prompts you to select which examples to include |
+
+```bash
+# Default: all examples included
+npx create-twenty-app@latest my-app
+
+# Minimal: only core files
+npx create-twenty-app@latest my-app -m
+
+# Interactive: choose which examples to include
+npx create-twenty-app@latest my-app -i
+```
+
+In interactive mode, you can pick from:
+- **Example object** — a custom CRM object definition (`objects/example-object.ts`)
+- **Example field** — a custom field on the example object (`fields/example-field.ts`)
+- **Example logic function** — a server-side handler with HTTP trigger (`logic-functions/hello-world.ts`)
+- **Example front component** — a React UI component (`front-components/hello-world.tsx`)
+- **Example view** — a saved view for the example object (`views/example-view.ts`)
+- **Example navigation menu item** — a sidebar link (`navigation-menu-items/example-navigation-menu-item.ts`)
+- **Example skill** — an AI agent skill definition (`skills/example-skill.ts`)
+
 ## What gets scaffolded
-- A minimal app structure ready for Twenty
-- TypeScript configuration
-- Prewired scripts that wrap the `twenty` CLI from twenty-sdk
-- Example placeholders to help you add entities, actions, and sync logic
+
+**Core files (always created):**
+- `application-config.ts` — Application metadata configuration
+- `roles/default-role.ts` — Default role for logic functions
+- `logic-functions/post-install.ts` — Post-install logic function (runs after app installation)
+- TypeScript configuration, ESLint, package.json, .gitignore
+- A prewired `twenty` script that delegates to the `twenty` CLI from twenty-sdk
+
+**Example files (controlled by scaffolding mode):**
+- `objects/example-object.ts` — Example custom object with a text field
+- `fields/example-field.ts` — Example standalone field extending the example object
+- `logic-functions/hello-world.ts` — Example logic function with HTTP trigger
+- `front-components/hello-world.tsx` — Example front component
+- `views/example-view.ts` — Example saved view for the example object
+- `navigation-menu-items/example-navigation-menu-item.ts` — Example sidebar navigation link
+- `skills/example-skill.ts` — Example AI agent skill definition
 
 ## Next steps
-- Explore the generated project and add your first entity with `yarn create-entity`.
-- Keep your types up‑to‑date using `yarn generate`.
-- Use `yarn dev` while you iterate to see changes instantly in your workspace.
+- Run `yarn twenty help` to see all available commands.
+- Use `yarn twenty auth:login` to authenticate with your Twenty workspace.
+- Explore the generated project and add your first entity with `yarn twenty entity:add` (logic functions, front components, objects, roles, views, navigation menu items, skills).
+- Use `yarn twenty app:dev` while you iterate — it watches, builds, and syncs changes to your workspace in real time.
+- Types are auto‑generated by `yarn twenty app:dev` and stored in `node_modules/twenty-sdk/generated`.
 
 
 ## Publish your application
@@ -90,8 +142,8 @@ git push
 Our team reviews contributions for quality, security, and reusability before merging.
 
 ## Troubleshooting
-- Auth prompts not appearing: run `yarn auth` again and verify the API key permissions.
-- Types not generated: ensure `yarn generate` runs without errors, then re‑start `yarn dev`.
+- Auth prompts not appearing: run `yarn twenty auth:login` again and verify the API key permissions.
+- Types not generated: ensure `yarn twenty app:dev` is running — it auto‑generates the typed client.
 
 ## Contributing
 - See our [GitHub](https://github.com/twentyhq/twenty)

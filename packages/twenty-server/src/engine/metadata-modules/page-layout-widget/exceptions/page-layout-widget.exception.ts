@@ -16,16 +16,21 @@ export enum PageLayoutWidgetExceptionMessageKey {
   PAGE_LAYOUT_TAB_NOT_FOUND = 'PAGE_LAYOUT_TAB_NOT_FOUND',
   PAGE_LAYOUT_WIDGET_NOT_DELETED = 'PAGE_LAYOUT_WIDGET_NOT_DELETED',
   GRID_POSITION_REQUIRED = 'GRID_POSITION_REQUIRED',
-  INVALID_WIDGET_GRID_POSITION = 'INVALID_WIDGET_GRID_POSITION',
+  INVALID_WIDGET_POSITION = 'INVALID_WIDGET_POSITION',
   INVALID_WIDGET_CONFIGURATION = 'INVALID_WIDGET_CONFIGURATION',
 }
 
-const pageLayoutWidgetExceptionUserFriendlyMessages: Record<
-  PageLayoutWidgetExceptionCode,
-  MessageDescriptor
-> = {
-  [PageLayoutWidgetExceptionCode.PAGE_LAYOUT_WIDGET_NOT_FOUND]: msg`Page layout widget not found.`,
-  [PageLayoutWidgetExceptionCode.INVALID_PAGE_LAYOUT_WIDGET_DATA]: msg`Invalid page layout widget data.`,
+const getPageLayoutWidgetExceptionUserFriendlyMessage = (
+  code: PageLayoutWidgetExceptionCode,
+) => {
+  switch (code) {
+    case PageLayoutWidgetExceptionCode.PAGE_LAYOUT_WIDGET_NOT_FOUND:
+      return msg`Page layout widget not found.`;
+    case PageLayoutWidgetExceptionCode.INVALID_PAGE_LAYOUT_WIDGET_DATA:
+      return msg`Invalid page layout widget data.`;
+    default:
+      assertUnreachable(code);
+  }
 };
 
 export class PageLayoutWidgetException extends CustomException<PageLayoutWidgetExceptionCode> {
@@ -37,7 +42,7 @@ export class PageLayoutWidgetException extends CustomException<PageLayoutWidgetE
     super(message, code, {
       userFriendlyMessage:
         userFriendlyMessage ??
-        pageLayoutWidgetExceptionUserFriendlyMessages[code],
+        getPageLayoutWidgetExceptionUserFriendlyMessage(code),
     });
   }
 }
@@ -61,15 +66,15 @@ export const generatePageLayoutWidgetExceptionMessage = (
       return 'Page layout widget is not deleted and cannot be restored';
     case PageLayoutWidgetExceptionMessageKey.GRID_POSITION_REQUIRED:
       return 'Grid position is required';
-    case PageLayoutWidgetExceptionMessageKey.INVALID_WIDGET_GRID_POSITION:
+    case PageLayoutWidgetExceptionMessageKey.INVALID_WIDGET_POSITION:
       if (widgetTitle && detailedError) {
-        return `Invalid grid position for widget "${widgetTitle}": ${detailedError}`;
+        return `Invalid widget position for widget "${widgetTitle}": ${detailedError}`;
       }
       if (detailedError) {
-        return `Invalid grid position: ${detailedError}`;
+        return `Invalid widget position: ${detailedError}`;
       }
 
-      return 'Invalid widget grid position';
+      return 'Invalid widget position';
     case PageLayoutWidgetExceptionMessageKey.INVALID_WIDGET_CONFIGURATION:
       if (widgetTitle && widgetType && detailedError) {
         return `Invalid configuration for widget "${widgetTitle}" of type ${widgetType}: ${detailedError}`;

@@ -4,6 +4,7 @@ import { useIsPrefetchLoading } from '@/prefetch/hooks/useIsPrefetchLoading';
 import { NavigationDrawerSectionTitleSkeletonLoader } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerSectionTitleSkeletonLoader';
 import { isNavigationDrawerExpandedState } from '@/ui/navigation/states/isNavigationDrawerExpanded';
 import { useIsMobile } from '@/ui/utilities/responsive/hooks/useIsMobile';
+import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
 import styled from '@emotion/styled';
 import React from 'react';
 import { useRecoilValue } from 'recoil';
@@ -33,11 +34,13 @@ const StyledLabelContainer = styled.div`
 
 type StyledRightIconProps = {
   isMobile: boolean;
+  $alwaysVisible: boolean;
 };
 
 const StyledRightIcon = styled.div<StyledRightIconProps>`
   cursor: pointer;
-  opacity: ${({ isMobile }) => (isMobile ? 1 : 0)};
+  opacity: ${({ isMobile, $alwaysVisible }) =>
+    isMobile || $alwaysVisible ? 1 : 0};
 
   .section-title-container:hover & {
     opacity: 1;
@@ -48,15 +51,17 @@ type NavigationDrawerSectionTitleProps = {
   onClick?: () => void;
   label: string;
   rightIcon?: React.ReactNode;
+  alwaysShowRightIcon?: boolean;
 };
 
 export const NavigationDrawerSectionTitle = ({
   onClick,
   label,
   rightIcon,
+  alwaysShowRightIcon = false,
 }: NavigationDrawerSectionTitleProps) => {
   const isMobile = useIsMobile();
-  const isNavigationDrawerExpanded = useRecoilValue(
+  const isNavigationDrawerExpanded = useRecoilValueV2(
     isNavigationDrawerExpandedState,
   );
   const isSettingsPage = useIsSettingsPage();
@@ -79,7 +84,12 @@ export const NavigationDrawerSectionTitle = ({
         <Label>{label}</Label>
       </StyledLabelContainer>
       {rightIcon && (
-        <StyledRightIcon isMobile={isMobile}>{rightIcon}</StyledRightIcon>
+        <StyledRightIcon
+          isMobile={isMobile}
+          $alwaysVisible={alwaysShowRightIcon}
+        >
+          {rightIcon}
+        </StyledRightIcon>
       )}
     </StyledTitle>
   );

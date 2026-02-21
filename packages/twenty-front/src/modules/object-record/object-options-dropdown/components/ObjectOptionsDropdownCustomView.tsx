@@ -13,10 +13,11 @@ import { SelectableListItem } from '@/ui/layout/selectable-list/components/Selec
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { useGetCurrentViewOnly } from '@/views/hooks/useGetCurrentViewOnly';
 import { ViewKey } from '@/views/types/ViewKey';
 import { ViewType, viewTypeIconMapping } from '@/views/types/ViewType';
-import { useDeleteViewFromCurrentState } from '@/views/view-picker/hooks/useDeleteViewFromCurrentState';
+import { useDestroyViewFromCurrentState } from '@/views/view-picker/hooks/useDestroyViewFromCurrentState';
 import { viewPickerReferenceViewIdComponentState } from '@/views/view-picker/states/viewPickerReferenceViewIdComponentState';
 import { useLingui } from '@lingui/react/macro';
 import { useRecoilValue } from 'recoil';
@@ -31,7 +32,7 @@ import {
   IconTrash,
 } from 'twenty-ui/display';
 import { MenuItem } from 'twenty-ui/navigation';
-import { ViewCalendarLayout } from '~/generated/graphql';
+import { ViewCalendarLayout } from '~/generated-metadata/graphql';
 
 interface ObjectOptionsDropdownCustomViewProps {
   onBackToDefault?: () => void;
@@ -78,7 +79,7 @@ export const ObjectOptionsDropdownCustomView = ({
 
   const visibleFieldsCount = visibleBoardFields.length;
 
-  const { deleteViewFromCurrentState } = useDeleteViewFromCurrentState();
+  const { destroyViewFromCurrentState } = useDestroyViewFromCurrentState();
   const setViewPickerReferenceViewId = useSetRecoilComponentState(
     viewPickerReferenceViewIdComponentState,
   );
@@ -88,7 +89,7 @@ export const ObjectOptionsDropdownCustomView = ({
       return;
     }
     setViewPickerReferenceViewId(customViewData?.id);
-    deleteViewFromCurrentState();
+    destroyViewFromCurrentState();
     closeDropdown();
     onBackToDefault?.();
   };
@@ -104,7 +105,7 @@ export const ObjectOptionsDropdownCustomView = ({
     'Delete view',
   ];
 
-  const selectedItemId = useRecoilComponentValue(
+  const selectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     OBJECT_OPTIONS_DROPDOWN_ID,
   );

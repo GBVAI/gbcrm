@@ -2,22 +2,25 @@ import { COMMAND_MENU_ANIMATION_VARIANTS } from '@/command-menu/constants/Comman
 import { COMMAND_MENU_CLICK_OUTSIDE_ID } from '@/command-menu/constants/CommandMenuClickOutsideId';
 import { SIDE_PANEL_FOCUS_ID } from '@/command-menu/constants/SidePanelFocusId';
 import { useCommandMenu } from '@/command-menu/hooks/useCommandMenu';
+import { isSidePanelAnimatingStateV2 } from '@/command-menu/states/isSidePanelAnimatingStateV2';
 import { type CommandMenuAnimationVariant } from '@/command-menu/types/CommandMenuAnimationVariant';
 import { RECORD_CHIP_CLICK_OUTSIDE_ID } from '@/object-record/record-table/constants/RecordChipClickOutsideId';
+import { MENTION_MENU_DROPDOWN_CLICK_OUTSIDE_ID } from '@/ui/input/constants/MentionMenuDropdownClickOutsideId';
 import { SLASH_MENU_DROPDOWN_CLICK_OUTSIDE_ID } from '@/ui/input/constants/SlashMenuDropdownClickOutsideId';
 import { RootStackingContextZIndices } from '@/ui/layout/constants/RootStackingContextZIndices';
 import { PAGE_HEADER_COMMAND_MENU_BUTTON_CLICK_OUTSIDE_ID } from '@/ui/layout/page-header/constants/PageHeaderCommandMenuButtonClickOutsideId';
 import { currentFocusIdSelector } from '@/ui/utilities/focus/states/currentFocusIdSelector';
 import { useListenClickOutside } from '@/ui/utilities/pointer-event/hooks/useListenClickOutside';
+import { useStore } from 'jotai';
+import { useSetRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilStateV2';
 import { WORKFLOW_DIAGRAM_CREATE_STEP_NODE_CLICK_OUTSIDE_ID } from '@/workflow/workflow-diagram/constants/WorkflowDiagramCreateStepNodeClickOutsideId';
-import { WORKFLOW_DIAGRAM_EDGE_OPTIONS_CLICK_OUTSIDE_ID } from '@/workflow/workflow-diagram/workflow-edges/constants/WorkflowDiagramEdgeOptionsClickOutsideId';
 import { WORKFLOW_DIAGRAM_STEP_NODE_BASE_CLICK_OUTSIDE_ID } from '@/workflow/workflow-diagram/constants/WorkflowDiagramStepNodeClickOutsideId';
+import { WORKFLOW_DIAGRAM_EDGE_OPTIONS_CLICK_OUTSIDE_ID } from '@/workflow/workflow-diagram/workflow-edges/constants/WorkflowDiagramEdgeOptionsClickOutsideId';
 import { useTheme } from '@emotion/react';
 
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
-import { useRef } from 'react';
-import { useRecoilCallback } from 'recoil';
+import { useCallback, useRef } from 'react';
 import { LINK_CHIP_CLICK_OUTSIDE_ID } from 'twenty-ui/components';
 import { useIsMobile } from 'twenty-ui/utilities';
 
@@ -51,21 +54,23 @@ export const CommandMenuOpenContainer = ({
   const { closeCommandMenu } = useCommandMenu();
 
   const commandMenuRef = useRef<HTMLDivElement>(null);
+  const setIsSidePanelAnimating = useSetRecoilStateV2(
+    isSidePanelAnimatingStateV2,
+  );
 
-  const handleClickOutside = useRecoilCallback(
-    ({ snapshot }) =>
-      (event: MouseEvent | TouchEvent) => {
-        const currentFocusId = snapshot
-          .getLoadable(currentFocusIdSelector)
-          .getValue();
+  const store = useStore();
 
-        if (currentFocusId === SIDE_PANEL_FOCUS_ID) {
-          event.stopImmediatePropagation();
-          event.preventDefault();
-          closeCommandMenu();
-        }
-      },
-    [closeCommandMenu],
+  const handleClickOutside = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      const currentFocusId = store.get(currentFocusIdSelector.atom);
+
+      if (currentFocusId === SIDE_PANEL_FOCUS_ID) {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        closeCommandMenu();
+      }
+    },
+    [closeCommandMenu, store],
   );
 
   useListenClickOutside({
@@ -77,6 +82,7 @@ export const CommandMenuOpenContainer = ({
       LINK_CHIP_CLICK_OUTSIDE_ID,
       RECORD_CHIP_CLICK_OUTSIDE_ID,
       SLASH_MENU_DROPDOWN_CLICK_OUTSIDE_ID,
+      MENTION_MENU_DROPDOWN_CLICK_OUTSIDE_ID,
       WORKFLOW_DIAGRAM_STEP_NODE_BASE_CLICK_OUTSIDE_ID,
       WORKFLOW_DIAGRAM_EDGE_OPTIONS_CLICK_OUTSIDE_ID,
       WORKFLOW_DIAGRAM_CREATE_STEP_NODE_CLICK_OUTSIDE_ID,
@@ -93,6 +99,8 @@ export const CommandMenuOpenContainer = ({
       exit="closed"
       variants={COMMAND_MENU_ANIMATION_VARIANTS}
       transition={{ duration: theme.animation.duration.normal }}
+      onAnimationStart={() => setIsSidePanelAnimating(true)}
+      onAnimationComplete={() => setIsSidePanelAnimating(false)}
     >
       {children}
     </StyledCommandMenu>

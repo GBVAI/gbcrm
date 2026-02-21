@@ -1,81 +1,95 @@
 ---
-title: Twenty Apps
-description: Build and manage Twenty customizations as code.
+title: Twenty-Apps
+description: Twenty-Anpassungen als Code erstellen und verwalten.
 ---
 
 <Warning>
-  Apps are currently in alpha testing. The feature is functional but still evolving.
+  Apps befinden sich derzeit in der Alpha-Testphase. Die Funktion ist funktionsfähig, entwickelt sich jedoch noch weiter.
 </Warning>
 
-## What Are Apps?
+## Was sind Apps?
 
-Apps let you build and manage Twenty customizations **as code**. Instead of configuring everything through the UI, you define your data model and serverless functions in code — making it faster to build, maintain, and roll out to multiple workspaces.
+Mit Apps können Sie Twenty-Anpassungen **als Code** erstellen und verwalten. Anstatt alles über die UI zu konfigurieren, definieren Sie Ihr Datenmodell und Logikfunktionen im Code — das beschleunigt Entwicklung, Wartung und den Rollout auf mehrere Workspaces.
 
-**What you can do today:**
+**Was Sie heute tun können:**
 
-* Define custom objects and fields as code (managed data model)
-* Build serverless functions with custom triggers
-* Deploy the same app across multiple workspaces
-
-**Coming soon:**
-
-* Custom UI layouts and components
+* Benutzerdefinierte Objekte und Felder als Code definieren (verwaltetes Datenmodell)
+* Logikfunktionen mit benutzerdefinierten Triggern erstellen
+* Fähigkeiten für KI-Agenten definieren
+* Dieselbe App in mehreren Workspaces bereitstellen
 
 ## Voraussetzungen
 
-* Node.js 24+ and Yarn 4
-* A Twenty workspace and an API key (create one at https://app.twenty.com/settings/api-webhooks)
+* Node.js 24+ und Yarn 4
+* Ein Twenty-Workspace und ein API-Schlüssel (unter https://app.twenty.com/settings/api-webhooks erstellen)
 
 ## Erste Schritte
 
-Create a new app using the official scaffolder, then authenticate and start developing:
+Erstellen Sie mit dem offiziellen Scaffolder eine neue App, authentifizieren Sie sich und beginnen Sie mit der Entwicklung:
 
 ```bash filename="Terminal"
-# Scaffold a new app
+# Eine neue App erstellen (enthält standardmäßig alle Beispiele)
 npx create-twenty-app@latest my-twenty-app
 cd my-twenty-app
 
-# Authenticate using your API key (you'll be prompted)
-yarn auth
+# Falls du yarn@4 nicht verwendest
+corepack enable
+yarn install
 
-# Start dev mode: automatically syncs local changes to your workspace
-yarn dev
+# Mit deinem API-Schlüssel authentifizieren (du wirst dazu aufgefordert)
+yarn twenty auth:login
+
+# Dev-Modus starten: synchronisiert lokale Änderungen automatisch mit deinem Arbeitsbereich
+yarn twenty app:dev
+```
+
+Das Scaffolding-Tool unterstützt drei Modi, um zu steuern, welche Beispieldateien enthalten sind:
+
+```bash filename="Terminal"
+# Standard (umfassend): alle Beispiele (Objekt, Feld, Logikfunktion, Frontend-Komponente, View, Navigationsmenüeintrag, Skill)
+npx create-twenty-app@latest my-app
+
+# Minimal: nur Kerndateien (application-config.ts und default-role.ts)
+npx create-twenty-app@latest my-app --minimal
+
+# Interaktiv: wähle aus, welche Beispiele enthalten sein sollen
+npx create-twenty-app@latest my-app --interactive
 ```
 
 Von hier aus können Sie:
 
 ```bash filename="Terminal"
-# Add a new entity to your application (guided)
-yarn create-entity
+# Eine neue Entität zu Ihrer Anwendung hinzufügen (geführt)
+yarn twenty entity:add
 
-# Generate a typed Twenty client and workspace entity types
-yarn generate
+# Die Funktionsprotokolle Ihrer Anwendung überwachen
+yarn twenty function:logs
 
-# Run a one‑time sync (instead of watch mode)
-yarn sync
+# Eine Funktion anhand ihres Namens ausführen
+yarn twenty function:execute -n my-function -p '{"name": "test"}'
 
-# Watch your application's functions logs
-yarn logs
+# Die Post-Installationsfunktion ausführen
+yarn twenty function:execute --postInstall
 
-# Uninstall the application from the current workspace
-yarn uninstall
+# Die Anwendung aus dem aktuellen Arbeitsbereich deinstallieren
+yarn twenty app:uninstall
 
-# Display commands' help
-yarn help
+# Hilfe zu Befehlen anzeigen
+yarn twenty help
 ```
 
-See also: the CLI reference pages for [create-twenty-app](https://www.npmjs.com/package/create-twenty-app) and [twenty-sdk CLI](https://www.npmjs.com/package/twenty-sdk).
+Siehe auch: die CLI-Referenzseiten für [create-twenty-app](https://www.npmjs.com/package/create-twenty-app) und [twenty-sdk CLI](https://www.npmjs.com/package/twenty-sdk).
 
-## Project structure (scaffolded)
+## Projektstruktur (vom Scaffolder erzeugt)
 
-When you run `npx create-twenty-app@latest my-twenty-app`, the scaffolder:
+Wenn Sie `npx create-twenty-app@latest my-twenty-app` ausführen, erledigt der Scaffolder Folgendes:
 
-* Copies a minimal base application into `my-twenty-app/`
-* Adds a local `twenty-sdk` dependency and Yarn 4 configuration
-* Creates config files and scripts wired to the `twenty` CLI
-* Generates a default application config and a default function role
+* Kopiert eine minimale Basisanwendung nach `my-twenty-app/`
+* Fügt eine lokale `twenty-sdk`-Abhängigkeit und die Yarn-4-Konfiguration hinzu
+* Erstellt Konfigurationsdateien und Skripte, die an die `twenty`-CLI angebunden sind
+* Erzeugt Kerndateien (Anwendungskonfiguration, Standardrolle für Logikfunktionen, Post-Installationsfunktion) sowie Beispieldateien entsprechend dem Scaffolding-Modus
 
-A freshly scaffolded app looks like this:
+Eine frisch erstellte App mit dem Standardmodus `--exhaustive` sieht so aus:
 
 ```text filename="my-twenty-app/"
 my-twenty-app/
@@ -85,79 +99,144 @@ my-twenty-app/
   .nvmrc
   .yarnrc.yml
   .yarn/
-    releases/
-      yarn-4.9.2.cjs
     install-state.gz
   eslint.config.mjs
   tsconfig.json
   README.md
+  public/                           # Ordner für öffentliche Assets (Bilder, Schriftarten usw.)
   src/
-    application.config.ts
-    role.config.ts
-    // your entities, actions, and other app files
+  ├── application-config.ts           # Erforderlich - Hauptkonfiguration der Anwendung
+  ├── roles/
+  │   └── default-role.ts               # Standardrolle für Logikfunktionen
+  ├── objects/
+  │   └── example-object.ts             # Beispiel für eine benutzerdefinierte Objektdefinition
+  ├── fields/
+  │   └── example-field.ts              # Beispiel für eine eigenständige Felddefinition
+  ├── logic-functions/
+  │   ├── hello-world.ts                # Beispiel für eine Logikfunktion
+  │   └── post-install.ts               # Post-Installations-Logikfunktion
+  ├── front-components/
+  │   └── hello-world.tsx               # Beispiel für eine Frontend-Komponente
+  ├── views/
+  │   └── example-view.ts                # Beispiel für eine gespeicherte View-Definition
+  ├── navigation-menu-items/
+  │   └── example-navigation-menu-item.ts # Beispiel für einen Navigationslink in der Seitenleiste
+  └── skills/
+      └── example-skill.ts                # Beispiel für eine Skill-Definition eines KI-Agenten
 ```
 
-At a high level:
+Mit `--minimal` werden nur die Kerndateien erstellt (`application-config.ts`, `roles/default-role.ts` und `logic-functions/post-install.ts`). Mit `--interactive` wählst du aus, welche Beispieldateien enthalten sein sollen.
 
-* **package.json**: Declares the app name, version, engines (Node 24+, Yarn 4), and adds `twenty-sdk` plus scripts like `dev`, `sync`, `generate`, `create-entity`, `logs`, `uninstall`, and `auth` that delegate to the local `twenty` CLI.
-* **.gitignore**: Ignores common artifacts such as `node_modules`, `.yarn`, `generated/` (typed client), `dist/`, `build/`, coverage folders, log files, and `.env*` files.
-* **yarn.lock**, **.yarnrc.yml**, **.yarn/**: Lock and configure the Yarn 4 toolchain used by the project.
-* **.nvmrc**: Pins the Node.js version expected by the project.
-* **eslint.config.mjs** and **tsconfig.json**: Provide linting and TypeScript configuration for your app’s TypeScript sources.
-* **README.md**: A short README in the app root with basic instructions.
-* **src/**: The main place where you define your application-as-code:
-  * `application.config.ts`: Global configuration for your app (metadata and runtime wiring). See “Application config” below.
-  * `role.config.ts`: Default function role used by your serverless functions. See “Default function role” below.
-  * Future entities, actions/functions, and any supporting code you add.
+Auf hoher Ebene:
 
-Later commands will add more files and folders:
+* **package.json**: Deklariert den App-Namen, die Version und die Engines (Node 24+, Yarn 4) und fügt `twenty-sdk` sowie ein `twenty`-Skript hinzu, das an die lokale `twenty`-CLI delegiert. Führe `yarn twenty help` aus, um alle verfügbaren Befehle aufzulisten.
+* **.gitignore**: Ignoriert übliche Artefakte wie `node_modules`, `.yarn`, `generated/` (typisierter Client), `dist/`, `build/`, Coverage-Ordner, Logdateien und `.env*`-Dateien.
+* **yarn.lock**, **.yarnrc.yml**, **.yarn/**: Fixieren und konfigurieren die vom Projekt verwendete Yarn-4-Toolchain.
+* **.nvmrc**: Legt die vom Projekt erwartete Node.js-Version fest.
+* **eslint.config.mjs** und **tsconfig.json**: Stellen Linting und TypeScript-Konfiguration für die TypeScript-Quellen Ihrer App bereit.
+* **README.md**: Ein kurzes README im App-Root mit grundlegenden Anweisungen.
+* **public/**: Ein Ordner zum Speichern öffentlicher Assets (Bilder, Schriftarten, statische Dateien), die zusammen mit Ihrer Anwendung bereitgestellt werden. Hier abgelegte Dateien werden während der Synchronisierung hochgeladen und sind zur Laufzeit zugänglich.
+* **src/**: Der Hauptort, an dem Sie Ihre Anwendung als Code definieren
 
-* `yarn generate` will create a `generated/` folder (typed Twenty client + workspace types).
-* `yarn create-entity` will add entity definition files under `src/` for your custom objects.
+### Entitätserkennung
+
+Das SDK erkennt Entitäten, indem es Ihre TypeScript-Dateien nach Aufrufen von **`export default define<Entity>({...})`** parst. Für jeden Entitätstyp gibt es eine entsprechende Hilfsfunktion, die aus `twenty-sdk` exportiert wird:
+
+| Hilfsfunktion                | Entitätstyp                               |
+| ---------------------------- | ----------------------------------------- |
+| `defineObject()`             | Benutzerdefinierte Objektdefinitionen     |
+| `defineLogicFunction()`      | Definitionen von Logikfunktionen          |
+| `defineFrontComponent()`     | Definitionen von Frontend-Komponenten     |
+| `defineRole()`               | Rollendefinitionen                        |
+| `defineField()`              | Felderweiterungen für bestehende Objekte  |
+| `defineView()`               | Gespeicherte View-Definitionen            |
+| `defineNavigationMenuItem()` | Definitionen von Navigationsmenüeinträgen |
+| `defineSkill()`              | Skill-Definitionen für KI-Agenten         |
+
+<Note>
+  **Dateibenennung ist flexibel.** Die Entitätserkennung ist AST-basiert — das SDK durchsucht Ihre Quelldateien nach dem Muster `export default define<Entity>({...})`. Sie können Ihre Dateien und Ordner nach Belieben organisieren. Die Gruppierung nach Entitätstyp (z. B. `logic-functions/`, `roles/`) ist lediglich eine Konvention zur Codeorganisation, keine Voraussetzung.
+</Note>
+
+Beispiel für eine erkannte Entität:
+
+```typescript
+// This file can be named anything and placed anywhere in src/
+import { defineObject, FieldType } from 'twenty-sdk';
+
+export default defineObject({
+  universalIdentifier: '...',
+  nameSingular: 'postCard',
+  // ... rest of config
+});
+```
+
+Spätere Befehle fügen weitere Dateien und Ordner hinzu:
+
+* `yarn twenty app:dev` generiert automatisch einen typisierten API-Client in `node_modules/twenty-sdk/generated` (typisierter Twenty-Client + Arbeitsbereichs-Typen).
+* `yarn twenty entity:add` fügt unter `src/` Entitätsdefinitionsdateien für Ihre benutzerdefinierten Objekte, Funktionen, Frontend-Komponenten, Rollen, Skills und mehr hinzu.
 
 ## Authentifizierung
 
-The first time you run `yarn auth`, you'll be prompted for:
+Wenn Sie `yarn twenty auth:login` zum ersten Mal ausführen, werden Sie nach Folgendem gefragt:
 
-* API URL (defaults to http://localhost:3000 or your current workspace profile)
-* API key
+* API-URL (standardmäßig http://localhost:3000 oder Ihr aktuelles Workspace-Profil)
+* API-Schlüssel
 
-Your credentials are stored per-user in `~/.twenty/config.json`. You can maintain multiple profiles and switch using `--workspace <name>`.
+Ihre Anmeldedaten werden pro Benutzer in `~/.twenty/config.json` gespeichert. Sie können mehrere Profile verwalten und zwischen ihnen wechseln.
 
-Beispiele:
+### Arbeitsbereiche verwalten
 
 ```bash filename="Terminal"
 # Login interactively (recommended)
-yarn auth
+yarn twenty auth:login
 
-# Use a specific workspace profile
-yarn auth --workspace my-custom-workspace
+# Login to a specific workspace profile
+yarn twenty auth:login --workspace my-custom-workspace
+
+# List all configured workspaces
+yarn twenty auth:list
+
+# Switch the default workspace (interactive)
+yarn twenty auth:switch
+
+# Switch to a specific workspace
+yarn twenty auth:switch production
+
+# Check current authentication status
+yarn twenty auth:status
 ```
 
-## Use the SDK resources (types & config)
+Sobald Sie mit `yarn twenty auth:switch` den Arbeitsbereich gewechselt haben, verwenden alle nachfolgenden Befehle standardmäßig diesen Arbeitsbereich. Sie können es weiterhin vorübergehend mit `--workspace <name>` überschreiben.
 
-The twenty-sdk provides typed building blocks you use inside your app. Below are the key pieces you'll touch most often.
+## SDK-Ressourcen verwenden (Typen & Konfiguration)
 
-### Defining objects
+Das twenty-sdk stellt typisierte Bausteine und Hilfsfunktionen bereit, die Sie in Ihrer App verwenden. Im Folgenden finden Sie die wichtigsten Bausteine, mit denen Sie am häufigsten arbeiten.
 
-Custom objects are regular TypeScript classes annotated with decorators from `twenty-sdk`. They live under `src/objects/` in your app and describe both schema and behavior for records in your workspace.
+### Hilfsfunktionen
 
-Here is an example `postCard` object from the Hello World app:
+Das SDK stellt Hilfsfunktionen bereit, um die Entitäten Ihrer App zu definieren. Wie in [Entitätserkennung](#entity-detection) beschrieben, müssen Sie `export default define<Entity>({...})` verwenden, damit Ihre Entitäten erkannt werden:
+
+| Funktion                     | Zweck                                                          |
+| ---------------------------- | -------------------------------------------------------------- |
+| `defineApplication()`        | Anwendungsmetadaten konfigurieren (erforderlich, eine pro App) |
+| `defineObject()`             | Benutzerdefinierte Objekte mit Feldern definieren              |
+| `defineLogicFunction()`      | Logikfunktionen mit Handlern definieren                        |
+| `defineFrontComponent()`     | Frontend-Komponenten für benutzerdefinierte UI definieren      |
+| `defineRole()`               | Rollenberechtigungen und Objektzugriff konfigurieren           |
+| `defineField()`              | Bestehende Objekte mit zusätzlichen Feldern erweitern          |
+| `defineView()`               | Gespeicherte Views für Objekte definieren                      |
+| `defineNavigationMenuItem()` | Seitenleisten-Navigationslinks definieren                      |
+| `defineSkill()`              | Definieren Sie Skills für KI-Agenten                           |
+
+Diese Funktionen validieren Ihre Konfiguration zur Build-Zeit und bieten IDE-Autovervollständigung sowie Typsicherheit.
+
+### Objekte definieren
+
+Benutzerdefinierte Objekte beschreiben sowohl Schema als auch Verhalten für Datensätze in Ihrem Workspace. Verwenden Sie `defineObject()`, um Objekte mit eingebauter Validierung zu definieren:
 
 ```typescript
-import { type Note } from '../../generated';
-
-import {
-  type AddressField,
-  Field,
-  FieldType,
-  type FullNameField,
-  Object,
-  OnDeleteAction,
-  Relation,
-  RelationType,
-  STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS,
-} from 'twenty-sdk';
+// src/app/postCard.object.ts
+import { defineObject, FieldType } from 'twenty-sdk';
 
 enum PostCardStatus {
   DRAFT = 'DRAFT',
@@ -166,176 +245,143 @@ enum PostCardStatus {
   RETURNED = 'RETURNED',
 }
 
-@Object({
+export default defineObject({
   universalIdentifier: '54b589ca-eeed-4950-a176-358418b85c05',
   nameSingular: 'postCard',
   namePlural: 'postCards',
-  labelSingular: 'Post card',
-  labelPlural: 'Post cards',
-  description: ' A post card object',
+  labelSingular: 'Post Card',
+  labelPlural: 'Post Cards',
+  description: 'A post card object',
   icon: 'IconMail',
-})
-export class PostCard {
-  @Field({
-    universalIdentifier: '58a0a314-d7ea-4865-9850-7fb84e72f30b',
-    type: FieldType.TEXT,
-    label: 'Content',
-    description: "Postcard's content",
-    icon: 'IconAbc',
-  })
-  content: string;
-
-  @Field({
-    universalIdentifier: 'c6aa31f3-da76-4ac6-889f-475e226009ac',
-    type: FieldType.FULL_NAME,
-    label: 'Recipient name',
-    icon: 'IconUser',
-  })
-  recipientName: FullNameField;
-
-  @Field({
-    universalIdentifier: '95045777-a0ad-49ec-98f9-22f9fc0c8266',
-    type: FieldType.ADDRESS,
-    label: 'Recipient address',
-    icon: 'IconHome',
-  })
-  recipientAddress: AddressField;
-
-  @Field({
-    universalIdentifier: '87b675b8-dd8c-4448-b4ca-20e5a2234a1e',
-    type: FieldType.SELECT,
-    label: 'Status',
-    icon: 'IconSend',
-    defaultValue: `'${PostCardStatus.DRAFT}'`,
-    options: [
-      { value: PostCardStatus.DRAFT, label: 'Draft', position: 0, color: 'gray' },
-      { value: PostCardStatus.SENT, label: 'Sent', position: 1, color: 'orange' },
-      { value: PostCardStatus.DELIVERED, label: 'Delivered', position: 2, color: 'green' },
-      { value: PostCardStatus.RETURNED, label: 'Returned', position: 3, color: 'orange' },
-    ],
-  })
-  status: PostCardStatus;
-
-  @Relation({
-    universalIdentifier: 'c9e2b4f4-b9ad-4427-9b42-9971b785edfe',
-    type: RelationType.ONE_TO_MANY,
-    label: 'Notes',
-    icon: 'IconComment',
-    inverseSideTargetUniversalIdentifier: STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.note,
-    onDelete: OnDeleteAction.CASCADE,
-  })
-  notes: Note[];
-
-  @Field({
-    universalIdentifier: 'e06abe72-5b44-4e7f-93be-afc185a3c433',
-    type: FieldType.DATE_TIME,
-    label: 'Delivered at',
-    icon: 'IconCheck',
-    isNullable: true,
-    defaultValue: null,
-  })
-  deliveredAt?: Date;
-}
+  fields: [
+    {
+      universalIdentifier: '58a0a314-d7ea-4865-9850-7fb84e72f30b',
+      name: 'content',
+      type: FieldType.TEXT,
+      label: 'Content',
+      description: "Postcard's content",
+      icon: 'IconAbc',
+    },
+    {
+      universalIdentifier: 'c6aa31f3-da76-4ac6-889f-475e226009ac',
+      name: 'recipientName',
+      type: FieldType.FULL_NAME,
+      label: 'Recipient name',
+      icon: 'IconUser',
+    },
+    {
+      universalIdentifier: '95045777-a0ad-49ec-98f9-22f9fc0c8266',
+      name: 'recipientAddress',
+      type: FieldType.ADDRESS,
+      label: 'Recipient address',
+      icon: 'IconHome',
+    },
+    {
+      universalIdentifier: '87b675b8-dd8c-4448-b4ca-20e5a2234a1e',
+      name: 'status',
+      type: FieldType.SELECT,
+      label: 'Status',
+      icon: 'IconSend',
+      defaultValue: `'${PostCardStatus.DRAFT}'`,
+      options: [
+        { value: PostCardStatus.DRAFT, label: 'Draft', position: 0, color: 'gray' },
+        { value: PostCardStatus.SENT, label: 'Sent', position: 1, color: 'orange' },
+        { value: PostCardStatus.DELIVERED, label: 'Delivered', position: 2, color: 'green' },
+        { value: PostCardStatus.RETURNED, label: 'Returned', position: 3, color: 'orange' },
+      ],
+    },
+    {
+      universalIdentifier: 'e06abe72-5b44-4e7f-93be-afc185a3c433',
+      name: 'deliveredAt',
+      type: FieldType.DATE_TIME,
+      label: 'Delivered at',
+      icon: 'IconCheck',
+      isNullable: true,
+      defaultValue: null,
+    },
+  ],
+});
 ```
 
-Key points:
+Hauptpunkte:
 
-* The `@Object` decorator defines the object identity and labels used across the workspace; its `universalIdentifier` must be unique and stable across deployments.
-* Each `@Field` decorator defines a field on the object with a type, label, and its own stable `universalIdentifier`.
-* `@Relation` wires this object to other objects (standard or custom) and controls cascade behavior with `onDelete`.
-* You can scaffold new objects using `yarn create-entity`, which guides you through naming, fields, and relationships, then generates object files similar to the `postCard` example.
+* Verwenden Sie `defineObject()` für eingebaute Validierung und bessere IDE-Unterstützung.
+* Der `universalIdentifier` muss eindeutig und über Deployments hinweg stabil sein.
+* Jedes Feld benötigt `name`, `type`, `label` und einen eigenen stabilen `universalIdentifier`.
+* Das Array `fields` ist optional — Sie können Objekte ohne benutzerdefinierte Felder definieren.
+* Sie können mit `yarn twenty entity:add` neue Objekte erzeugen; der Assistent führt Sie durch Benennung, Felder und Beziehungen.
 
-### Application config (application.config.ts)
+<Note>
+  **Basisfelder werden automatisch erstellt.** Wenn Sie ein benutzerdefiniertes Objekt definieren, fügt Twenty automatisch Standardfelder hinzu
+  wie `id`, `name`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy` und `deletedAt`.
+  Sie müssen diese nicht in Ihrem `fields`-Array definieren — fügen Sie nur Ihre benutzerdefinierten Felder hinzu.
+  Sie können Standardfelder überschreiben, indem Sie in Ihrem `fields`-Array ein Feld mit demselben Namen definieren,
+  dies wird jedoch nicht empfohlen.
+</Note>
 
-Every app has a single `application.config.ts` file that describes:
+### Anwendungskonfiguration (application-config.ts)
 
-* **Who the app is**: identifiers, display name, and description.
-* **How its functions run**: which role they use for permissions.
-* **(Optional) variables**: key–value pairs exposed to your functions as environment variables.
+Jede App hat eine einzelne Datei `application-config.ts`, die Folgendes beschreibt:
 
-When you scaffold a new app, you start with a minimal config:
+* **Was die App ist**: Bezeichner, Anzeigename und Beschreibung.
+* **Wie ihre Funktionen ausgeführt werden**: welche Rolle sie für Berechtigungen verwenden.
+* **(Optional) Variablen**: Schlüssel–Wert-Paare, die Ihren Funktionen als Umgebungsvariablen zur Verfügung gestellt werden.
+* **(Optional) Post-Installationsfunktion**: eine Logikfunktion, die nach der Installation der App ausgeführt wird.
+
+Verwenden Sie `defineApplication()`, um Ihre Anwendungskonfiguration zu definieren:
 
 ```typescript
-import { type ApplicationConfig } from 'twenty-sdk';
+// src/application-config.ts
+import { defineApplication } from 'twenty-sdk';
+import { DEFAULT_ROLE_UNIVERSAL_IDENTIFIER } from 'src/roles/default-role';
+import { POST_INSTALL_UNIVERSAL_IDENTIFIER } from 'src/logic-functions/post-install';
 
-const config: ApplicationConfig = {
-  universalIdentifier: '<generated-app-uuid>',
+export default defineApplication({
+  universalIdentifier: '4ec0391d-18d5-411c-b2f3-266ddc1c3ef7',
   displayName: 'My Twenty App',
   description: 'My first Twenty app',
-  functionRoleUniversalIdentifier: '<generated-role-uuid>',
-};
-
-export default config;
-```
-
-You can gradually extend this file as your app grows. For example, you can add an icon and application-scoped variables:
-
-```typescript
-import { type ApplicationConfig } from 'twenty-sdk';
-
-const config: ApplicationConfig = {
-  universalIdentifier: '<your-app-uuid>',
-  displayName: 'My App',
-  description: 'What your app does',
-  icon: 'IconWorld', // Choose an icon by name
+  icon: 'IconWorld',
   applicationVariables: {
     DEFAULT_RECIPIENT_NAME: {
-      universalIdentifier: '<uuid>',
-      description: 'Default recipient used by functions',
+      universalIdentifier: '19e94e59-d4fe-4251-8981-b96d0a9f74de',
+      description: 'Default recipient name for postcards',
       value: 'Jane Doe',
       isSecret: false,
     },
   },
-  functionRoleUniversalIdentifier: '<your-role-uuid>',
-};
-
-export default config;
+  defaultRoleUniversalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
+  postInstallLogicFunctionUniversalIdentifier: POST_INSTALL_UNIVERSAL_IDENTIFIER,
+});
 ```
 
-Notes:
+Notizen:
 
-* `universalIdentifier` fields are deterministic IDs you own; generate them once and keep them stable across syncs.
-* `applicationVariables` become environment variables for your functions (for example, `DEFAULT_RECIPIENT_NAME` is available as `process.env.DEFAULT_RECIPIENT_NAME`).
-* `functionRoleUniversalIdentifier` must match the role you define in `role.config.ts` (see below).
+* `universalIdentifier`-Felder sind deterministische IDs, die Sie besitzen; generieren Sie sie einmal und halten Sie sie über Synchronisierungen hinweg stabil.
+* `applicationVariables` werden zu Umgebungsvariablen für Ihre Funktionen (zum Beispiel ist `DEFAULT_RECIPIENT_NAME` als `process.env.DEFAULT_RECIPIENT_NAME` verfügbar).
+* `defaultRoleUniversalIdentifier` muss mit der Rollendatei übereinstimmen (siehe unten).
+* `postInstallLogicFunctionUniversalIdentifier` (optional) verweist auf eine Logikfunktion, die nach der Installation der App automatisch ausgeführt wird. Siehe [Post-Installationsfunktionen](#post-install-functions).
 
-#### Roles and permissions
+#### Rollen und Berechtigungen
 
-Applications can define roles that encapsulate permissions on your workspace’s objects and actions. The field `functionRoleUniversalIdentifier` in `application.config.ts` designates the default role used by your app’s serverless functions.
+Anwendungen können Rollen definieren, die Berechtigungen für die Objekte und Aktionen Ihres Workspaces kapseln. Das Feld `defaultRoleUniversalIdentifier` in `application-config.ts` legt die Standardrolle fest, die von den Logikfunktionen Ihrer App verwendet wird.
 
-* The runtime API key injected as `TWENTY_API_KEY` is derived from this default function role.
-* The typed client will be restricted to the permissions granted to that role.
-* Follow least‑privilege: create a dedicated role with only the permissions your functions need, then reference its universal identifier.
+* Der zur Laufzeit als `TWENTY_API_KEY` injizierte API-Schlüssel wird von dieser Standard-Funktionsrolle abgeleitet.
+* Der typisierte Client ist auf die dieser Rolle gewährten Berechtigungen beschränkt.
+* Befolgen Sie das Least-Privilege-Prinzip: Erstellen Sie eine dedizierte Rolle nur mit den Berechtigungen, die Ihre Funktionen benötigen, und verweisen Sie dann auf deren universellen Bezeichner.
 
-##### Default function role (role.config.ts)
+##### Standard-Funktionsrolle (\*.role.ts)
 
-When you scaffold a new app, the CLI also creates `src/role.config.ts`. This file exports the default role your serverless functions will use at runtime:
-
-```typescript
-import { PermissionFlag, type RoleConfig } from 'twenty-sdk';
-
-export const functionRole: RoleConfig = {
-  universalIdentifier: '<generated-role-uuid>',
-  label: 'My Twenty App default function role',
-  description: 'My Twenty App default function role',
-  canReadAllObjectRecords: true,
-  canUpdateAllObjectRecords: true,
-  canSoftDeleteAllObjectRecords: true,
-  canDestroyAllObjectRecords: false,
-};
-```
-
-The `universalIdentifier` of this role is automatically wired into `application.config.ts` as `functionRoleUniversalIdentifier`. In other words:
-
-* **role.config.ts** defines what the default function role can do.
-* **application.config.ts** points to that role so your functions inherit its permissions.
-
-As you move beyond the initial scaffold, you should tighten this role and make it explicit about what it can access. A more production-ready role might look closer to:
+Wenn Sie eine neue App erzeugen, erstellt die CLI auch eine Standard-Rolldatei. Verwenden Sie `defineRole()`, um Rollen mit eingebauter Validierung zu definieren:
 
 ```typescript
-import { PermissionFlag, type RoleConfig } from 'twenty-sdk';
+// src/roles/default-role.ts
+import { defineRole, PermissionFlag } from 'twenty-sdk';
 
-export const functionRole: RoleConfig = {
-  universalIdentifier: '<your-role-uuid>',
+export const DEFAULT_ROLE_UNIVERSAL_IDENTIFIER =
+  'b648f87b-1d26-4961-b974-0908fd991061';
+
+export default defineRole({
+  universalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
   label: 'Default function role',
   description: 'Default role for function Twenty client',
   canReadAllObjectRecords: false,
@@ -348,7 +394,7 @@ export const functionRole: RoleConfig = {
   canBeAssignedToApiKeys: false,
   objectPermissions: [
     {
-      objectNameSingular: 'postCard',
+      objectUniversalIdentifier: '9f9882af-170c-4879-b013-f9628b77c050',
       canReadObjectRecords: true,
       canUpdateObjectRecords: true,
       canSoftDeleteObjectRecords: false,
@@ -357,47 +403,42 @@ export const functionRole: RoleConfig = {
   ],
   fieldPermissions: [
     {
-      objectNameSingular: 'postCard',
-      fieldName: 'content',
+      objectUniversalIdentifier: '9f9882af-170c-4879-b013-f9628b77c050',
+      fieldUniversalIdentifier: 'b2c37dc0-8ae7-470e-96cd-1476b47dfaff',
       canReadFieldValue: false,
       canUpdateFieldValue: false,
     },
   ],
-  permissionFlags: ['APPLICATIONS'],
-};
+  permissionFlags: [PermissionFlag.APPLICATIONS],
+});
 ```
 
-Notes:
+Der `universalIdentifier` dieser Rolle wird anschließend in `application-config.ts` als `defaultRoleUniversalIdentifier` referenziert. Anders ausgedrückt:
 
-* Start from the scaffolded role, then progressively restrict it following least‑privilege.
-* Replace the `objectPermissions` and `fieldPermissions` with the objects/fields your functions need.
-* `permissionFlags` control access to platform-level capabilities. Keep them minimal; add only what you need.
-* See a working example in the Hello World app: [`packages/twenty-apps/hello-world/src/roles/function-role.ts`](https://github.com/twentyhq/twenty/blob/main/packages/twenty-apps/hello-world/src/roles/function-role.ts).
+* **\*.role.ts** definiert, was die Standard-Funktionsrolle darf.
+* **application-config.ts** verweist auf diese Rolle, sodass Ihre Funktionen deren Berechtigungen erben.
 
-### Serverless function config and entrypoint
+Notizen:
 
-Each function exports a main handler and a config describing its triggers. You can mix multiple trigger types.
+* Beginnen Sie mit der vorab erstellten Rolle und schränken Sie sie schrittweise gemäß dem Least-Privilege-Prinzip ein.
+* Ersetzen Sie `objectPermissions` und `fieldPermissions` durch die Objekte/Felder, die Ihre Funktionen benötigen.
+* `permissionFlags` steuern den Zugriff auf Funktionen auf Plattformebene. Halten Sie sie minimal; fügen Sie nur hinzu, was Sie benötigen.
+* Ein funktionierendes Beispiel finden Sie in der Hello-World-App: [`packages/twenty-apps/hello-world/src/roles/function-role.ts`](https://github.com/twentyhq/twenty/blob/main/packages/twenty-apps/hello-world/src/roles/function-role.ts).
+
+### Konfiguration von Logikfunktionen und Einstiegspunkt
+
+Jede Funktionsdatei verwendet `defineLogicFunction()`, um eine Konfiguration mit einem Handler und optionalen Triggern zu exportieren.
 
 ```typescript
-// src/actions/create-new-post-card.ts
-import type {
-  FunctionConfig,
-  DatabaseEventPayload,
-  ObjectRecordCreateEvent,
-  CronPayload,
-} from 'twenty-sdk';
-import Twenty, { type Person } from '../generated';
+// src/app/createPostCard.logic-function.ts
+import { defineLogicFunction } from 'twenty-sdk';
+import type { DatabaseEventPayload, ObjectRecordCreateEvent, CronPayload, RoutePayload } from 'twenty-sdk';
+import Twenty, { type Person } from '~/generated';
 
-// main handler can accept parameters from route, cron, or database events
-export const main = async (
-  params:
-    | { name?: string }
-    | DatabaseEventPayload<ObjectRecordCreateEvent<Person>>
-    | CronPayload,
-) => {
+const handler = async (params: RoutePayload) => {
   const client = new Twenty(); // generated typed client
-  const name = 'name' in params
-    ? params.name ?? process.env.DEFAULT_RECIPIENT_NAME ?? 'Hello world'
+  const name = 'name' in params.queryStringParameters
+    ? params.queryStringParameters.name ?? process.env.DEFAULT_RECIPIENT_NAME ?? 'Hello world'
     : 'Hello world';
 
   const result = await client.mutation({
@@ -410,113 +451,391 @@ export const main = async (
   return result;
 };
 
-export const config: FunctionConfig = {
-  universalIdentifier: '<function-uuid>',
+export default defineLogicFunction({
+  universalIdentifier: 'e56d363b-0bdc-4d8a-a393-6f0d1c75bdcf',
   name: 'create-new-post-card',
   timeoutSeconds: 2,
+  handler,
   triggers: [
     // Public HTTP route trigger '/s/post-card/create'
     {
-      universalIdentifier: '<route-trigger-uuid>',
+      universalIdentifier: 'c9f84c8d-b26d-40d1-95dd-4f834ae5a2c6',
       type: 'route',
       path: '/post-card/create',
       httpMethod: 'GET',
       isAuthRequired: false,
     },
     // Cron trigger (CRON pattern)
-    {
-      universalIdentifier: '<cron-trigger-uuid>',
-      type: 'cron',
-      pattern: '0 0 1 1 *',
-    },
+    // {
+    //   universalIdentifier: 'dd802808-0695-49e1-98c9-d5c9e2704ce2',
+    //   type: 'cron',
+    //   pattern: '0 0 1 1 *',
+    // },
     // Database event trigger
-    {
-      universalIdentifier: '<db-trigger-uuid>',
-      type: 'databaseEvent',
-      eventName: 'person.created',
-    },
+    // {
+    //   universalIdentifier: '203f1df3-4a82-4d06-a001-b8cf22a31156',
+    //   type: 'databaseEvent',
+    //   eventName: 'person.updated',
+    //   updatedFields: ['name'],
+    // },
   ],
+});
+```
+
+Häufige Trigger-Typen:
+
+* **route**: Stellt Ihre Funktion unter einem HTTP-Pfad und einer Methode **unter dem Endpunkt `/s/`** bereit:
+
+> z. B. `path: '/post-card/create',` -> Aufruf unter `<APP_URL>/s/post-card/create`
+
+* **cron**: Führt Ihre Funktion nach Zeitplan mithilfe eines CRON-Ausdrucks aus.
+* **databaseEvent**: Wird bei Lebenszyklusereignissen von Workspace-Objekten ausgeführt. Wenn die Ereignisoperation `updated` ist, können bestimmte zu überwachende Felder im Array `updatedFields` angegeben werden. Wenn das Array undefiniert oder leer ist, löst jede Aktualisierung die Funktion aus.
+
+> z. B. `person.updated`
+
+Notizen:
+
+* Das Array `triggers` ist optional. Funktionen ohne Trigger können als von anderen Funktionen aufgerufene Utility-Funktionen verwendet werden.
+* Sie können mehrere Trigger-Typen in einer Funktion kombinieren.
+
+### Post-Installationsfunktionen
+
+Eine Post-Installationsfunktion ist eine Logikfunktion, die automatisch ausgeführt wird, nachdem Ihre App in einem Arbeitsbereich installiert wurde. Dies ist nützlich für einmalige Einrichtungsvorgänge wie das Befüllen mit Standarddaten, das Erstellen erster Datensätze oder das Konfigurieren von Arbeitsbereichseinstellungen.
+
+Wenn du mit `create-twenty-app` eine neue App erstellst, wird für dich eine Post-Installationsfunktion unter `src/logic-functions/post-install.ts` erzeugt:
+
+```typescript
+// src/logic-functions/post-install.ts
+import { defineLogicFunction } from 'twenty-sdk';
+
+export const POST_INSTALL_UNIVERSAL_IDENTIFIER = '<generated-uuid>';
+
+const handler = async (): Promise<void> => {
+  console.log('Post install logic function executed successfully!');
+};
+
+export default defineLogicFunction({
+  universalIdentifier: POST_INSTALL_UNIVERSAL_IDENTIFIER,
+  name: 'post-install',
+  description: 'Runs after installation to set up the application.',
+  timeoutSeconds: 300,
+  handler,
+});
+```
+
+Die Funktion wird in deine App eingebunden, indem ihr universeller Bezeichner in `application-config.ts` referenziert wird:
+
+```typescript
+import { POST_INSTALL_UNIVERSAL_IDENTIFIER } from 'src/logic-functions/post-install';
+
+export default defineApplication({
+  // ...
+  postInstallLogicFunctionUniversalIdentifier: POST_INSTALL_UNIVERSAL_IDENTIFIER,
+});
+```
+
+Du kannst die Post-Installationsfunktion auch jederzeit manuell über die CLI ausführen:
+
+```bash filename="Terminal"
+yarn twenty function:execute --postInstall
+```
+
+Hauptpunkte:
+
+* Post-Installationsfunktionen sind Standard-Logikfunktionen — sie verwenden `defineLogicFunction()` wie jede andere Funktion.
+* Das Feld `postInstallLogicFunctionUniversalIdentifier` in `defineApplication()` ist optional. Wenn es weggelassen wird, wird nach der Installation keine Funktion ausgeführt.
+* Das standardmäßige Timeout ist auf 300 Sekunden (5 Minuten) festgelegt, um längere Einrichtungsvorgänge wie Daten-Seeding zu ermöglichen.
+* Post-Installationsfunktionen benötigen keine Trigger — sie werden von der Plattform während der Installation oder manuell über `function:execute --postInstall` aufgerufen.
+
+### Routen-Trigger-Payload
+
+<Warning>
+  **Breaking Change (v1.16, Januar 2026):** Das Format der Routen-Trigger-Payload hat sich geändert. Vor v1.16 wurden Query-Parameter, Pfadparameter und der Body direkt als Payload gesendet. Ab v1.16 sind sie innerhalb eines strukturierten `RoutePayload`-Objekts verschachtelt.
+
+  **Vor v1.16:**
+
+  ```typescript
+  const handler = async (params) => {
+    const { param1, param2 } = params; // Direct access
+  };
+  ```
+
+  **Nach v1.16:**
+
+  ```typescript
+  const handler = async (event: RoutePayload) => {
+    const { param1, param2 } = event.body; // Access via .body
+    const { queryParam } = event.queryStringParameters;
+    const { id } = event.pathParameters;
+  };
+  ```
+
+  **So migrieren Sie bestehende Funktionen:** Aktualisieren Sie Ihren Handler, sodass er nicht mehr direkt aus dem params-Objekt destrukturiert, sondern aus `event.body`, `event.queryStringParameters` oder `event.pathParameters`.
+</Warning>
+
+Wenn ein Routen-Trigger Ihre Logikfunktion aufruft, erhält sie ein `RoutePayload`-Objekt, das dem AWS HTTP API v2-Format entspricht. Importieren Sie den Typ aus `twenty-sdk`:
+
+```typescript
+import { defineLogicFunction, type RoutePayload } from 'twenty-sdk';
+
+const handler = async (event: RoutePayload) => {
+  // Access request data
+  const { headers, queryStringParameters, pathParameters, body } = event;
+
+  // HTTP method and path are available in requestContext
+  const { method, path } = event.requestContext.http;
+
+  return { message: 'Success' };
 };
 ```
 
-Common trigger types:
+Der Typ `RoutePayload` hat die folgende Struktur:
 
-* route: Exposes your function on an HTTP path and method **under the `/s/` endpoint**:
+| Eigenschaft                  | Typ                                   | Beschreibung                                                                          |
+| ---------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `headers`                    | `Record<string, string \| undefined>` | HTTP-Header (nur die in `forwardedRequestHeaders` aufgelisteten)                      |
+| `queryStringParameters`      | `Record<string, string \| undefined>` | Query-String-Parameter (mehrere Werte mit Kommas verbunden)                           |
+| `pathParameters`             | `Record<string, string \| undefined>` | Aus dem Routenmuster extrahierte Pfadparameter (z. B. `/users/:id` → `{ id: '123' }`) |
+| `inhalt`                     | `object \| null`                      | Geparster Request-Body (JSON)                                                         |
+| `isBase64Encoded`            | `boolesch`                            | Gibt an, ob der Body Base64-codiert ist                                               |
+| `requestContext.http.method` | `string`                              | HTTP-Methode (GET, POST, PUT, PATCH, DELETE)                                          |
+| `requestContext.http.path`   | `string`                              | Rohpfad der Anfrage                                                                   |
 
-> e.g. `path: '/post-card/create',` -> call on `<APP_URL>/s/post-card/create`
+### Weiterleiten von HTTP-Headern
 
-* cron: Runs your function on a schedule using a CRON expression.
-* databaseEvent: Runs on workspace object lifecycle events
-
-> e.g. `person.created`
-
-You can create new functions in two ways:
-
-* **Scaffolded**: Run `yarn create-entity --path <custom-path>` and choose the option to add a new function. This generates a starter file under `<custom-path>` with a `main` handler and a `config` block similar to the example above.
-* **Manual**: Create a new file and export `main` and `config` yourself, following the same pattern.
-
-### Generated typed client
-
-Run yarn generate to create a local typed client in generated/ based on your workspace schema. Use it in your functions:
+Standardmäßig werden HTTP-Header von eingehenden Anfragen aus Sicherheitsgründen nicht an Ihre Logikfunktion weitergegeben. Um auf bestimmte Header zuzugreifen, listen Sie diese explizit im Array `forwardedRequestHeaders` auf:
 
 ```typescript
-import Twenty from './generated';
+export default defineLogicFunction({
+  universalIdentifier: 'e56d363b-0bdc-4d8a-a393-6f0d1c75bdcf',
+  name: 'webhook-handler',
+  handler,
+  triggers: [
+    {
+      universalIdentifier: 'c9f84c8d-b26d-40d1-95dd-4f834ae5a2c6',
+      type: 'route',
+      path: '/webhook',
+      httpMethod: 'POST',
+      isAuthRequired: false,
+      forwardedRequestHeaders: ['x-webhook-signature', 'content-type'],
+    },
+  ],
+});
+```
+
+In Ihrem Handler können Sie anschließend auf diese Header zugreifen:
+
+```typescript
+const handler = async (event: RoutePayload) => {
+  const signature = event.headers['x-webhook-signature'];
+  const contentType = event.headers['content-type'];
+
+  // Validate webhook signature...
+  return { received: true };
+};
+```
+
+<Note>
+  Header-Namen werden in Kleinbuchstaben normalisiert. Greifen Sie mit Schlüsseln in Kleinbuchstaben darauf zu (zum Beispiel `event.headers['content-type']`).
+</Note>
+
+Sie können neue Funktionen auf zwei Arten erstellen:
+
+* **Generiert**: Führen Sie `yarn twenty entity:add` aus und wählen Sie die Option zum Hinzufügen einer neuen Logikfunktion. Dadurch wird eine Starterdatei mit Handler und Konfiguration erzeugt.
+* **Manuell**: Erstellen Sie eine neue `*.logic-function.ts`-Datei und verwenden Sie `defineLogicFunction()` nach demselben Muster.
+
+### Eine Logikfunktion als Tool markieren
+
+Logikfunktionen können als **Tools** für KI-Agenten und Workflows verfügbar gemacht werden. Wenn eine Funktion als Tool markiert ist, wird sie von den KI-Funktionen von Twenty auffindbar und kann als Schritt in Workflow-Automatisierungen ausgewählt werden.
+
+Um eine Logikfunktion als Tool zu markieren, setzen Sie `isTool: true` und geben Sie ein `toolInputSchema` an, das die erwarteten Eingabeparameter mithilfe von [JSON Schema](https://json-schema.org/) beschreibt:
+
+```typescript
+// src/logic-functions/enrich-company.logic-function.ts
+import { defineLogicFunction } from 'twenty-sdk';
+import Twenty from '~/generated';
+
+const handler = async (params: { companyName: string; domain?: string }) => {
+  const client = new Twenty();
+
+  const result = await client.mutation({
+    createTask: {
+      __args: {
+        data: {
+          title: `Enrich data for ${params.companyName}`,
+          body: `Domain: ${params.domain ?? 'unknown'}`,
+        },
+      },
+      id: true,
+    },
+  });
+
+  return { taskId: result.createTask.id };
+};
+
+export default defineLogicFunction({
+  universalIdentifier: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+  name: 'enrich-company',
+  description: 'Enrich a company record with external data',
+  timeoutSeconds: 10,
+  handler,
+  isTool: true,
+  toolInputSchema: {
+    type: 'object',
+    properties: {
+      companyName: {
+        type: 'string',
+        description: 'The name of the company to enrich',
+      },
+      domain: {
+        type: 'string',
+        description: 'The company website domain (optional)',
+      },
+    },
+    required: ['companyName'],
+  },
+});
+```
+
+Hauptpunkte:
+
+* **`isTool`** (`boolean`, Standard: `false`): Wenn auf `true` gesetzt, wird die Funktion als Tool registriert und steht KI-Agenten und Workflow-Automatisierungen zur Verfügung.
+* **`toolInputSchema`** (`object`, optional): Ein JSON-Schema-Objekt, das die Parameter beschreibt, die Ihre Funktion akzeptiert. KI-Agenten verwenden dieses Schema, um zu verstehen, welche Eingaben das Tool erwartet, und um Aufrufe zu validieren. Falls weggelassen, lautet der Standardwert für das Schema `{ type: 'object', properties: {} }` (keine Parameter).
+* Funktionen mit `isTool: false` (oder nicht gesetzt) werden **nicht** als Tools bereitgestellt. Sie können weiterhin direkt ausgeführt oder von anderen Funktionen aufgerufen werden, erscheinen jedoch nicht in der Tool-Erkennung.
+* **Tool-Benennung**: Wenn als Tool bereitgestellt, wird der Funktionsname automatisch zu `logic_function_<name>` normalisiert (in Kleinbuchstaben umgewandelt, nicht alphanumerische Zeichen durch Unterstriche ersetzt). Beispielsweise wird `enrich-company` zu `logic_function_enrich_company`.
+* Sie können `isTool` mit Triggern kombinieren — eine Funktion kann gleichzeitig sowohl ein Tool (von KI-Agenten aufrufbar) als auch durch Ereignisse (Cron, Datenbankereignisse, Routen) ausgelöst werden.
+
+<Note>
+  **Schreiben Sie eine gute `description`.** KI-Agenten verlassen sich auf das `description`-Feld der Funktion, um zu entscheiden, wann das Tool verwendet werden soll. Seien Sie konkret darin, was das Tool tut und wann es aufgerufen werden soll.
+</Note>
+
+### Frontend-Komponenten
+
+Frontend-Komponenten ermöglichen es Ihnen, benutzerdefinierte React-Komponenten zu erstellen, die innerhalb der Twenty-UI gerendert werden. Verwenden Sie `defineFrontComponent()`, um Komponenten mit eingebauter Validierung zu definieren:
+
+```typescript
+// src/my-widget.front-component.tsx
+import { defineFrontComponent } from 'twenty-sdk';
+
+const MyWidget = () => {
+  return (
+    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
+      <h1>My Custom Widget</h1>
+      <p>This is a custom front component for Twenty.</p>
+    </div>
+  );
+};
+
+export default defineFrontComponent({
+  universalIdentifier: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  name: 'my-widget',
+  description: 'A custom widget component',
+  component: MyWidget,
+});
+```
+
+Hauptpunkte:
+
+* Frontend-Komponenten sind React-Komponenten, die in isolierten Kontexten innerhalb von Twenty gerendert werden.
+* Verwenden Sie die Dateiendung `*.front-component.tsx` für die automatische Erkennung.
+* Das Feld `component` verweist auf Ihre React-Komponente.
+* Komponenten werden während `yarn twenty app:dev` automatisch gebaut und synchronisiert.
+
+Sie können neue Frontend-Komponenten auf zwei Arten erstellen:
+
+* **Generiert**: Führen Sie `yarn twenty entity:add` aus und wählen Sie die Option zum Hinzufügen einer neuen Frontend-Komponente.
+* **Manuell**: Erstellen Sie eine neue `*.front-component.tsx`-Datei und verwenden Sie `defineFrontComponent()`.
+
+### Fähigkeiten
+
+Skills definieren wiederverwendbare Anweisungen und Fähigkeiten, die KI-Agenten in Ihrem Arbeitsbereich verwenden können. Verwenden Sie `defineSkill()`, um Skills mit eingebauter Validierung zu definieren:
+
+```typescript
+// src/skills/example-skill.ts
+import { defineSkill } from 'twenty-sdk';
+
+export default defineSkill({
+  universalIdentifier: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  name: 'sales-outreach',
+  label: 'Sales Outreach',
+  description: 'Guides the AI agent through a structured sales outreach process',
+  icon: 'IconBrain',
+  content: `You are a sales outreach assistant. When reaching out to a prospect:
+1. Research the company and recent news
+2. Identify the prospect's role and likely pain points
+3. Draft a personalized message referencing specific details
+4. Keep the tone professional but conversational`,
+});
+```
+
+Hauptpunkte:
+
+* `name` ist eine eindeutige Kennung (als Zeichenfolge) für den Skill (kebab-case empfohlen).
+* `label` ist der menschenlesbare Anzeigename, der in der UI angezeigt wird.
+* `content` enthält die Skill-Anweisungen — dies ist der Text, den der KI-Agent verwendet.
+* `icon` (optional) legt das in der UI angezeigte Symbol fest.
+* `description` (optional) liefert zusätzlichen Kontext zum Zweck des Skills.
+
+Sie können neue Skills auf zwei Arten erstellen:
+
+* **Generiert**: Führen Sie `yarn twenty entity:add` aus und wählen Sie die Option zum Hinzufügen eines neuen Skills.
+* **Manuell**: Erstellen Sie eine neue Datei und verwenden Sie `defineSkill()` nach demselben Muster.
+
+### Generierter typisierter Client
+
+Der typisierte Client wird von `yarn twenty app:dev` automatisch generiert und basierend auf Ihrem Arbeitsbereichs-Schema in `node_modules/twenty-sdk/generated` gespeichert. Verwenden Sie ihn in Ihren Funktionen:
+
+```typescript
+import Twenty from '~/generated';
 
 const client = new Twenty();
 const { me } = await client.query({ me: { id: true, displayName: true } });
 ```
 
-The client is re-generated by `yarn generate`. Re-run after changing your objects and `yarn sync` or when onboarding to a new workspace.
+Der Client wird von `yarn twenty app:dev` automatisch neu generiert, sobald sich Ihre Objekte oder Felder ändern.
 
-#### Runtime credentials in serverless functions
+#### Laufzeit-Anmeldedaten in Logikfunktionen
 
-When your function runs on Twenty, the platform injects credentials as environment variables before your code executes:
+Wenn Ihre Funktion auf Twenty läuft, injiziert die Plattform vor der Ausführung Ihres Codes Anmeldedaten als Umgebungsvariablen:
 
-* `TWENTY_API_URL`: Base URL of the Twenty API your app targets.
-* `TWENTY_API_KEY`: Short‑lived key scoped to your application’s default function role.
+* `TWENTY_API_URL`: Basis-URL der Twenty-API, auf die Ihre App abzielt.
+* `TWENTY_API_KEY`: Kurzlebiger Schlüssel, der auf die Standard-Funktionsrolle Ihrer Anwendung begrenzt ist.
 
-Notes:
+Notizen:
 
-* You do not need to pass URL or API key to the generated client. It reads `TWENTY_API_URL` and `TWENTY_API_KEY` from process.env at runtime.
-* The API key’s permissions are determined by the role referenced in your `application.config.ts` via `functionRoleUniversalIdentifier`. This is the default role used by serverless functions of your application.
-* Applications can define roles to follow least‑privilege. Grant only the permissions your functions need, then point `functionRoleUniversalIdentifier` to that role’s universal identifier.
+* Sie müssen dem generierten Client weder URL noch API-Schlüssel übergeben. Er liest `TWENTY_API_URL` und `TWENTY_API_KEY` zur Laufzeit aus process.env.
+* Die Berechtigungen des API-Schlüssels werden durch die Rolle bestimmt, auf die in Ihrer `application-config.ts` über `defaultRoleUniversalIdentifier` verwiesen wird. Dies ist die Standardrolle, die von den Logikfunktionen Ihrer Anwendung verwendet wird.
+* Anwendungen können Rollen definieren, um das Least-Privilege-Prinzip einzuhalten. Gewähren Sie nur die Berechtigungen, die Ihre Funktionen benötigen, und verweisen Sie dann mit `defaultRoleUniversalIdentifier` auf den universellen Bezeichner dieser Rolle.
 
-### Hello World example
+### Hello-World-Beispiel
 
-Explore a minimal, end-to-end example that demonstrates objects, functions, and multiple triggers [here](https://github.com/twentyhq/twenty/tree/main/packages/twenty-apps/hello-world):
+Ein minimales End-to-End-Beispiel, das Objekte, Logikfunktionen, Frontend-Komponenten und mehrere Trigger demonstriert, finden Sie [hier](https://github.com/twentyhq/twenty/tree/main/packages/twenty-apps/hello-world):
 
-## Manual setup (without the scaffolder)
+## Manuelle Einrichtung (ohne Scaffolder)
 
-While we recommend using `create-twenty-app` for the best getting-started experience, you can also set up a project manually. Do not install the CLI globally. Instead, add `twenty-sdk` as a local dependency and wire scripts in your package.json:
+Wir empfehlen zwar `create-twenty-app` für das beste Einstiegserlebnis, Sie können ein Projekt aber auch manuell einrichten. Installieren Sie die CLI nicht global. Fügen Sie stattdessen `twenty-sdk` als lokale Abhängigkeit hinzu und binden Sie ein einzelnes Skript in Ihrer package.json ein:
 
 ```bash filename="Terminal"
 yarn add -D twenty-sdk
 ```
 
-Then add scripts like these:
+Fügen Sie dann ein `twenty`-Skript hinzu:
 
 ```json filename="package.json"
 {
   "scripts": {
-    "auth": "twenty auth login",
-    "generate": "twenty app generate",
-    "dev": "twenty app dev",
-    "sync": "twenty app sync",
-    "uninstall": "twenty app uninstall",
-    "logs": "twenty app logs",
-    "create-entity": "twenty app add",
-    "help": "twenty --help"
+    "twenty": "twenty"
   }
 }
 ```
 
-Now you can run the same commands via Yarn, e.g. `yarn dev`, `yarn sync`, etc.
+Jetzt können Sie alle Befehle über `yarn twenty <command>` ausführen, z. B. `yarn twenty app:dev`, `yarn twenty help` usw.
 
 ## Fehlerbehebung
 
-* Authentication errors: run `yarn auth` and ensure your API key has the required permissions.
-* Cannot connect to server: verify the API URL and that the Twenty server is reachable.
-* Types or client missing/outdated: run `yarn generate` and then `yarn dev`.
-* Dev mode not syncing: ensure `yarn dev` is running and that changes are not ignored by your environment.
+* Authentifizierungsfehler: Führen Sie `yarn twenty auth:login` aus und stellen Sie sicher, dass Ihr API-Schlüssel die erforderlichen Berechtigungen hat.
+* Verbindung zum Server nicht möglich: Überprüfen Sie die API-URL und dass der Twenty-Server erreichbar ist.
+* Typen oder Client fehlen/veraltet: Starten Sie `yarn twenty app:dev` neu — der typisierte Client wird automatisch generiert.
+* Dev-Modus synchronisiert nicht: Stellen Sie sicher, dass `yarn twenty app:dev` läuft und dass Änderungen von Ihrer Umgebung nicht ignoriert werden.
 
-Discord Help Channel: https://discord.com/channels/1130383047699738754/1130386664812982322
+Discord-Hilfekanal: https://discord.com/channels/1130383047699738754/1130386664812982322

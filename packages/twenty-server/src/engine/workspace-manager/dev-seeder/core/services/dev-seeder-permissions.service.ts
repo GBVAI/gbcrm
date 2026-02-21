@@ -44,10 +44,12 @@ export class DevSeederPermissionsService {
 
   public async initPermissions({
     twentyStandardFlatApplication,
+    workspaceCustomFlatApplication,
     workspaceId,
   }: {
     workspaceId: string;
     twentyStandardFlatApplication: FlatApplication;
+    workspaceCustomFlatApplication: FlatApplication;
   }) {
     const adminRole = await this.roleRepository.findOne({
       where: {
@@ -88,7 +90,7 @@ export class DevSeederPermissionsService {
 
       const guestRole = await this.roleService.createGuestRole({
         workspaceId,
-        applicationId: twentyStandardFlatApplication.id,
+        ownerFlatApplication: workspaceCustomFlatApplication,
       });
 
       await this.userRoleService.assignRoleToManyUserWorkspace({
@@ -99,7 +101,7 @@ export class DevSeederPermissionsService {
 
       const limitedRole = await this.createLimitedRoleForSeedWorkspace({
         workspaceId,
-        applicationId: twentyStandardFlatApplication.id,
+        ownerFlatApplication: workspaceCustomFlatApplication,
       });
 
       await this.userRoleService.assignRoleToManyUserWorkspace({
@@ -130,7 +132,7 @@ export class DevSeederPermissionsService {
 
     const memberRole = await this.roleService.createMemberRole({
       workspaceId,
-      applicationId: twentyStandardFlatApplication.id,
+      ownerFlatApplication: workspaceCustomFlatApplication,
     });
 
     await this.coreDataSource
@@ -150,14 +152,14 @@ export class DevSeederPermissionsService {
   }
 
   private async createLimitedRoleForSeedWorkspace({
-    applicationId,
+    ownerFlatApplication,
     workspaceId,
   }: {
     workspaceId: string;
-    applicationId: string;
+    ownerFlatApplication: FlatApplication;
   }) {
     const customRole = await this.roleService.createRole({
-      applicationId,
+      ownerFlatApplication,
       workspaceId,
       input: {
         label: 'Object-restricted',

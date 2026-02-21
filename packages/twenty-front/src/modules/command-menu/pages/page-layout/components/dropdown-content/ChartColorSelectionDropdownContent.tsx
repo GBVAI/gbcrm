@@ -4,10 +4,7 @@ import { usePageLayoutIdFromContextStoreTargetedRecord } from '@/command-menu/pa
 import { useUpdateCurrentWidgetConfig } from '@/command-menu/pages/page-layout/hooks/useUpdateCurrentWidgetConfig';
 import { useWidgetInEditMode } from '@/command-menu/pages/page-layout/hooks/useWidgetInEditMode';
 import { type ChartConfiguration } from '@/command-menu/pages/page-layout/types/ChartConfiguration';
-import { isBarOrLineChartConfiguration } from '@/command-menu/pages/page-layout/utils/isBarOrLineChartConfiguration';
-import { isGaugeChartConfiguration } from '@/command-menu/pages/page-layout/utils/isGaugeChartConfiguration';
-import { isIframeConfiguration } from '@/command-menu/pages/page-layout/utils/isIframeConfiguration';
-import { isPieChartConfiguration } from '@/command-menu/pages/page-layout/utils/isPieChartConfiguration';
+import { isWidgetConfigurationOfType } from '@/command-menu/pages/page-layout/utils/isWidgetConfigurationOfType';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { DropdownMenuSearchInput } from '@/ui/layout/dropdown/components/DropdownMenuSearchInput';
 import { DropdownMenuSeparator } from '@/ui/layout/dropdown/components/DropdownMenuSeparator';
@@ -16,7 +13,7 @@ import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
 import { SelectableList } from '@/ui/layout/selectable-list/components/SelectableList';
 import { selectedItemIdComponentState } from '@/ui/layout/selectable-list/states/selectedItemIdComponentState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { t } from '@lingui/core/macro';
 import { useState } from 'react';
 import { capitalize, isDefined } from 'twenty-shared/utils';
@@ -38,7 +35,7 @@ export const ChartColorSelectionDropdownContent = () => {
     DropdownComponentInstanceContext,
   );
 
-  const selectedItemId = useRecoilComponentValue(
+  const selectedItemId = useRecoilComponentValueV2(
     selectedItemIdComponentState,
     dropdownId,
   );
@@ -52,17 +49,30 @@ export const ChartColorSelectionDropdownContent = () => {
     return null;
   }
 
-  if (isIframeConfiguration(widgetInEditMode.configuration)) {
+  if (
+    isWidgetConfigurationOfType(
+      widgetInEditMode.configuration,
+      'IframeConfiguration',
+    )
+  ) {
     throw new Error('Invalid configuration type');
   }
 
   const configuration = widgetInEditMode.configuration as ChartConfiguration;
 
-  if (
-    !isBarOrLineChartConfiguration(configuration) &&
-    !isGaugeChartConfiguration(configuration) &&
-    !isPieChartConfiguration(configuration)
-  ) {
+  const isBarOrLineChart =
+    isWidgetConfigurationOfType(configuration, 'BarChartConfiguration') ||
+    isWidgetConfigurationOfType(configuration, 'LineChartConfiguration');
+  const isGaugeChart = isWidgetConfigurationOfType(
+    configuration,
+    'GaugeChartConfiguration',
+  );
+  const isPieChart = isWidgetConfigurationOfType(
+    configuration,
+    'PieChartConfiguration',
+  );
+
+  if (!isBarOrLineChart && !isGaugeChart && !isPieChart) {
     return null;
   }
 

@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -16,25 +17,30 @@ import {
 } from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 import { CalendarStartDay } from 'twenty-shared/constants';
+import {
+  type AggregateChartConfiguration,
+  AggregateOperations,
+  type ChartFilter,
+  SerializedRelation,
+} from 'twenty-shared/types';
 
-import { ObjectRecordFilter } from 'src/engine/api/graphql/workspace-query-builder/interfaces/object-record.interface';
-
-import { AggregateOperations } from 'src/engine/api/graphql/graphql-query-runner/constants/aggregate-operations.constant';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 import { RatioAggregateConfigDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/ratio-aggregate-config.dto';
-import { GraphType } from 'src/engine/metadata-modules/page-layout-widget/enums/graph-type.enum';
+import { WidgetConfigurationType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-configuration-type.type';
 
 @ObjectType('AggregateChartConfiguration')
-export class AggregateChartConfigurationDTO {
-  @Field(() => GraphType)
-  @IsEnum(GraphType)
+export class AggregateChartConfigurationDTO
+  implements AggregateChartConfiguration
+{
+  @Field(() => WidgetConfigurationType)
+  @IsIn([WidgetConfigurationType.AGGREGATE_CHART])
   @IsNotEmpty()
-  graphType: GraphType.AGGREGATE;
+  configurationType: WidgetConfigurationType.AGGREGATE_CHART;
 
   @Field(() => UUIDScalarType)
   @IsUUID()
   @IsNotEmpty()
-  aggregateFieldMetadataId: string;
+  aggregateFieldMetadataId: SerializedRelation;
 
   @Field(() => AggregateOperations)
   @IsEnum(AggregateOperations)
@@ -64,7 +70,7 @@ export class AggregateChartConfigurationDTO {
   @Field(() => GraphQLJSON, { nullable: true })
   @IsObject()
   @IsOptional()
-  filter?: ObjectRecordFilter;
+  filter?: ChartFilter;
 
   @Field(() => String, { nullable: true, defaultValue: 'UTC' })
   @IsTimeZone()

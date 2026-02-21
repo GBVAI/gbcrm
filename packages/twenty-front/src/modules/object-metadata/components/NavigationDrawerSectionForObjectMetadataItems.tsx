@@ -7,9 +7,11 @@ import { NavigationDrawerAnimatedCollapseWrapper } from '@/ui/navigation/navigat
 import { NavigationDrawerSection } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerSection';
 import { NavigationDrawerSectionTitle } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerSectionTitle';
 import { useNavigationSection } from '@/ui/navigation/navigation-drawer/hooks/useNavigationSection';
-import { useRecoilValue } from 'recoil';
+import { isNavigationSectionOpenFamilyState } from '@/ui/navigation/navigation-drawer/states/isNavigationSectionOpenFamilyState';
+import { useFamilyRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useFamilyRecoilValueV2';
+import { isDefined } from 'twenty-shared/utils';
 
-const ORDERED_STANDARD_OBJECTS: string[] = [
+const ORDERED_FIRST_STANDARD_OBJECTS: string[] = [
   CoreObjectNameSingular.Person,
   CoreObjectNameSingular.Company,
   CoreObjectNameSingular.Opportunity,
@@ -17,30 +19,53 @@ const ORDERED_STANDARD_OBJECTS: string[] = [
   CoreObjectNameSingular.Note,
 ];
 
+const ORDERED_LAST_STANDARD_OBJECTS: string[] = [
+  CoreObjectNameSingular.Dashboard,
+];
+
 type NavigationDrawerSectionForObjectMetadataItemsProps = {
   sectionTitle: string;
   isRemote: boolean;
   objectMetadataItems: ObjectMetadataItem[];
+  rightIcon?: React.ReactNode;
+  isEditMode?: boolean;
+  selectedObjectMetadataItemId?: string | null;
+  onObjectMetadataItemClick?: (objectMetadataItem: ObjectMetadataItem) => void;
+  onActiveObjectMetadataItemClick?: (
+    objectMetadataItem: ObjectMetadataItem,
+  ) => void;
 };
 
 export const NavigationDrawerSectionForObjectMetadataItems = ({
   sectionTitle,
   isRemote,
   objectMetadataItems,
+  rightIcon,
+  isEditMode = false,
+  selectedObjectMetadataItemId = null,
+  onObjectMetadataItemClick,
+  onActiveObjectMetadataItemClick,
 }: NavigationDrawerSectionForObjectMetadataItemsProps) => {
-  const { toggleNavigationSection, isNavigationSectionOpenState } =
-    useNavigationSection('Objects' + (isRemote ? 'Remote' : 'Workspace'));
-  const isNavigationSectionOpen = useRecoilValue(isNavigationSectionOpenState);
+  const navigationSectionId = 'Objects' + (isRemote ? 'Remote' : 'Workspace');
+  const { toggleNavigationSection } = useNavigationSection(navigationSectionId);
+  const isNavigationSectionOpen = useFamilyRecoilValueV2(
+    isNavigationSectionOpenFamilyState,
+    navigationSectionId,
+  );
 
   const { objectPermissionsByObjectMetadataId } = useObjectPermissions();
 
   const sortedStandardObjectMetadataItems = [...objectMetadataItems]
-    .filter((item) => ORDERED_STANDARD_OBJECTS.includes(item.nameSingular))
+    .filter(
+      (item) =>
+        ORDERED_FIRST_STANDARD_OBJECTS.includes(item.nameSingular) &&
+        !ORDERED_LAST_STANDARD_OBJECTS.includes(item.nameSingular),
+    )
     .sort((objectMetadataItemA, objectMetadataItemB) => {
-      const indexA = ORDERED_STANDARD_OBJECTS.indexOf(
+      const indexA = ORDERED_FIRST_STANDARD_OBJECTS.indexOf(
         objectMetadataItemA.nameSingular,
       );
-      const indexB = ORDERED_STANDARD_OBJECTS.indexOf(
+      const indexB = ORDERED_FIRST_STANDARD_OBJECTS.indexOf(
         objectMetadataItemB.nameSingular,
       );
       if (indexA === -1 || indexB === -1) {
@@ -52,7 +77,11 @@ export const NavigationDrawerSectionForObjectMetadataItems = ({
     });
 
   const sortedCustomObjectMetadataItems = [...objectMetadataItems]
-    .filter((item) => !ORDERED_STANDARD_OBJECTS.includes(item.nameSingular))
+    .filter(
+      (item) =>
+        !ORDERED_FIRST_STANDARD_OBJECTS.includes(item.nameSingular) &&
+        !ORDERED_LAST_STANDARD_OBJECTS.includes(item.nameSingular),
+    )
     .sort((objectMetadataItemA, objectMetadataItemB) => {
       return new Date(objectMetadataItemA.createdAt) <
         new Date(objectMetadataItemB.createdAt)
@@ -60,9 +89,17 @@ export const NavigationDrawerSectionForObjectMetadataItems = ({
         : -1;
     });
 
+  const sortedLastStandardObjectMetadataItems =
+    ORDERED_LAST_STANDARD_OBJECTS.map((nameSingular) => {
+      return objectMetadataItems.find(
+        (item) => item.nameSingular === nameSingular,
+      );
+    }).filter(isDefined);
+
   const objectMetadataItemsForNavigationItems = [
     ...sortedStandardObjectMetadataItems,
     ...sortedCustomObjectMetadataItems,
+    ...sortedLastStandardObjectMetadataItems,
   ];
 
   const objectMetadataItemsForNavigationItemsWithReadPermission =
@@ -81,6 +118,7 @@ export const NavigationDrawerSectionForObjectMetadataItems = ({
           <NavigationDrawerSectionTitle
             label={sectionTitle}
             onClick={() => toggleNavigationSection()}
+            rightIcon={rightIcon}
           />
         </NavigationDrawerAnimatedCollapseWrapper>
         {isNavigationSectionOpen &&
@@ -89,6 +127,20 @@ export const NavigationDrawerSectionForObjectMetadataItems = ({
               <NavigationDrawerItemForObjectMetadataItem
                 key={`navigation-drawer-item-${objectMetadataItem.id}`}
                 objectMetadataItem={objectMetadataItem}
+                isEditMode={isEditMode}
+                isSelectedInEditMode={
+                  selectedObjectMetadataItemId === objectMetadataItem.id
+                }
+                onEditModeClick={
+                  onObjectMetadataItemClick
+                    ? () => onObjectMetadataItemClick(objectMetadataItem)
+                    : undefined
+                }
+                onActiveItemClickWhenNotInEditMode={
+                  onActiveObjectMetadataItemClick
+                    ? () => onActiveObjectMetadataItemClick(objectMetadataItem)
+                    : undefined
+                }
               />
             ),
           )}

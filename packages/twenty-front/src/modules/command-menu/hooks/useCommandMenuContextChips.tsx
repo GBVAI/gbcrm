@@ -2,7 +2,7 @@ import { CommandMenuContextRecordChipAvatars } from '@/command-menu/components/C
 import { useCommandMenuHistory } from '@/command-menu/hooks/useCommandMenuHistory';
 import { commandMenuNavigationMorphItemsByPageState } from '@/command-menu/states/commandMenuNavigationMorphItemsByPageState';
 import { commandMenuNavigationStackState } from '@/command-menu/states/commandMenuNavigationStackState';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
+import { CommandMenuPages } from 'twenty-shared/types';
 import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
 import { recordStoreIdentifiersFamilySelector } from '@/object-record/record-store/states/selectors/recordStoreIdentifiersSelector';
 import { recordStoreRecordsSelector } from '@/object-record/record-store/states/selectors/recordStoreRecordsSelector';
@@ -11,6 +11,7 @@ import styled from '@emotion/styled';
 import { useMemo } from 'react';
 import { useRecoilValue } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
+import { allowRequestsToTwentyIconsState } from '@/client-config/states/allowRequestsToTwentyIcons';
 
 const StyledIconWrapper = styled.div`
   background: ${({ theme }) => theme.background.primary};
@@ -23,6 +24,10 @@ const StyledIconWrapper = styled.div`
 export const useCommandMenuContextChips = () => {
   const commandMenuNavigationStack = useRecoilValue(
     commandMenuNavigationStackState,
+  );
+
+  const allowRequestsToTwentyIcons = useRecoilValue(
+    allowRequestsToTwentyIconsState,
   );
 
   const objectMetadataItems = useRecoilValue(objectMetadataItemsState);
@@ -44,6 +49,7 @@ export const useCommandMenuContextChips = () => {
   const recordIdentifiers = useRecoilValue(
     recordStoreIdentifiersFamilySelector({
       recordIds: allRecordIds,
+      allowRequestsToTwentyIcons,
     }),
   );
   const records = useRecoilValue(

@@ -15,6 +15,7 @@ import { RECORD_INDEX_REMOVE_SORTING_MODAL_ID } from '@/object-record/record-ind
 
 import { isModalOpenedComponentState } from '@/ui/layout/modal/states/isModalOpenedComponentState';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
 import { isDefined } from 'twenty-shared/utils';
 
 type RecordBoardContainerProps = {
@@ -40,13 +41,22 @@ export const RecordBoardContainer = ({
   );
 
   const { deleteOneRecord } = useDeleteOneRecord({ objectNameSingular });
-  const { updateOneRecord } = useUpdateOneRecord({ objectNameSingular });
+  const { updateOneRecord: updateOneRecordHook } = useUpdateOneRecord();
   const { createOneRecord } = useCreateOneRecord({
     objectNameSingular,
     shouldMatchRootQueryFilter: true,
   });
 
-  const isRecordIndexRemoveSortingModalOpened = useRecoilComponentValue(
+  const updateOneRecord = (args: {
+    idToUpdate: string;
+    updateOneRecordInput: Record<string, unknown>;
+  }) =>
+    updateOneRecordHook({
+      objectNameSingular,
+      ...args,
+    });
+
+  const isRecordIndexRemoveSortingModalOpened = useRecoilComponentValueV2(
     isModalOpenedComponentState,
     RECORD_INDEX_REMOVE_SORTING_MODAL_ID,
   );

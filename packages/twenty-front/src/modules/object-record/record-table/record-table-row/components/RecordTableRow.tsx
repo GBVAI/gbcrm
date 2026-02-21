@@ -1,4 +1,3 @@
-import { useRecordIndexContextOrThrow } from '@/object-record/record-index/contexts/RecordIndexContext';
 import { RecordTableCellCheckbox } from '@/object-record/record-table/record-table-cell/components/RecordTableCellCheckbox';
 import { RecordTableCellDragAndDrop } from '@/object-record/record-table/record-table-cell/components/RecordTableCellDragAndDrop';
 import { RecordTableLastEmptyCell } from '@/object-record/record-table/record-table-cell/components/RecordTableLastEmptyCell';
@@ -11,8 +10,6 @@ import { RecordTableRowArrowKeysEffect } from '@/object-record/record-table/reco
 import { RecordTableRowHotkeyEffect } from '@/object-record/record-table/record-table-row/components/RecordTableRowHotkeyEffect';
 import { isRecordTableRowFocusActiveComponentState } from '@/object-record/record-table/states/isRecordTableRowFocusActiveComponentState';
 import { isRecordTableRowFocusedComponentFamilyState } from '@/object-record/record-table/states/isRecordTableRowFocusedComponentFamilyState';
-import { ListenRecordUpdatesEffect } from '@/subscription/components/ListenRecordUpdatesEffect';
-import { getDefaultRecordFieldsToListen } from '@/subscription/utils/getDefaultRecordFieldsToListen.util';
 import { useRecoilComponentFamilyValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentFamilyValue';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 
@@ -29,10 +26,6 @@ export const RecordTableRow = ({
   rowIndexForDrag,
   isFirstRowOfGroup,
 }: RecordTableRowProps) => {
-  const { objectNameSingular } = useRecordIndexContextOrThrow();
-  const listenedFields = getDefaultRecordFieldsToListen({
-    objectNameSingular,
-  });
   const isFocused = useRecoilComponentFamilyValue(
     isRecordTableRowFocusedComponentFamilyState,
     rowIndexForFocus,
@@ -58,11 +51,6 @@ export const RecordTableRow = ({
       <RecordTableFieldsCells />
       <RecordTablePlusButtonCellPlaceholder />
       <RecordTableLastEmptyCell />
-      <ListenRecordUpdatesEffect
-        objectNameSingular={objectNameSingular}
-        recordId={recordId}
-        listenedFields={listenedFields}
-      />
     </RecordTableDraggableTrFirstRowOfGroup>
   ) : (
     <RecordTableDraggableTr

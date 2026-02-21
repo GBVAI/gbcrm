@@ -1,0 +1,338 @@
+import {
+  type EntityFilePaths,
+  extractDefineEntity,
+  ManifestEntityKey,
+  TARGET_FUNCTION_TO_ENTITY_KEY_MAPPING,
+} from '@/cli/utilities/build/manifest/manifest-extract-config';
+import { extractManifestFromFile } from '@/cli/utilities/build/manifest/manifest-extract-config-from-file';
+import {
+  type ApplicationConfig,
+  type FrontComponentConfig,
+  type LogicFunctionConfig,
+} from '@/sdk';
+import { type ObjectConfig } from '@/sdk/objects/object-config';
+import { type PageLayoutConfig } from '@/sdk/page-layouts/page-layout-config';
+import { type ViewConfig } from '@/sdk/views/view-config';
+import { glob } from 'fast-glob';
+import { readFile } from 'fs-extra';
+import { basename, extname, relative } from 'path';
+import {
+  type ApplicationManifest,
+  type AssetManifest,
+  ASSETS_DIR,
+  type FieldManifest,
+  type FrontComponentManifest,
+  type LogicFunctionManifest,
+  type Manifest,
+  type NavigationMenuItemManifest,
+  type ObjectManifest,
+  type PageLayoutManifest,
+  type RoleManifest,
+  type SkillManifest,
+  type ViewManifest,
+} from 'twenty-shared/application';
+import { getInputSchemaFromSourceCode } from 'twenty-shared/logic-function';
+import { assertUnreachable } from 'twenty-shared/utils';
+import { getDefaultFieldsInObjectFields } from '@/cli/utilities/build/manifest/utils/get-default-fields-in-object-fields';
+
+const loadSources = async (appPath: string): Promise<string[]> => {
+  return await glob(['**/*.ts', '**/*.tsx'], {
+    cwd: appPath,
+    absolute: true,
+    ignore: ['**/node_modules/**', '**/*.d.ts', '**/dist/**', '**/.twenty/**'],
+    onlyFiles: true,
+  });
+};
+
+const loadAssets = async (appPath: string) => {
+  return await glob([`${ASSETS_DIR}/**/*`], {
+    cwd: appPath,
+    onlyFiles: true,
+  });
+};
+
+export const buildManifest = async (
+  appPath: string,
+): Promise<{
+  manifest: Manifest | null;
+  filePaths: EntityFilePaths;
+  errors: string[];
+}> => {
+  const filePaths = await loadSources(appPath);
+  const errors: string[] = [];
+
+  let application: ApplicationManifest | undefined;
+  const objects: ObjectManifest[] = [];
+  const fields: FieldManifest[] = [];
+  const roles: RoleManifest[] = [];
+  const skills: SkillManifest[] = [];
+  const logicFunctions: LogicFunctionManifest[] = [];
+  const frontComponents: FrontComponentManifest[] = [];
+  const publicAssets: AssetManifest[] = [];
+  const views: ViewManifest[] = [];
+  const navigationMenuItems: NavigationMenuItemManifest[] = [];
+  const pageLayouts: PageLayoutManifest[] = [];
+
+  const applicationFilePaths: string[] = [];
+  const objectsFilePaths: string[] = [];
+  const fieldsFilePaths: string[] = [];
+  const rolesFilePaths: string[] = [];
+  const skillsFilePaths: string[] = [];
+  const logicFunctionsFilePaths: string[] = [];
+  const frontComponentsFilePaths: string[] = [];
+  const publicAssetsFilePaths: string[] = [];
+  const viewsFilePaths: string[] = [];
+  const navigationMenuItemsFilePaths: string[] = [];
+  const pageLayoutsFilePaths: string[] = [];
+
+  for (const filePath of filePaths) {
+    const fileContent = await readFile(filePath, 'utf-8');
+    const relativePath = relative(appPath, filePath);
+
+    const targetFunctionName = extractDefineEntity(fileContent);
+
+    if (!targetFunctionName) {
+      continue;
+    }
+
+    const entity = TARGET_FUNCTION_TO_ENTITY_KEY_MAPPING[targetFunctionName];
+
+    switch (entity) {
+      case ManifestEntityKey.Application: {
+        const extract = await extractManifestFromFile<ApplicationConfig>({
+          appPath,
+          filePath,
+        });
+
+        application = {
+          ...extract.config,
+          yarnLockChecksum: null,
+          packageJsonChecksum: null,
+          apiClientChecksum: null,
+        };
+        errors.push(...extract.errors);
+        applicationFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.Objects: {
+        const extract = await extractManifestFromFile<ObjectConfig>({
+          appPath,
+          filePath,
+        });
+
+        const {
+          objectFields: objectFieldsWithDefaults,
+          fields: reverseRelationFields,
+        } = getDefaultFieldsInObjectFields(extract.config);
+
+        const labelIdentifierFieldMetadataUniversalIdentifier =
+          extract.config.labelIdentifierFieldMetadataUniversalIdentifier ??
+          objectFieldsWithDefaults.find((field) => field.name === 'name')
+            ?.universalIdentifier;
+
+        if (!labelIdentifierFieldMetadataUniversalIdentifier) {
+          errors.push(
+            `No label identifier field found for object ${extract.config.nameSingular}. Please add a field with name "name" to your object.`,
+          );
+          break;
+        }
+
+        const objectManifest: ObjectManifest = {
+          ...extract.config,
+          fields: objectFieldsWithDefaults,
+          labelIdentifierFieldMetadataUniversalIdentifier,
+        };
+
+        objects.push(objectManifest);
+        fields.push(...reverseRelationFields);
+
+        errors.push(...extract.errors);
+        objectsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.Fields: {
+        const extract = await extractManifestFromFile<FieldManifest>({
+          appPath,
+          filePath,
+        });
+        fields.push(extract.config);
+        errors.push(...extract.errors);
+        fieldsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.Roles: {
+        const extract = await extractManifestFromFile<RoleManifest>({
+          appPath,
+          filePath,
+        });
+        roles.push(extract.config);
+        errors.push(...extract.errors);
+        rolesFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.Skills: {
+        const extract = await extractManifestFromFile<SkillManifest>({
+          appPath,
+          filePath,
+        });
+        skills.push(extract.config);
+        errors.push(...extract.errors);
+        skillsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.LogicFunctions: {
+        const extract = await extractManifestFromFile<LogicFunctionConfig>({
+          appPath,
+          filePath,
+        });
+
+        errors.push(...extract.errors);
+
+        const { handler: _, ...rest } = extract.config;
+
+        const relativeFilePath = relative(appPath, filePath);
+
+        const toolInputSchema =
+          rest.toolInputSchema ??
+          (await getInputSchemaFromSourceCode(fileContent));
+
+        const config: LogicFunctionManifest = {
+          ...rest,
+          toolInputSchema,
+          handlerName: 'default.config.handler',
+          sourceHandlerPath: relativeFilePath,
+          builtHandlerPath: relativeFilePath.replace(/\.tsx?$/, '.mjs'),
+          builtHandlerChecksum: '[default-checksum]',
+        };
+
+        logicFunctions.push(config);
+        logicFunctionsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.FrontComponents: {
+        const extract = await extractManifestFromFile<FrontComponentConfig>({
+          appPath,
+          filePath,
+        });
+
+        errors.push(...extract.errors);
+
+        const { component, ...rest } = extract.config;
+
+        const relativeFilePath = relative(appPath, filePath);
+
+        const config: FrontComponentManifest = {
+          ...rest,
+          componentName: component.name,
+          sourceComponentPath: relativeFilePath,
+          builtComponentPath: relativeFilePath.replace(/\.tsx?$/, '.mjs'),
+          builtComponentChecksum: '',
+          isHeadless: rest.isHeadless ?? false,
+        };
+
+        frontComponents.push(config);
+        frontComponentsFilePaths.push(relativePath);
+
+        break;
+      }
+      case ManifestEntityKey.Views: {
+        const extract = await extractManifestFromFile<ViewConfig>({
+          appPath,
+          filePath,
+        });
+
+        const viewManifest: ViewManifest = {
+          ...extract.config,
+        };
+
+        views.push(viewManifest);
+        errors.push(...extract.errors);
+        viewsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.NavigationMenuItems: {
+        const extract =
+          await extractManifestFromFile<NavigationMenuItemManifest>({
+            appPath,
+            filePath,
+          });
+        navigationMenuItems.push(extract.config);
+        errors.push(...extract.errors);
+        navigationMenuItemsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.PageLayouts: {
+        const extract = await extractManifestFromFile<PageLayoutConfig>({
+          appPath,
+          filePath,
+        });
+
+        const pageLayoutManifest: PageLayoutManifest = {
+          ...extract.config,
+        };
+
+        pageLayouts.push(pageLayoutManifest);
+        errors.push(...extract.errors);
+        pageLayoutsFilePaths.push(relativePath);
+        break;
+      }
+      case ManifestEntityKey.PublicAssets: {
+        // Public assets are handled below
+        break;
+      }
+      default: {
+        assertUnreachable(entity);
+      }
+    }
+  }
+
+  const assetFiles = await loadAssets(appPath);
+
+  for (const assetFile of assetFiles) {
+    publicAssets.push({
+      filePath: assetFile,
+      fileName: basename(assetFile),
+      fileType: extname(assetFile).replace(/^\./, ''),
+      checksum: null,
+    });
+    publicAssetsFilePaths.push(relative(appPath, assetFile));
+  }
+
+  if (!application) {
+    errors.push(
+      'Cannot build application, please export default defineApplication() to define an application',
+    );
+  }
+
+  const manifest = !application
+    ? null
+    : {
+        application,
+        objects,
+        fields,
+        roles,
+        skills,
+        logicFunctions,
+        frontComponents,
+        publicAssets,
+        views,
+        navigationMenuItems,
+        pageLayouts,
+      };
+
+  const entityFilePaths: EntityFilePaths = {
+    application: applicationFilePaths,
+    objects: objectsFilePaths,
+    fields: fieldsFilePaths,
+    roles: rolesFilePaths,
+    skills: skillsFilePaths,
+    logicFunctions: logicFunctionsFilePaths,
+    frontComponents: frontComponentsFilePaths,
+    publicAssets: publicAssetsFilePaths,
+    views: viewsFilePaths,
+    navigationMenuItems: navigationMenuItemsFilePaths,
+    pageLayouts: pageLayoutsFilePaths,
+  };
+
+  return { manifest, filePaths: entityFilePaths, errors };
+};

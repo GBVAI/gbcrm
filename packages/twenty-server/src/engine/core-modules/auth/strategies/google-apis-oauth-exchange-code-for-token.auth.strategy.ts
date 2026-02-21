@@ -12,8 +12,11 @@ export type GoogleAPIScopeConfig = {
 
 @Injectable()
 export class GoogleAPIsOauthExchangeCodeForTokenStrategy extends GoogleAPIsOauthCommonStrategy {
-  constructor(twentyConfigService: TwentyConfigService) {
-    super(twentyConfigService);
+  constructor(
+    twentyConfigService: TwentyConfigService,
+    isDraftEmailEnabled = false,
+  ) {
+    super(twentyConfigService, isDraftEmailEnabled);
   }
 
   async validate(
@@ -42,6 +45,7 @@ export class GoogleAPIsOauthExchangeCodeForTokenStrategy extends GoogleAPIsOauth
       redirectLocation: state.redirectLocation,
       calendarVisibility: state.calendarVisibility,
       messageVisibility: state.messageVisibility,
+      skipMessageChannelConfiguration: state.skipMessageChannelConfiguration,
     };
 
     done(null, user);

@@ -1,3 +1,4 @@
+import { isWidgetConfigurationOfType } from '@/command-menu/pages/page-layout/utils/isWidgetConfigurationOfType';
 import { useDateTimeFormat } from '@/localization/hooks/useDateTimeFormat';
 import { PageLayoutComponentInstanceContext } from '@/page-layout/states/contexts/PageLayoutComponentInstanceContext';
 import { pageLayoutCurrentLayoutsComponentState } from '@/page-layout/states/pageLayoutCurrentLayoutsComponentState';
@@ -15,11 +16,15 @@ import { getWidgetTitle } from '@/page-layout/utils/getWidgetTitle';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
+import { useStore } from 'jotai';
 import { useRecoilCallback } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
 import { v4 as uuidv4 } from 'uuid';
-import { type GraphType } from '~/generated-metadata/graphql';
-import { WidgetType } from '~/generated/graphql';
+import {
+  BarChartLayout,
+  WidgetConfigurationType,
+  WidgetType,
+} from '~/generated-metadata/graphql';
 
 export const useCreatePageLayoutGraphWidget = (
   pageLayoutIdFromProps?: string,
@@ -29,14 +34,10 @@ export const useCreatePageLayoutGraphWidget = (
     pageLayoutIdFromProps,
   );
 
+  const store = useStore();
   const { timeZone, calendarStartDay } = useDateTimeFormat();
 
   const tabListInstanceId = getTabListInstanceIdFromPageLayoutId(pageLayoutId);
-
-  const activeTabIdState = useRecoilComponentCallbackState(
-    activeTabIdComponentState,
-    tabListInstanceId,
-  );
 
   const pageLayoutDraftState = useRecoilComponentCallbackState(
     pageLayoutDraftComponentState,
@@ -56,13 +57,15 @@ export const useCreatePageLayoutGraphWidget = (
   const createPageLayoutGraphWidget = useRecoilCallback(
     ({ snapshot, set }) =>
       ({
-        graphType,
         fieldSelection,
       }: {
-        graphType: GraphType;
         fieldSelection?: GraphWidgetFieldSelection;
       }): PageLayoutWidget => {
-        const activeTabId = snapshot.getLoadable(activeTabIdState).getValue();
+        const activeTabId = store.get(
+          activeTabIdComponentState.atomFamily({
+            instanceId: tabListInstanceId,
+          }),
+        );
 
         if (!isDefined(activeTabId)) {
           throw new Error(
@@ -83,18 +86,39 @@ export const useCreatePageLayoutGraphWidget = (
           .getValue();
 
         const allWidgets = pageLayoutDraft.tabs.flatMap((tab) => tab.widgets);
-        const existingWidgetCount = allWidgets.filter(
-          (w) =>
-            w.type === WidgetType.GRAPH &&
-            w.configuration &&
-            'graphType' in w.configuration &&
-            w.configuration.graphType === graphType,
-        ).length;
-        const title = getWidgetTitle(graphType, existingWidgetCount);
+        const existingWidgetCount = allWidgets.filter((widget) => {
+          if (widget.type !== WidgetType.GRAPH) {
+            return false;
+          }
+
+          if (
+            !isWidgetConfigurationOfType(
+              widget.configuration,
+              'BarChartConfiguration',
+            )
+          ) {
+            return false;
+          }
+          return widget.configuration.layout === BarChartLayout.VERTICAL;
+        }).length;
+
+        const title = getWidgetTitle(
+          {
+            configurationType: WidgetConfigurationType.BAR_CHART,
+            layout: BarChartLayout.VERTICAL,
+          },
+          existingWidgetCount,
+        );
         const widgetId = uuidv4();
 
-        const defaultSize = getWidgetSize(graphType, 'default');
-        const minimumSize = getWidgetSize(graphType, 'minimum');
+        const defaultSize = getWidgetSize(
+          WidgetConfigurationType.BAR_CHART,
+          'default',
+        );
+        const minimumSize = getWidgetSize(
+          WidgetConfigurationType.BAR_CHART,
+          'minimum',
+        );
         const position = getDefaultWidgetPosition(
           pageLayoutDraggedArea,
           defaultSize,
@@ -105,7 +129,6 @@ export const useCreatePageLayoutGraphWidget = (
           id: widgetId,
           pageLayoutTabId: activeTabId,
           title,
-          graphType,
           gridPosition: {
             row: position.y,
             column: position.x,
@@ -144,12 +167,13 @@ export const useCreatePageLayoutGraphWidget = (
         return newWidget;
       },
     [
-      activeTabIdState,
+      tabListInstanceId,
       pageLayoutCurrentLayoutsState,
       pageLayoutDraftState,
       pageLayoutDraggedAreaState,
       timeZone,
       calendarStartDay,
+      store,
     ],
   );
 

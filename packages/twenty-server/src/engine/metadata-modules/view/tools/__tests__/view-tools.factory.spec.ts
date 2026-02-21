@@ -1,10 +1,12 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 
-import { OrderByDirection } from 'twenty-shared/types';
+import {
+  OrderByDirection,
+  ViewType,
+  ViewVisibility,
+} from 'twenty-shared/types';
 
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
-import { ViewType } from 'src/engine/metadata-modules/view/enums/view-type.enum';
-import { ViewVisibility } from 'src/engine/metadata-modules/view/enums/view-visibility.enum';
 import { ViewQueryParamsService } from 'src/engine/metadata-modules/view/services/view-query-params.service';
 import { ViewService } from 'src/engine/metadata-modules/view/services/view.service';
 import { ViewToolsFactory } from 'src/engine/metadata-modules/view/tools/view-tools.factory';
@@ -33,16 +35,19 @@ describe('ViewToolsFactory', () => {
   };
 
   const mockFlatObjectMetadataMaps = {
-    byId: {
-      [mockObjectMetadataId]: {
+    byUniversalIdentifier: {
+      'object-universal-id': {
         id: mockObjectMetadataId,
         nameSingular: mockObjectNameSingular,
         namePlural: 'companies',
         labelSingular: 'Company',
         labelPlural: 'Companies',
+        universalIdentifier: 'object-universal-id',
       },
     },
-    idByUniversalIdentifier: {},
+    universalIdentifierById: {
+      [mockObjectMetadataId]: 'object-universal-id',
+    },
     universalIdentifiersByApplicationId: {},
   };
 
@@ -120,7 +125,7 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['get_views'], {
-          input: { limit: 50 },
+          limit: 50,
         });
 
         expect(viewService.findByWorkspaceId).toHaveBeenCalledWith(
@@ -150,7 +155,8 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['get_views'], {
-          input: { objectNameSingular: mockObjectNameSingular, limit: 50 },
+          objectNameSingular: mockObjectNameSingular,
+          limit: 50,
         });
 
         expect(viewService.findByObjectMetadataId).toHaveBeenCalledWith(
@@ -173,7 +179,7 @@ describe('ViewToolsFactory', () => {
         const tools = viewToolsFactory.generateReadTools(mockWorkspaceId);
 
         const result = await callExecute(tools['get_views'], {
-          input: { limit: 2 },
+          limit: 2,
         });
 
         expect(result).toHaveLength(2);
@@ -201,7 +207,7 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['get_view_query_parameters'], {
-          input: { viewId: mockViewId },
+          viewId: mockViewId,
         });
 
         expect(
@@ -244,11 +250,9 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['create_view'], {
-          input: {
-            name: 'New View',
-            objectNameSingular: mockObjectNameSingular,
-            icon: 'IconTable',
-          },
+          name: 'New View',
+          objectNameSingular: mockObjectNameSingular,
+          icon: 'IconTable',
         });
 
         expect(viewService.createOne).toHaveBeenCalledWith({
@@ -293,10 +297,8 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['update_view'], {
-          input: {
-            id: mockViewId,
-            name: 'Updated Name',
-          },
+          id: mockViewId,
+          name: 'Updated Name',
         });
 
         expect(viewService.updateOne).toHaveBeenCalled();
@@ -323,10 +325,8 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['update_view'], {
-          input: {
-            id: mockViewId,
-            name: 'Updated Name',
-          },
+          id: mockViewId,
+          name: 'Updated Name',
         });
 
         expect(result.name).toBe('Updated Name');
@@ -348,10 +348,8 @@ describe('ViewToolsFactory', () => {
 
         await expect(
           callExecute(tools['update_view'], {
-            input: {
-              id: mockViewId,
-              name: 'Updated Name',
-            },
+            id: mockViewId,
+            name: 'Updated Name',
           }),
         ).rejects.toThrow('You can only update your own unlisted views');
       });
@@ -363,10 +361,8 @@ describe('ViewToolsFactory', () => {
 
         await expect(
           callExecute(tools['update_view'], {
-            input: {
-              id: 'non-existent-id',
-              name: 'Updated Name',
-            },
+            id: 'non-existent-id',
+            name: 'Updated Name',
           }),
         ).rejects.toThrow('View with id non-existent-id not found');
       });
@@ -392,7 +388,7 @@ describe('ViewToolsFactory', () => {
         );
 
         const result = await callExecute(tools['delete_view'], {
-          input: { id: mockViewId },
+          id: mockViewId,
         });
 
         expect(viewService.deleteOne).toHaveBeenCalledWith({
@@ -422,7 +418,7 @@ describe('ViewToolsFactory', () => {
 
         await expect(
           callExecute(tools['delete_view'], {
-            input: { id: mockViewId },
+            id: mockViewId,
           }),
         ).rejects.toThrow('You can only delete your own unlisted views');
       });

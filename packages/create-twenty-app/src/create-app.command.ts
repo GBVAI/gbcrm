@@ -1,20 +1,30 @@
+import { copyBaseApplicationProject } from '@/utils/app-template';
+import { convertToLabel } from '@/utils/convert-to-label';
+import { install } from '@/utils/install';
+import { tryGitInit } from '@/utils/try-git-init';
 import chalk from 'chalk';
 import * as fs from 'fs-extra';
 import inquirer from 'inquirer';
-import * as path from 'path';
-import { copyBaseApplicationProject } from '@/utils/app-template';
 import kebabCase from 'lodash.kebabcase';
-import { convertToLabel } from '@/utils/convert-to-label';
-import { tryGitInit } from '@/utils/try-git-init';
-import { install } from '@/utils/install';
+import * as path from 'path';
+
+import {
+  type ExampleOptions,
+  type ScaffoldingMode,
+} from '@/types/scaffolding-options';
 
 const CURRENT_EXECUTION_DIRECTORY = process.env.INIT_CWD || process.cwd();
 
 export class CreateAppCommand {
-  async execute(directory?: string): Promise<void> {
+  async execute(
+    directory?: string,
+    mode: ScaffoldingMode = 'exhaustive',
+  ): Promise<void> {
     try {
       const { appName, appDisplayName, appDirectory, appDescription } =
         await this.getAppInfos(directory);
+
+      const exampleOptions = await this.resolveExampleOptions(mode);
 
       await this.validateDirectory(appDirectory);
 
@@ -27,6 +37,7 @@ export class CreateAppCommand {
         appDisplayName,
         appDescription,
         appDirectory,
+        exampleOptions,
       });
 
       await install(appDirectory);
@@ -92,6 +103,103 @@ export class CreateAppCommand {
     return { appName, appDisplayName, appDirectory, appDescription };
   }
 
+  private async resolveExampleOptions(
+    mode: ScaffoldingMode,
+  ): Promise<ExampleOptions> {
+    if (mode === 'minimal') {
+      return {
+        includeExampleObject: false,
+        includeExampleField: false,
+        includeExampleLogicFunction: false,
+        includeExampleFrontComponent: false,
+        includeExampleView: false,
+        includeExampleNavigationMenuItem: false,
+        includeExampleSkill: false,
+      };
+    }
+
+    if (mode === 'exhaustive') {
+      return {
+        includeExampleObject: true,
+        includeExampleField: true,
+        includeExampleLogicFunction: true,
+        includeExampleFrontComponent: true,
+        includeExampleView: true,
+        includeExampleNavigationMenuItem: true,
+        includeExampleSkill: true,
+      };
+    }
+
+    const { selectedExamples } = await inquirer.prompt([
+      {
+        type: 'checkbox',
+        name: 'selectedExamples',
+        message: 'Select which example files to include:',
+        choices: [
+          {
+            name: 'Example object (custom object definition)',
+            value: 'object',
+            checked: true,
+          },
+          {
+            name: 'Example field (custom field on the example object)',
+            value: 'field',
+            checked: true,
+          },
+          {
+            name: 'Example logic function (server-side handler)',
+            value: 'logicFunction',
+            checked: true,
+          },
+          {
+            name: 'Example front component (React UI component)',
+            value: 'frontComponent',
+            checked: true,
+          },
+          {
+            name: 'Example view (saved view for the example object)',
+            value: 'view',
+            checked: true,
+          },
+          {
+            name: 'Example navigation menu item (sidebar link)',
+            value: 'navigationMenuItem',
+            checked: true,
+          },
+          {
+            name: 'Example skill (AI agent skill definition)',
+            value: 'skill',
+            checked: true,
+          },
+        ],
+      },
+    ]);
+
+    const includeField = selectedExamples.includes('field');
+    const includeView = selectedExamples.includes('view');
+    const includeObject =
+      selectedExamples.includes('object') || includeField || includeView;
+
+    if ((includeField || includeView) && !selectedExamples.includes('object')) {
+      console.log(
+        chalk.yellow(
+          'Note: Example object auto-included because example field/view depends on it.',
+        ),
+      );
+    }
+
+    return {
+      includeExampleObject: includeObject,
+      includeExampleField: includeField,
+      includeExampleLogicFunction: selectedExamples.includes('logicFunction'),
+      includeExampleFrontComponent: selectedExamples.includes('frontComponent'),
+      includeExampleView: includeView,
+      includeExampleNavigationMenuItem:
+        selectedExamples.includes('navigationMenuItem'),
+      includeExampleSkill: selectedExamples.includes('skill'),
+    };
+  }
+
   private async validateDirectory(appDirectory: string): Promise<void> {
     if (!(await fs.pathExists(appDirectory))) {
       return;
@@ -119,10 +227,15 @@ export class CreateAppCommand {
   }
 
   private logSuccess(appDirectory: string): void {
+    const dirName = appDirectory.split('/').reverse()[0] ?? '';
+
     console.log(chalk.green('✅ Application created!'));
     console.log('');
     console.log(chalk.blue('Next steps:'));
-    console.log(`cd ${appDirectory.split('/').reverse()[0] ?? ''}`);
-    console.log('yarn auth');
+    console.log(chalk.gray(`  cd ${dirName}`));
+    console.log(chalk.gray(`  corepack enable  # if you don't use yarn@4`));
+    console.log(chalk.gray(`  yarn install     # if you don't use yarn@4`));
+    console.log(chalk.gray('  yarn auth:login  # Authenticate with Twenty'));
+    console.log(chalk.gray('  yarn app:dev     # Start dev mode'));
   }
 }

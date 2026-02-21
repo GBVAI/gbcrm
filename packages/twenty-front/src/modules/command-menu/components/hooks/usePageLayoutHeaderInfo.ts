@@ -1,14 +1,16 @@
 import { GRAPH_TYPE_INFORMATION } from '@/command-menu/pages/page-layout/constants/GraphTypeInformation';
-import { isChartWidget } from '@/command-menu/pages/page-layout/utils/isChartWidget';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
+import { getCurrentGraphTypeFromConfig } from '@/command-menu/pages/page-layout/utils/getCurrentGraphTypeFromConfig';
+import { isWidgetConfigurationOfTypeGraph } from '@/command-menu/pages/page-layout/utils/isWidgetConfigurationOfTypeGraph';
 import { type PageLayoutTab } from '@/page-layout/types/PageLayoutTab';
 import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
 import { useTheme } from '@emotion/react';
 import { t } from '@lingui/core/macro';
+import { CommandMenuPages } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 import {
   IconAppWindow,
   IconFrame,
+  IconList,
   IconPlus,
   type IconComponent,
 } from 'twenty-ui/display';
@@ -116,17 +118,19 @@ export const usePageLayoutHeaderInfo = ({
         return null;
       }
 
-      if (!isChartWidget(widgetInEditMode)) {
+      if (!isWidgetConfigurationOfTypeGraph(widgetInEditMode.configuration)) {
         return null;
       }
 
-      const currentGraphType = widgetInEditMode.configuration.graphType;
+      const currentGraphType = getCurrentGraphTypeFromConfig(
+        widgetInEditMode.configuration,
+      );
       const graphTypeInfo = GRAPH_TYPE_INFORMATION[currentGraphType];
       const graphTypeLabel = t(graphTypeInfo.label);
 
       const headerType =
         commandMenuPage === CommandMenuPages.PageLayoutGraphFilter
-          ? t`${graphTypeLabel} Chart`
+          ? graphTypeLabel
           : t`Chart`;
 
       const title = isDefined(editedTitle)
@@ -141,6 +145,37 @@ export const usePageLayoutHeaderInfo = ({
         headerType,
         title,
         isReadonly: commandMenuPage === CommandMenuPages.PageLayoutGraphFilter,
+        tab: undefined,
+        widgetInEditMode,
+      };
+    }
+
+    case CommandMenuPages.PageLayoutFieldsSettings:
+    case CommandMenuPages.PageLayoutFieldsLayout: {
+      if (!isDefined(pageLayoutEditingWidgetId)) {
+        return null;
+      }
+
+      const widgetInEditMode = draftPageLayout.tabs
+        .flatMap((tab) => tab.widgets)
+        .find((widget) => widget.id === pageLayoutEditingWidgetId);
+
+      if (!isDefined(widgetInEditMode)) {
+        return null;
+      }
+
+      const title = isDefined(editedTitle)
+        ? editedTitle
+        : isDefined(widgetInEditMode.title) && widgetInEditMode.title !== ''
+          ? widgetInEditMode.title
+          : '';
+
+      return {
+        headerIcon: IconList,
+        headerIconColor: iconColor,
+        headerType: t`Fields Widget`,
+        title,
+        isReadonly: false,
         tab: undefined,
         widgetInEditMode,
       };

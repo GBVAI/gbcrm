@@ -8,16 +8,17 @@ import { multipleRecordPickerIsSelectedComponentFamilySelector } from '@/object-
 import { getMultipleRecordPickerSelectableListId } from '@/object-record/record-picker/multiple-record-picker/utils/getMultipleRecordPickerSelectableListId';
 import { type RecordPickerPickableMorphItem } from '@/object-record/record-picker/types/RecordPickerPickableMorphItem';
 import { SelectableListItem } from '@/ui/layout/selectable-list/components/SelectableListItem';
-import { isSelectedItemIdComponentFamilySelector } from '@/ui/layout/selectable-list/states/selectors/isSelectedItemIdComponentFamilySelector';
+import { isSelectedItemIdComponentFamilyState } from '@/ui/layout/selectable-list/states/isSelectedItemIdComponentFamilyState';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { useRecoilComponentFamilyValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentFamilyValue';
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useRecoilComponentFamilyValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentFamilyValueV2';
 import { capitalize } from 'twenty-shared/utils';
 import { Avatar } from 'twenty-ui/display';
 import { MenuItemMultiSelectAvatar } from 'twenty-ui/navigation';
 
 import { multipleRecordPickerSearchableObjectMetadataItemsComponentState } from '@/object-record/record-picker/multiple-record-picker/states/multipleRecordPickerSearchableObjectMetadataItemsComponentState';
-import { type SearchRecord } from '~/generated-metadata/graphql';
+import { type SearchRecord } from '~/generated/graphql';
 
 export const StyledSelectableItem = styled(SelectableListItem)`
   height: 100%;
@@ -42,8 +43,8 @@ export const MultipleRecordPickerMenuItemContent = ({
   const selectableListComponentInstanceId =
     getMultipleRecordPickerSelectableListId(componentInstanceId);
 
-  const isSelectedByKeyboard = useRecoilComponentFamilyValue(
-    isSelectedItemIdComponentFamilySelector,
+  const isSelectedByKeyboard = useRecoilComponentFamilyValueV2(
+    isSelectedItemIdComponentFamilyState,
     searchRecord.recordId,
     selectableListComponentInstanceId,
   );
@@ -96,7 +97,7 @@ export const MultipleRecordPickerMenuItemContent = ({
         text={displayText}
         contextualText={
           showObjectName
-            ? capitalize(searchRecord.objectNameSingular)
+            ? capitalize(objectMetadataItem.labelSingular)
             : undefined
         }
       />

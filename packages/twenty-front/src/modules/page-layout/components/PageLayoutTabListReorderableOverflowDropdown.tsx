@@ -9,7 +9,6 @@ import {
 } from '@hello-pangea/dnd';
 
 import { useNavigatePageLayoutCommandMenu } from '@/command-menu/pages/page-layout/hooks/useNavigatePageLayoutCommandMenu';
-import { CommandMenuPages } from '@/command-menu/types/CommandMenuPages';
 import { PAGE_LAYOUT_TAB_LIST_DROPPABLE_IDS } from '@/page-layout/components/PageLayoutTabListDroppableIds';
 import { PageLayoutTabListDroppableMoreButton } from '@/page-layout/components/PageLayoutTabListDroppableMoreButton';
 import { PageLayoutTabMenuItemSelectAvatar } from '@/page-layout/components/PageLayoutTabMenuItemSelectAvatar';
@@ -18,6 +17,7 @@ import { PageLayoutComponentInstanceContext } from '@/page-layout/states/context
 import { isPageLayoutInEditModeComponentState } from '@/page-layout/states/isPageLayoutInEditModeComponentState';
 import { isPageLayoutTabDraggingComponentState } from '@/page-layout/states/isPageLayoutTabDraggingComponentState';
 import { pageLayoutTabSettingsOpenTabIdComponentState } from '@/page-layout/states/pageLayoutTabSettingsOpenTabIdComponentState';
+import { shouldEnableTabEditingFeatures } from '@/page-layout/utils/shouldEnableTabEditingFeatures';
 import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
@@ -28,6 +28,8 @@ import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/com
 import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
 import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
 import { useContext } from 'react';
+import { CommandMenuPages } from 'twenty-shared/types';
+import { type PageLayoutType } from '~/generated-metadata/graphql';
 
 const StyledOverflowDropdownListDraggableWrapper = styled.div`
   display: flex;
@@ -48,6 +50,7 @@ type PageLayoutTabListReorderableOverflowDropdownProps = {
   onSelect: (tabId: string) => void;
   visibleTabCount: number;
   onClose: () => void;
+  pageLayoutType: PageLayoutType;
 };
 
 export const PageLayoutTabListReorderableOverflowDropdown = ({
@@ -60,6 +63,7 @@ export const PageLayoutTabListReorderableOverflowDropdown = ({
   onSelect,
   visibleTabCount,
   onClose,
+  pageLayoutType,
 }: PageLayoutTabListReorderableOverflowDropdownProps) => {
   const theme = useTheme();
   const context = useContext(TabListComponentInstanceContext);
@@ -73,6 +77,9 @@ export const PageLayoutTabListReorderableOverflowDropdown = ({
     isPageLayoutInEditModeComponentState,
     pageLayoutId,
   );
+
+  const shouldShowEditButton =
+    isPageLayoutInEditMode && shouldEnableTabEditingFeatures(pageLayoutType);
 
   const isTabDragging = useRecoilComponentValue(
     isPageLayoutTabDraggingComponentState,
@@ -201,7 +208,7 @@ export const PageLayoutTabListReorderableOverflowDropdown = ({
                                     : () => handleTabSelect(tab.id)
                                 }
                                 disabled={disabled}
-                                showEditButton={isPageLayoutInEditMode}
+                                showEditButton={shouldShowEditButton}
                                 onEditClick={handleEditClick}
                               />
                             </div>

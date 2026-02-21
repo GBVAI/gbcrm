@@ -1,8 +1,10 @@
 import { Field, Int, ObjectType } from '@nestjs/graphql';
 
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -15,27 +17,30 @@ import {
 } from 'class-validator';
 import { GraphQLJSON } from 'graphql-type-json';
 import { CalendarStartDay } from 'twenty-shared/constants';
+import {
+  AggregateOperations,
+  type ChartFilter,
+  type LineChartConfiguration,
+  SerializedRelation,
+} from 'twenty-shared/types';
 
-import { ObjectRecordFilter } from 'src/engine/api/graphql/workspace-query-builder/interfaces/object-record.interface';
-
-import { AggregateOperations } from 'src/engine/api/graphql/graphql-query-runner/constants/aggregate-operations.constant';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 import { AxisNameDisplay } from 'src/engine/metadata-modules/page-layout-widget/enums/axis-name-display.enum';
 import { ObjectRecordGroupByDateGranularity } from 'src/engine/metadata-modules/page-layout-widget/enums/date-granularity.enum';
 import { GraphOrderBy } from 'src/engine/metadata-modules/page-layout-widget/enums/graph-order-by.enum';
-import { GraphType } from 'src/engine/metadata-modules/page-layout-widget/enums/graph-type.enum';
+import { WidgetConfigurationType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-configuration-type.type';
 
 @ObjectType('LineChartConfiguration')
-export class LineChartConfigurationDTO {
-  @Field(() => GraphType)
-  @IsEnum(GraphType)
+export class LineChartConfigurationDTO implements LineChartConfiguration {
+  @Field(() => WidgetConfigurationType)
+  @IsIn([WidgetConfigurationType.LINE_CHART])
   @IsNotEmpty()
-  graphType: GraphType.LINE;
+  configurationType: WidgetConfigurationType.LINE_CHART;
 
   @Field(() => UUIDScalarType)
   @IsUUID()
   @IsNotEmpty()
-  aggregateFieldMetadataId: string;
+  aggregateFieldMetadataId: SerializedRelation;
 
   @Field(() => AggregateOperations)
   @IsEnum(AggregateOperations)
@@ -45,7 +50,7 @@ export class LineChartConfigurationDTO {
   @Field(() => UUIDScalarType)
   @IsUUID()
   @IsNotEmpty()
-  primaryAxisGroupByFieldMetadataId: string;
+  primaryAxisGroupByFieldMetadataId: SerializedRelation;
 
   @Field(() => String, { nullable: true })
   @IsString()
@@ -68,10 +73,16 @@ export class LineChartConfigurationDTO {
   @IsOptional()
   primaryAxisOrderBy?: GraphOrderBy;
 
+  @Field(() => [String], { nullable: true })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  primaryAxisManualSortOrder?: string[];
+
   @Field(() => UUIDScalarType, { nullable: true })
   @IsUUID()
   @IsOptional()
-  secondaryAxisGroupByFieldMetadataId?: string;
+  secondaryAxisGroupByFieldMetadataId?: SerializedRelation;
 
   @Field(() => String, { nullable: true })
   @IsString()
@@ -91,10 +102,21 @@ export class LineChartConfigurationDTO {
   @IsOptional()
   secondaryAxisOrderBy?: GraphOrderBy;
 
+  @Field(() => [String], { nullable: true })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  secondaryAxisManualSortOrder?: string[];
+
   @Field(() => Boolean, { nullable: true })
   @IsBoolean()
   @IsOptional()
   omitNullValues?: boolean;
+
+  @Field(() => Boolean, { nullable: true, defaultValue: true })
+  @IsBoolean()
+  @IsOptional()
+  splitMultiValueFields?: boolean;
 
   @Field(() => AxisNameDisplay, {
     nullable: true,
@@ -137,7 +159,7 @@ export class LineChartConfigurationDTO {
   @Field(() => GraphQLJSON, { nullable: true })
   @IsObject()
   @IsOptional()
-  filter?: ObjectRecordFilter;
+  filter?: ChartFilter;
 
   @Field(() => Boolean, {
     nullable: true,

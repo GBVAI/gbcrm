@@ -1,12 +1,12 @@
 import { isPageLayoutInEditModeComponentState } from '@/page-layout/states/isPageLayoutInEditModeComponentState';
-import { ChartSkeletonLoader } from '@/page-layout/widgets/graph/components/ChartSkeletonLoader';
+import { WidgetSkeletonLoader } from '@/page-layout/widgets/components/WidgetSkeletonLoader';
 import { GraphWidgetChartHasTooManyGroupsEffect } from '@/page-layout/widgets/graph/components/GraphWidgetChartHasTooManyGroupsEffect';
 import { LINE_CHART_CONSTANTS } from '@/page-layout/widgets/graph/graphWidgetLineChart/constants/LineChartConstants';
 import { useGraphLineChartWidgetData } from '@/page-layout/widgets/graph/graphWidgetLineChart/hooks/useGraphLineChartWidgetData';
-import { type LineChartDataPoint } from '@/page-layout/widgets/graph/graphWidgetLineChart/types/LineChartDataPoint';
 import { assertLineChartWidgetOrThrow } from '@/page-layout/widgets/graph/utils/assertLineChartWidget';
 import { buildChartDrilldownQueryParams } from '@/page-layout/widgets/graph/utils/buildChartDrilldownQueryParams';
 import { generateChartAggregateFilterKey } from '@/page-layout/widgets/graph/utils/generateChartAggregateFilterKey';
+import { isFilteredViewRedirectionSupported } from '@/page-layout/widgets/graph/utils/isFilteredViewRedirectionSupported';
 import { useCurrentWidget } from '@/page-layout/widgets/hooks/useCurrentWidget';
 import { useUserFirstDayOfTheWeek } from '@/ui/input/components/internal/date/hooks/useUserFirstDayOfTheWeek';
 import { useUserTimezone } from '@/ui/input/components/internal/date/hooks/useUserTimezone';
@@ -18,6 +18,10 @@ import { useNavigate } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
 import { AppPath } from 'twenty-shared/types';
 import { getAppPath, isDefined } from 'twenty-shared/utils';
+import {
+  AxisNameDisplay,
+  type LineChartDataPoint,
+} from '~/generated-metadata/graphql';
 
 const GraphWidgetLineChart = lazy(() =>
   import(
@@ -43,6 +47,7 @@ export const GraphWidgetLineChartRenderer = () => {
     hasTooManyGroups,
     loading,
     formattedToRawLookup,
+    colorMode,
     objectMetadataItem,
   } = useGraphLineChartWidgetData({
     objectMetadataItemId: widget.objectMetadataId,
@@ -65,6 +70,19 @@ export const GraphWidgetLineChartRenderer = () => {
       ? 'stacked'
       : undefined;
 
+  const axisNameDisplay = configuration.axisNameDisplay;
+
+  const showXAxis =
+    axisNameDisplay === AxisNameDisplay.X ||
+    axisNameDisplay === AxisNameDisplay.BOTH;
+
+  const showYAxis =
+    axisNameDisplay === AxisNameDisplay.Y ||
+    axisNameDisplay === AxisNameDisplay.BOTH;
+
+  const displayXAxisLabel = showXAxis ? xAxisLabel : undefined;
+  const displayYAxisLabel = showYAxis ? yAxisLabel : undefined;
+
   const chartFilterKey = generateChartAggregateFilterKey(
     configuration.rangeMin,
     configuration.rangeMax,
@@ -78,6 +96,12 @@ export const GraphWidgetLineChartRenderer = () => {
   );
 
   const { userFirstDayOfTheWeek } = useUserFirstDayOfTheWeek();
+
+  const primaryGroupByField = objectMetadataItem.fields.find(
+    (field) => field.id === configuration.primaryAxisGroupByFieldMetadataId,
+  );
+  const canRedirectToFilteredView =
+    isFilteredViewRedirectionSupported(primaryGroupByField);
 
   const handlePointClick = (point: Point<LineSeries>) => {
     const xValue = (point.data as LineChartDataPoint).x;
@@ -104,11 +128,11 @@ export const GraphWidgetLineChartRenderer = () => {
   };
 
   if (loading) {
-    return <ChartSkeletonLoader />;
+    return <WidgetSkeletonLoader />;
   }
 
   return (
-    <Suspense fallback={<ChartSkeletonLoader />}>
+    <Suspense fallback={<WidgetSkeletonLoader />}>
       <GraphWidgetChartHasTooManyGroupsEffect
         hasTooManyGroups={hasTooManyGroups}
       />
@@ -116,16 +140,21 @@ export const GraphWidgetLineChartRenderer = () => {
         key={chartFilterKey}
         id={widget.id}
         data={series}
-        xAxisLabel={xAxisLabel}
-        yAxisLabel={yAxisLabel}
+        xAxisLabel={displayXAxisLabel}
+        yAxisLabel={displayYAxisLabel}
         enablePointLabel={showDataLabels}
         showLegend={showLegend}
         rangeMin={configuration.rangeMin ?? undefined}
         rangeMax={configuration.rangeMax ?? undefined}
         omitNullValues={configuration.omitNullValues ?? false}
         groupMode={groupMode}
+        colorMode={colorMode}
         displayType="shortNumber"
-        onSliceClick={isPageLayoutInEditMode ? undefined : handlePointClick}
+        onSliceClick={
+          isPageLayoutInEditMode || !canRedirectToFilteredView
+            ? undefined
+            : handlePointClick
+        }
       />
     </Suspense>
   );

@@ -1,5 +1,6 @@
 import { ObjectType } from '@nestjs/graphql';
 
+import { PageLayoutTabLayoutMode } from 'twenty-shared/types';
 import {
   Column,
   CreateDateColumn,
@@ -10,15 +11,13 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  Relation,
+  type Relation,
   UpdateDateColumn,
 } from 'typeorm';
 
-import { SyncableEntity } from 'src/engine/workspace-manager/workspace-sync/interfaces/syncable-entity.interface';
-
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { PageLayoutWidgetEntity } from 'src/engine/metadata-modules/page-layout-widget/entities/page-layout-widget.entity';
 import { PageLayoutEntity } from 'src/engine/metadata-modules/page-layout/entities/page-layout.entity';
+import { SyncableEntity } from 'src/engine/workspace-manager/types/syncable-entity.interface';
 
 @Entity({ name: 'pageLayoutTab', schema: 'core' })
 @ObjectType('PageLayoutTab')
@@ -37,15 +36,6 @@ export class PageLayoutTabEntity
   @Column({ nullable: false })
   title: string;
 
-  @Column({ nullable: false, type: 'uuid' })
-  workspaceId: string;
-
-  @ManyToOne(() => WorkspaceEntity, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'workspaceId' })
-  workspace: Relation<WorkspaceEntity>;
-
   @Column({ nullable: false, type: 'float', default: 0 })
   position: number;
 
@@ -62,6 +52,17 @@ export class PageLayoutTabEntity
     cascade: true,
   })
   widgets: Relation<PageLayoutWidgetEntity[]>;
+
+  @Column({ nullable: true, type: 'varchar' })
+  icon: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: Object.values(PageLayoutTabLayoutMode),
+    nullable: false,
+    default: PageLayoutTabLayoutMode.GRID,
+  })
+  layoutMode: PageLayoutTabLayoutMode;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

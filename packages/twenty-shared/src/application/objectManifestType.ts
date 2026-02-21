@@ -1,4 +1,4 @@
-import { type FieldManifest } from '@/application';
+import { type ObjectFieldManifest } from '@/application/objectFieldManifest.type';
 import { type SyncableEntityOptions } from '@/application/syncableEntityOptionsType';
 
 export type ObjectManifest = SyncableEntityOptions & {
@@ -8,5 +8,6 @@ export type ObjectManifest = SyncableEntityOptions & {
   labelPlural: string;
   description?: string;
   icon?: string;
-  fields?: FieldManifest[];
+  fields: ObjectFieldManifest[];
+  labelIdentifierFieldMetadataUniversalIdentifier: string;
 };

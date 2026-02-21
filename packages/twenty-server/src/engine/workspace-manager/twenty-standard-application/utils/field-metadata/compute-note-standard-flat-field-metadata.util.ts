@@ -11,7 +11,7 @@ import {
   createStandardFieldFlatMetadata,
 } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-field-flat-metadata.util';
 import { createStandardRelationFieldFlatMetadata } from 'src/engine/workspace-manager/twenty-standard-application/utils/field-metadata/create-standard-relation-field-flat-metadata.util';
-import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/workspace-sync-metadata/utils/get-ts-vector-column-expression.util';
+import { getTsVectorColumnExpressionFromFields } from 'src/engine/workspace-manager/utils/get-ts-vector-column-expression.util';
 import { SEARCH_FIELDS_FOR_NOTES } from 'src/modules/note/standard-objects/note.workspace-entity';
 
 export const buildNoteStandardFlatFieldMetadatas = ({
@@ -54,6 +54,7 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Creation date',
       description: 'Creation date',
       icon: 'IconCalendar',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -75,6 +76,7 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Last update',
       description: 'Last time the record was changed',
       icon: 'IconCalendarClock',
+      isSystem: true,
       isNullable: false,
       isUIReadOnly: true,
       defaultValue: 'now',
@@ -96,6 +98,7 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Deleted at',
       description: 'Date when the record was deleted',
       icon: 'IconCalendarMinus',
+      isSystem: true,
       isNullable: true,
       isUIReadOnly: true,
       settings: {
@@ -168,6 +171,30 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Created by',
       description: 'The creator of the record',
       icon: 'IconCreativeCommonsSa',
+      isSystem: true,
+      isUIReadOnly: true,
+      isNullable: false,
+      defaultValue: {
+        source: "'MANUAL'",
+        name: "'System'",
+        workspaceMemberId: null,
+      },
+    },
+    standardObjectMetadataRelatedEntityIds,
+    dependencyFlatEntityMaps,
+    twentyStandardApplicationId,
+    now,
+  }),
+  updatedBy: createStandardFieldFlatMetadata({
+    objectName,
+    workspaceId,
+    context: {
+      fieldName: 'updatedBy',
+      type: FieldMetadataType.ACTOR,
+      label: 'Updated by',
+      description: 'The workspace member who last updated the record',
+      icon: 'IconUserCircle',
+      isSystem: true,
       isUIReadOnly: true,
       isNullable: false,
       defaultValue: {
@@ -216,7 +243,6 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Relations',
       description: 'Note targets',
       icon: 'IconArrowUpRight',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'noteTarget',
       targetFieldName: 'note',
@@ -239,10 +265,9 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Attachments',
       description: 'Note attachments',
       icon: 'IconFileImport',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'attachment',
-      targetFieldName: 'note',
+      targetFieldName: 'targetNote',
       settings: {
         relationType: RelationType.ONE_TO_MANY,
       },
@@ -262,7 +287,6 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Timeline Activities',
       description: 'Timeline Activities linked to the note.',
       icon: 'IconTimelineEvent',
-      isSystem: true,
       isNullable: true,
       targetObjectName: 'timelineActivity',
       targetFieldName: 'targetNote',
@@ -285,7 +309,6 @@ export const buildNoteStandardFlatFieldMetadatas = ({
       label: 'Favorites',
       description: 'Favorites linked to the note',
       icon: 'IconHeart',
-      isSystem: true,
       isNullable: false,
       targetObjectName: 'favorite',
       targetFieldName: 'note',

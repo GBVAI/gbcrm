@@ -1,5 +1,6 @@
+import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
+
 import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
-import { STANDARD_OBJECTS } from 'src/engine/workspace-manager/twenty-standard-application/constants/standard-object.constant';
 import { type AllStandardObjectName } from 'src/engine/workspace-manager/twenty-standard-application/types/all-standard-object-name.type';
 import {
   type CreateStandardObjectArgs,
@@ -415,6 +416,39 @@ export const STANDARD_FLAT_OBJECT_METADATA_BUILDERS_BY_OBJECT_NAME = {
       twentyStandardApplicationId,
       now,
     }),
+  messageChannelMessageAssociationMessageFolder: ({
+    now,
+    workspaceId,
+    standardObjectMetadataRelatedEntityIds,
+    twentyStandardApplicationId,
+    dependencyFlatEntityMaps,
+  }: Omit<
+    CreateStandardObjectArgs<'messageChannelMessageAssociationMessageFolder'>,
+    'context' | 'objectName'
+  >) =>
+    createStandardObjectFlatMetadata({
+      objectName: 'messageChannelMessageAssociationMessageFolder',
+      dependencyFlatEntityMaps,
+      context: {
+        universalIdentifier:
+          STANDARD_OBJECTS.messageChannelMessageAssociationMessageFolder
+            .universalIdentifier,
+        nameSingular: 'messageChannelMessageAssociationMessageFolder',
+        namePlural: 'messageChannelMessageAssociationMessageFolders',
+        labelSingular: 'Message Channel Message Association Message Folder',
+        labelPlural: 'Message Channel Message Association Message Folders',
+        description:
+          'Join table linking message channel message associations to message folders',
+        icon: 'IconFolder',
+        isSystem: true,
+        isAuditLogged: false,
+        labelIdentifierFieldMetadataName: 'id',
+      },
+      workspaceId,
+      standardObjectMetadataRelatedEntityIds,
+      twentyStandardApplicationId,
+      now,
+    }),
   messageParticipant: ({
     now,
     workspaceId,
@@ -609,6 +643,7 @@ export const STANDARD_FLAT_OBJECT_METADATA_BUILDERS_BY_OBJECT_NAME = {
           ['emailsPrimaryEmail'],
         ],
         labelIdentifierFieldMetadataName: 'name',
+        imageIdentifierFieldMetadataName: 'avatarUrl',
       },
       workspaceId,
       standardObjectMetadataRelatedEntityIds,
@@ -838,6 +873,7 @@ export const STANDARD_FLAT_OBJECT_METADATA_BUILDERS_BY_OBJECT_NAME = {
         isSystem: true,
         isSearchable: true,
         labelIdentifierFieldMetadataName: 'name',
+        imageIdentifierFieldMetadataName: 'avatarUrl',
       },
       workspaceId,
       standardObjectMetadataRelatedEntityIds,
