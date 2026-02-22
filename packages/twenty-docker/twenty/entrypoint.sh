@@ -21,6 +21,13 @@ setup_and_migrate_db() {
     yarn command:prod upgrade
     yarn command:prod cache:flush
 
+    # Sync standard objects for new objects added since last upgrade (e.g. phoneCall)
+    if yarn command:prod workspace:sync-standard-objects; then
+        echo "Successfully synced standard objects!"
+    else
+        echo "Warning: Standard object sync failed or no changes needed, continuing..."
+    fi
+
     echo "Successfully migrated DB!"
 }
 
