@@ -9,10 +9,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { isDefined } from 'twenty-shared/utils';
+
+import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { NoPermissionGuard } from 'src/engine/guards/no-permission.guard';
 import { PublicEndpointGuard } from 'src/engine/guards/public-endpoint.guard';
-import { WildixWebhookService } from 'src/modules/wildix/services/wildix-webhook.service';
 import { WildixCallProcessorService } from 'src/modules/wildix/services/wildix-call-processor.service';
+import { WildixWebhookService } from 'src/modules/wildix/services/wildix-webhook.service';
 
 @Controller('webhooks/wildix')
 @UseGuards(PublicEndpointGuard, NoPermissionGuard)
@@ -22,6 +25,7 @@ export class WildixWebhookController {
   constructor(
     private readonly wildixWebhookService: WildixWebhookService,
     private readonly wildixCallProcessorService: WildixCallProcessorService,
+    private readonly twentyConfigService: TwentyConfigService,
   ) {}
 
   @Post('callback')
@@ -31,15 +35,35 @@ export class WildixWebhookController {
     @Headers('x-signature') signature: string | undefined,
   ): Promise<{ success: boolean }> {
     this.logger.log(
-      `Received Wildix webhook event: ${JSON.stringify(body).substring(0, 200)}`,
+      `Received Wildix webhook: type=${String(body.type ?? body.event ?? 'unknown')}`,
     );
+
+    // Validate webhook signature if secret is configured
+    const webhookSecret = this.twentyConfigService.get('WILDIX_WEBHOOK_SECRET');
+
+    if (isDefined(webhookSecret) && webhookSecret !== '') {
+      const isValid = this.wildixWebhookService.validateSignature(
+        JSON.stringify(body),
+        signature,
+        webhookSecret,
+      );
+
+      if (!isValid) {
+        this.logger.warn('Wildix webhook signature validation failed');
+
+        return { success: false };
+      }
+    }
 
     const event = this.wildixWebhookService.parseEvent(body);
 
-    if (!event) {
-      this.logger.warn('Could not parse Wildix webhook event');
+    if (!isDefined(event)) {
+      // Return 200 for unknown event types so Wildix doesn't retry indefinitely
+      this.logger.log(
+        `Ignoring unrecognized event type: ${String(body.type ?? body.event ?? 'unknown')}`,
+      );
 
-      return { success: false };
+      return { success: true };
     }
 
     try {
@@ -48,7 +72,7 @@ export class WildixWebhookController {
       return { success: true };
     } catch (error) {
       this.logger.error(
-        `Error processing Wildix webhook event: ${error instanceof Error ? error.message : String(error)}`,
+        `Error processing Wildix webhook: ${error instanceof Error ? error.message : String(error)}`,
       );
 
       return { success: false };

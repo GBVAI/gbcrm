@@ -1271,6 +1271,54 @@ export class ConfigVariables {
   @IsOptional()
   GROQ_API_KEY: string;
 
+  // Wildix x-bees Integration
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: true,
+    description: 'API key for Wildix x-bees WDA History API integration',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_API_KEY: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: false,
+    description: 'Workspace ID to associate Wildix call records with',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_WORKSPACE_ID: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: true,
+    description:
+      'PBX Simple Token for downloading Wildix call recordings (separate from API key)',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_PBX_TOKEN: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: true,
+    description:
+      'Wildix webhook HMAC-SHA256 secret for validating x-signature header',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_WEBHOOK_SECRET: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: false,
+    description: 'Wildix company ID (e.g. ee_ee012844)',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_COMPANY_ID: string;
+
   @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.SERVER_CONFIG,
     description: 'Enable or disable multi-workspace support',
