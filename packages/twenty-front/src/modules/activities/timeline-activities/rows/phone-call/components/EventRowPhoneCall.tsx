@@ -35,24 +35,29 @@ export const EventRowPhoneCall = ({
   const [, eventAction] = event.name.split('.');
   const [isOpen, setIsOpen] = useState(false);
 
-  if (['linked'].includes(eventAction) === false) {
-    throw new Error('Invalid event action for phoneCall event type.');
-  }
+  const actionLabel = (() => {
+    switch (eventAction) {
+      case 'linked':
+        return t`logged a call with ${labelIdentifierValue}`;
+      case 'created':
+        return t`created a call with ${labelIdentifierValue}`;
+      case 'updated':
+        return t`updated a call with ${labelIdentifierValue}`;
+      default:
+        return t`logged a call with ${labelIdentifierValue}`;
+    }
+  })();
 
   return (
     <StyledEventRowPhoneCallContainer>
       <StyledRowContainer>
         <StyledEventRowItemColumn>{authorFullName}</StyledEventRowItemColumn>
-        <StyledEventRowItemAction>
-          {t`linked a phone call with ${labelIdentifierValue}`}
-        </StyledEventRowItemAction>
+        <StyledEventRowItemAction>{actionLabel}</StyledEventRowItemAction>
         <EventCardToggleButton isOpen={isOpen} setIsOpen={setIsOpen} />
       </StyledRowContainer>
       <EventCard isOpen={isOpen}>
         {isTimelineActivityWithLinkedRecord(event) && (
-          <EventCardPhoneCall
-            phoneCallId={event.linkedRecordId}
-          />
+          <EventCardPhoneCall phoneCallId={event.linkedRecordId} />
         )}
       </EventCard>
     </StyledEventRowPhoneCallContainer>

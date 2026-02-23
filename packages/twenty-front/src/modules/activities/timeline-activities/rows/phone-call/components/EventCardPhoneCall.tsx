@@ -1,16 +1,11 @@
 import styled from '@emotion/styled';
-import { t } from '@lingui/core/macro';
+import { useLingui, Trans } from '@lingui/react/macro';
 
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { useUpsertRecordsInStore } from '@/object-record/record-store/hooks/useUpsertRecordsInStore';
-import { Trans } from '@lingui/react/macro';
 import { isDefined } from 'twenty-shared/utils';
-import {
-  IconArrowDown,
-  IconArrowUp,
-  IconPhone,
-} from 'twenty-ui/display';
+import { IconArrowDown, IconArrowUp, IconPhone } from 'twenty-ui/display';
 type PhoneCallRecord = {
   id: string;
   __typename: string;
@@ -74,17 +69,17 @@ const StyledPhoneCallSummary = styled.div`
 `;
 
 const StyledDirectionIcon = styled.div<{ direction?: string }>`
-  display: flex;
   align-items: center;
-  padding: ${({ theme }) => theme.spacing(1)};
-  border-radius: ${({ theme }) => theme.spacing(1)};
   border: 1px solid ${({ theme }) => theme.border.color.medium};
+  border-radius: ${({ theme }) => theme.spacing(1)};
   color: ${({ theme, direction }) =>
     direction === 'INBOUND'
       ? theme.color.green
       : direction === 'OUTBOUND'
         ? theme.color.blue
         : theme.font.color.tertiary};
+  display: flex;
+  padding: ${({ theme }) => theme.spacing(1)};
 `;
 
 const formatDuration = (seconds: number | null): string => {
@@ -113,27 +108,28 @@ const getDirectionIcon = (direction: string | null) => {
   }
 };
 
-const getStatusLabel = (status: string | null): string => {
-  switch (status) {
-    case 'ANSWERED':
-      return 'Answered';
-    case 'MISSED':
-      return 'Missed';
-    case 'VOICEMAIL':
-      return 'Voicemail';
-    case 'IN_PROGRESS':
-      return 'In Progress';
-    default:
-      return 'Unknown';
-  }
-};
-
 export const EventCardPhoneCall = ({
   phoneCallId,
 }: {
   phoneCallId: string;
 }) => {
+  const { t: tFn } = useLingui();
   const { upsertRecordsInStore } = useUpsertRecordsInStore();
+
+  const getStatusLabel = (status: string | null): string => {
+    switch (status) {
+      case 'ANSWERED':
+        return tFn`Answered`;
+      case 'MISSED':
+        return tFn`Missed`;
+      case 'VOICEMAIL':
+        return tFn`Voicemail`;
+      case 'IN_PROGRESS':
+        return tFn`In Progress`;
+      default:
+        return tFn`Unknown`;
+    }
+  };
 
   const {
     record: phoneCall,
@@ -195,9 +191,7 @@ export const EventCardPhoneCall = ({
       </StyledDirectionIcon>
       <StyledPhoneCallContent>
         <StyledPhoneCallTop>
-          <StyledPhoneCallTitle>
-            {phoneCall.title}
-          </StyledPhoneCallTitle>
+          <StyledPhoneCallTitle>{phoneCall.title}</StyledPhoneCallTitle>
         </StyledPhoneCallTop>
         <StyledPhoneCallMeta>
           {getStatusLabel(phoneCall.callStatus)}
@@ -205,14 +199,10 @@ export const EventCardPhoneCall = ({
             phoneCall.durationSeconds > 0 && (
               <> — {formatDuration(phoneCall.durationSeconds)}</>
             )}
-          {isDefined(phoneCall.agentName) && (
-            <> — {phoneCall.agentName}</>
-          )}
+          {isDefined(phoneCall.agentName) && <> — {phoneCall.agentName}</>}
         </StyledPhoneCallMeta>
         {isDefined(phoneCall.summary) && (
-          <StyledPhoneCallSummary>
-            {phoneCall.summary}
-          </StyledPhoneCallSummary>
+          <StyledPhoneCallSummary>{phoneCall.summary}</StyledPhoneCallSummary>
         )}
       </StyledPhoneCallContent>
     </StyledEventCardPhoneCallContainer>
