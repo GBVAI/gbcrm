@@ -9,6 +9,7 @@ import { RunOnWorkspaceArgs } from 'src/database/commands/command-runners/worksp
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { DataSourceService } from 'src/engine/metadata-modules/data-source/data-source.service';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
+import { WorkspaceMigrationBuilderException } from 'src/engine/workspace-manager/workspace-migration/exceptions/workspace-migration-builder-exception';
 import { TwentyStandardApplicationService } from 'src/engine/workspace-manager/twenty-standard-application/services/twenty-standard-application.service';
 
 @Injectable()
@@ -37,9 +38,19 @@ export class SyncStandardObjectsCommand extends ActiveOrSuspendedWorkspacesMigra
       `Syncing standard objects for workspace: ${workspaceId}`,
     );
 
-    await this.twentyStandardApplicationService.synchronizeTwentyStandardApplicationOrThrow(
-      { workspaceId },
-    );
+    try {
+      await this.twentyStandardApplicationService.synchronizeTwentyStandardApplicationOrThrow(
+        { workspaceId },
+      );
+    } catch (error) {
+      if (error instanceof WorkspaceMigrationBuilderException) {
+        this.syncLogger.error(
+          `Validation errors:\n${JSON.stringify(error.failedWorkspaceMigrationBuildResult?.report, null, 2)}`,
+        );
+      }
+
+      throw error;
+    }
 
     this.syncLogger.log(
       `✅ Synced standard objects for workspace: ${workspaceId}`,
