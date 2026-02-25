@@ -73,7 +73,19 @@ export class WorkspaceEventEmitterService {
       await this.publishToLegacyChannel(eventBatch);
     }
 
-    await this.publishToEventStreams(eventBatch);
+    try {
+      await this.publishToEventStreams(eventBatch);
+    } catch (error) {
+      // Redis client may not be ready during startup — swallow transiently and let the next event retry
+      if (
+        error instanceof Error &&
+        (error.message.includes('The client is closed') ||
+          error.message.includes('Connection is closed'))
+      ) {
+        return;
+      }
+      throw error;
+    }
   }
 
   private isMetadataEventBatch(
