@@ -56,9 +56,12 @@ export const usePageChangeEffectNavigateLocation = () => {
     !someMatchingLocationOf([
       ...onGoingUserCreationPaths,
       AppPath.ResetPassword,
+      AppPath.Home,
+      AppPath.Privacy,
+      AppPath.TOS,
     ])
   ) {
-    return AppPath.SignInUp;
+    return AppPath.Home;
   }
 
   if (

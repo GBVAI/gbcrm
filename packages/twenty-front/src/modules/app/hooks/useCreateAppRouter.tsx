@@ -9,11 +9,12 @@ import { DefaultLayout } from '@/ui/layout/page/components/DefaultLayout';
 import { AppPath } from 'twenty-shared/types';
 
 import {
-    createBrowserRouter,
-    createRoutesFromElements,
-    Route,
+  createBrowserRouter,
+  createRoutesFromElements,
+  Route,
 } from 'react-router-dom';
 import { Authorize } from '~/pages/auth/Authorize';
+import { Home } from '~/pages/auth/Home';
 import { PasswordReset } from '~/pages/auth/PasswordReset';
 import { Privacy } from '~/pages/auth/Privacy';
 import { SignInUp } from '~/pages/auth/SignInUp';
@@ -78,6 +79,7 @@ export const useCreateAppRouter = (
         </Route>
         <Route element={<BlankLayout />}>
           <Route path={AppPath.Authorize} element={<Authorize />} />
+          <Route path={AppPath.Home} element={<Home />} />
           <Route path={AppPath.Privacy} element={<Privacy />} />
           <Route path={AppPath.TOS} element={<TOS />} />
         </Route>

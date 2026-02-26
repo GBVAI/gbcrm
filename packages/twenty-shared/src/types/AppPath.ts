@@ -5,6 +5,7 @@ export enum AppPath {
   SignInUp = '/welcome',
   Invite = '/invite/:workspaceInviteHash',
   ResetPassword = '/reset-password/:passwordResetToken',
+  Home = '/home',
   Privacy = '/privacy',
   TOS = '/tos',
 
