@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useRecoilCallback, useRecoilState } from 'recoil';
 import { v4 } from 'uuid';
 
@@ -43,6 +43,7 @@ import '@blocknote/mantine/style.css';
 import { useCreateBlockNote } from '@blocknote/react';
 import '@blocknote/react/style.css';
 import { isDefined } from 'twenty-shared/utils';
+import { isNonEmptyString } from '@sniptt/guards';
 import { FeatureFlagKey } from '~/generated-metadata/graphql';
 
 type ActivityRichTextEditorProps = {
@@ -213,6 +214,21 @@ export const ActivityRichTextEditor = ({
     );
   }, [activity, activityId]);
 
+  // When blocknote is not valid JSON, fall back to the raw string treated as markdown.
+  // This handles tasks created by external scripts that stored markdown in the
+  // blocknote field instead of the markdown field.
+  const markdownFallbackContent = useMemo(() => {
+    if (isDefined(initialBody)) return null;
+    const raw = activity?.bodyV2?.blocknote;
+    if (!isNonEmptyString(raw)) return null;
+    try {
+      JSON.parse(raw);
+      return null; // valid JSON but not a usable block array — leave editor empty
+    } catch {
+      return raw; // not JSON — treat as markdown
+    }
+  }, [activity?.bodyV2?.blocknote, initialBody]);
+
   const handleEditorBuiltInUploadFile = async (file: File) => {
     const { attachmentAbsoluteURL } = await handleUploadAttachment(file);
 
@@ -228,6 +244,18 @@ export const ActivityRichTextEditor = ({
       default: t`Type '/' for commands, '@' for mentions`,
     },
   });
+
+  // Convert markdown fallback content to BlockNote blocks and set editor content.
+  // Triggers a save so the task body is migrated to proper BlockNote JSON in the DB.
+  useEffect(() => {
+    if (!isNonEmptyString(markdownFallbackContent)) return;
+
+    editor.tryParseMarkdownToBlocks(markdownFallbackContent).then((blocks) => {
+      if (blocks.length > 0) {
+        editor.replaceBlocks(editor.document, blocks);
+      }
+    });
+  }, [markdownFallbackContent, editor]);
 
   useHotkeysOnFocusedElement({
     keys: Key.Escape,
