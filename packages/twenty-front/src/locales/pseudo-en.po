@@ -1573,6 +1573,11 @@ msgstr ""
 msgid "And"
 msgstr ""
 
+#. js-lingui-id: GqCA/t
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Answered"
+msgstr ""
+
 #. js-lingui-id: KYvJeB
 #: src/modules/object-record/advanced-filter/components/AdvancedFilterSubFieldSelectMenu.tsx
 msgid "Any {fieldLabel} field"
@@ -3505,6 +3510,11 @@ msgstr ""
 msgid "Created {beautifiedCreatedAt}"
 msgstr ""
 
+#. js-lingui-id: jE57BO
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall.tsx
+msgid "created a call with {labelIdentifierValue}"
+msgstr ""
+
 #. js-lingui-id: NCIYDF
 #: src/pages/settings/applications/SettingsAvailableApplicationDetails.tsx
 msgid "Created by"
@@ -5254,6 +5264,11 @@ msgstr ""
 msgid "Error loading message"
 msgstr ""
 
+#. js-lingui-id: 0StVpF
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Error loading phone call"
+msgstr ""
+
 #. js-lingui-id: bnJA0G
 #: src/modules/settings/admin-panel/health-status/components/SettingsAdminJobDetailsExpandable.tsx
 msgid "Error Message"
@@ -6866,6 +6881,11 @@ msgstr ""
 msgid "In {dateDiff}"
 msgstr ""
 
+#. js-lingui-id: WbTDwg
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "In Progress"
+msgstr ""
+
 #. js-lingui-id: NoNwIX
 #: src/pages/settings/data-model/SettingsObjectFieldTable.tsx
 #: src/modules/settings/domains/components/SettingsWorkspaceDomainCard.tsx
@@ -7779,6 +7799,7 @@ msgstr ""
 #: src/pages/settings/emailing-domains/SettingsEmailingDomainDetail.tsx
 #: src/modules/settings/roles/role-assignment/components/SettingsRoleAssignmentEntityPickerDropdown.tsx
 #: src/modules/settings/admin-panel/components/SettingsAdminVersionDisplay.tsx
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
 #: src/modules/activities/timeline-activities/rows/message/components/EventCardMessage.tsx
 #: src/modules/activities/timeline-activities/rows/calendar/components/EventCardCalendarEvent.tsx
 msgid "Loading..."
@@ -7804,6 +7825,12 @@ msgstr ""
 #. js-lingui-id: qakNlV
 #: src/pages/settings/security/SettingsSecurity.tsx
 msgid "Log retention"
+msgstr ""
+
+#. js-lingui-id: PZb05f
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall.tsx
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall.tsx
+msgid "logged a call with {labelIdentifierValue}"
 msgstr ""
 
 #. js-lingui-id: hykMbH
@@ -8166,6 +8193,11 @@ msgstr ""
 #. js-lingui-id: APfhM/
 #: src/modules/workflow/workflow-trigger/components/WorkflowEditTriggerCronForm.tsx
 msgid "Minutes between triggers"
+msgstr ""
+
+#. js-lingui-id: 7F7u9i
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Missed"
 msgstr ""
 
 #. js-lingui-id: URVUmK
@@ -9846,6 +9878,11 @@ msgstr ""
 #. js-lingui-id: zmwvG2
 #: src/modules/object-record/record-field/ui/meta-types/input/components/PhonesFieldInput.tsx
 msgid "Phone"
+msgstr ""
+
+#. js-lingui-id: XQ71Wy
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Phone call not found"
 msgstr ""
 
 #. js-lingui-id: HF6C2L
@@ -13314,6 +13351,7 @@ msgstr ""
 #: src/pages/settings/emailing-domains/utils/getEmailingDomainStatusText.ts
 #: src/pages/settings/applications/components/SettingsApplicationVersionContainer.tsx
 #: src/modules/settings/admin-panel/components/SettingsAdminVersionContainer.tsx
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
 msgid "Unknown"
 msgstr ""
 
@@ -13460,6 +13498,11 @@ msgstr ""
 #. js-lingui-id: DNM+xk
 #: src/modules/settings/components/SettingsDatabaseEventsForm.tsx
 msgid "Updated (on specific fields)"
+msgstr ""
+
+#. js-lingui-id: 66old4
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventRowPhoneCall.tsx
+msgid "updated a call with {labelIdentifierValue}"
 msgstr ""
 
 #. js-lingui-id: qIrtcK
@@ -13883,6 +13926,11 @@ msgstr ""
 msgid "Visualize"
 msgstr ""
 
+#. js-lingui-id: BzL3tV
+#: src/modules/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall.tsx
+msgid "Voicemail"
+msgstr ""
+
 #. js-lingui-id: uUehLT
 #: src/modules/settings/admin-panel/health-status/components/SettingsAdminQueueJobsTable.tsx
 msgid "Waiting"
@@ -14026,9 +14074,9 @@ msgstr ""
 msgid "weeks"
 msgstr ""
 
-#. js-lingui-id: nTuObL
+#. js-lingui-id: zFT9zU
 #: src/pages/auth/SignInUp.tsx
-msgid "Welcome to Twenty"
+msgid "Welcome to GBCRM"
 msgstr ""
 
 #. js-lingui-id: t8ZvkC

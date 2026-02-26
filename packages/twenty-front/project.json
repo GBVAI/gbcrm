@@ -14,7 +14,8 @@
         "outputPath": "{projectRoot}/build"
       },
       "dependsOn": [
-        "^build"
+        "^build",
+        "lingui:compile"
       ]
     },
     "build:sourcemaps": {
