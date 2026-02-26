@@ -12,7 +12,7 @@
         "parallel": false,
         "commands": ["rimraf dist", "nest build --path ./tsconfig.build.json"]
       },
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "lingui:compile"]
     },
     "test:integration": {
       "executor": "nx:run-commands",
@@ -260,6 +260,9 @@
     },
     "lingui:extract": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "{projectRoot}",
         "command": "lingui extract --overwrite --clean"
@@ -267,6 +270,9 @@
     },
     "lingui:compile": {
       "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "{projectRoot}",
         "command": "lingui compile --typescript"
