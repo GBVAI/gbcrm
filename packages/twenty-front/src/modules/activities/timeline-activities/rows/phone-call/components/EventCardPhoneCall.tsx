@@ -1,10 +1,12 @@
 import styled from '@emotion/styled';
 import { useLingui, Trans } from '@lingui/react/macro';
+import { parsePhoneNumber } from 'libphonenumber-js';
 
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { useUpsertRecordsInStore } from '@/object-record/record-store/hooks/useUpsertRecordsInStore';
 import { isDefined } from 'twenty-shared/utils';
+import { isNonEmptyString } from '@sniptt/guards';
 import { IconArrowDown, IconArrowUp, IconPhone } from 'twenty-ui/display';
 type PhoneCallRecord = {
   id: string;
@@ -68,6 +70,24 @@ const StyledPhoneCallSummary = styled.div`
   white-space: nowrap;
 `;
 
+const StyledPhoneCallDetail = styled.div`
+  align-items: center;
+  color: ${({ theme }) => theme.font.color.secondary};
+  display: flex;
+  gap: ${({ theme }) => theme.spacing(1)};
+  font-size: ${({ theme }) => theme.font.size.sm};
+`;
+
+const StyledPhoneLink = styled.a`
+  color: ${({ theme }) => theme.font.color.primary};
+  text-decoration: underline;
+  text-decoration-color: ${({ theme }) => theme.border.color.strong};
+
+  &:hover {
+    text-decoration-color: ${({ theme }) => theme.font.color.primary};
+  }
+`;
+
 const StyledDirectionIcon = styled.div<{ direction?: string }>`
   align-items: center;
   border: 1px solid ${({ theme }) => theme.border.color.medium};
@@ -95,6 +115,18 @@ const formatDuration = (seconds: number | null): string => {
   }
 
   return `${minutes}m ${remainingSeconds}s`;
+};
+
+const formatPhoneForDisplay = (
+  phone: string,
+): { label: string; uri: string } => {
+  try {
+    const parsed = parsePhoneNumber(phone);
+
+    return { label: parsed.formatInternational(), uri: parsed.getURI() };
+  } catch {
+    return { label: phone, uri: `tel:${phone}` };
+  }
 };
 
 const getDirectionIcon = (direction: string | null) => {
@@ -201,6 +233,46 @@ export const EventCardPhoneCall = ({
             )}
           {isDefined(phoneCall.agentName) && <> — {phoneCall.agentName}</>}
         </StyledPhoneCallMeta>
+        {(isNonEmptyString(phoneCall.callerPhone) ||
+          isNonEmptyString(phoneCall.receiverPhone)) && (
+          <StyledPhoneCallDetail>
+            {isNonEmptyString(phoneCall.callerPhone) &&
+              (() => {
+                const { label, uri } = formatPhoneForDisplay(
+                  phoneCall.callerPhone,
+                );
+
+                return (
+                  <StyledPhoneLink
+                    href={uri}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {phoneCall.callerName &&
+                    phoneCall.callerName !== phoneCall.callerPhone
+                      ? `${phoneCall.callerName} (${label})`
+                      : label}
+                  </StyledPhoneLink>
+                );
+              })()}
+            {isNonEmptyString(phoneCall.callerPhone) &&
+              isNonEmptyString(phoneCall.receiverPhone) && <span>→</span>}
+            {isNonEmptyString(phoneCall.receiverPhone) &&
+              (() => {
+                const { label, uri } = formatPhoneForDisplay(
+                  phoneCall.receiverPhone,
+                );
+
+                return (
+                  <StyledPhoneLink
+                    href={uri}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {label}
+                  </StyledPhoneLink>
+                );
+              })()}
+          </StyledPhoneCallDetail>
+        )}
         {isDefined(phoneCall.summary) && (
           <StyledPhoneCallSummary>{phoneCall.summary}</StyledPhoneCallSummary>
         )}
