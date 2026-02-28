@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AuthModule } from 'src/engine/core-modules/auth/auth.module';
 import { TwentyConfigModule } from 'src/engine/core-modules/twenty-config/twenty-config.module';
 import { UserVarsModule } from 'src/engine/core-modules/user/user-vars/user-vars.module';
 import { GlobalWorkspaceDataSourceModule } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-datasource.module';
@@ -12,6 +13,7 @@ import { WildixWebhookService } from 'src/modules/wildix/services/wildix-webhook
 
 @Module({
   imports: [
+    AuthModule,
     TwentyConfigModule,
     GlobalWorkspaceDataSourceModule,
     UserVarsModule,
