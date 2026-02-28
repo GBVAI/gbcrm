@@ -1320,6 +1320,26 @@ export class ConfigVariables {
   WILDIX_COMPANY_ID: string;
 
   @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: false,
+    description:
+      'Wildix WMS domain used by click-to-call (for example gbhotels.wildixin.com)',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_WMS_DOMAIN: string;
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.OTHER,
+    isSensitive: true,
+    description:
+      'Wildix WMS token for click-to-call and call-control (access_mws...)',
+    type: ConfigVariableType.STRING,
+  })
+  @IsOptional()
+  WILDIX_WMS_TOKEN: string;
+
+  @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.SERVER_CONFIG,
     description: 'Enable or disable multi-workspace support',
     type: ConfigVariableType.BOOLEAN,
