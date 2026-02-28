@@ -4,6 +4,7 @@ import { AuthModule } from 'src/engine/core-modules/auth/auth.module';
 import { TwentyConfigModule } from 'src/engine/core-modules/twenty-config/twenty-config.module';
 import { UserVarsModule } from 'src/engine/core-modules/user/user-vars/user-vars.module';
 import { GlobalWorkspaceDataSourceModule } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-datasource.module';
+import { WorkspaceCacheStorageModule } from 'src/engine/workspace-cache-storage/workspace-cache-storage.module';
 import { WildixCallControlController } from 'src/modules/wildix/controllers/wildix-call-control.controller';
 import { WildixWebhookController } from 'src/modules/wildix/controllers/wildix-webhook.controller';
 import { WildixCallControlService } from 'src/modules/wildix/services/wildix-call-control.service';
@@ -17,6 +18,7 @@ import { WildixWebhookService } from 'src/modules/wildix/services/wildix-webhook
     TwentyConfigModule,
     GlobalWorkspaceDataSourceModule,
     UserVarsModule,
+    WorkspaceCacheStorageModule,
   ],
   controllers: [WildixWebhookController, WildixCallControlController],
   providers: [
