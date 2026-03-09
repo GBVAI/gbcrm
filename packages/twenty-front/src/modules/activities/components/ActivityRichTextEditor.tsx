@@ -5,7 +5,7 @@ import { v4 } from 'uuid';
 import { useUploadAttachmentFile } from '@/activities/files/hooks/useUploadAttachmentFile';
 import { useUpsertActivity } from '@/activities/hooks/useUpsertActivity';
 import { canCreateActivityState } from '@/activities/states/canCreateActivityState';
-import { getActivityTargetObjectFieldIdName } from '@/activities/utils/getActivityTargetObjectFieldIdName';
+import { getAttachmentTargetFieldIdName } from '@/activities/utils/getAttachmentTargetFieldIdName';
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { modifyRecordFromCache } from '@/object-record/cache/utils/modifyRecordFromCache';
@@ -79,9 +79,15 @@ export const ActivityRichTextEditor = ({
     FeatureFlagKey.IS_ATTACHMENT_MIGRATED,
   );
 
-  const attachmentTargetFieldIdName = getActivityTargetObjectFieldIdName({
-    nameSingular: activityObjectNameSingular,
-    isMorphRelation: isAttachmentMigrated,
+  const { objectMetadataItem: attachmentObjectMetadataItem } =
+    useObjectMetadataItem({
+      objectNameSingular: CoreObjectNameSingular.Attachment,
+    });
+
+  const attachmentTargetFieldIdName = getAttachmentTargetFieldIdName({
+    attachmentObjectMetadataItem,
+    targetObjectNameSingular: activityObjectNameSingular,
+    preferMorphRelation: isAttachmentMigrated,
   });
 
   const { records: attachments } = useFindManyRecords<Attachment>({

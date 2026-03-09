@@ -1,7 +1,7 @@
 import { type Attachment } from '@/activities/files/types/Attachment';
 import { getFileType } from '@/activities/files/utils/getFileType';
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
-import { getActivityTargetObjectFieldIdName } from '@/activities/utils/getActivityTargetObjectFieldIdName';
+import { getAttachmentTargetFieldIdName } from '@/activities/utils/getAttachmentTargetFieldIdName';
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useCreateOneRecord } from '@/object-record/hooks/useCreateOneRecord';
@@ -88,9 +88,10 @@ export const useUploadAttachmentFile = () => {
       attachmentPath = signedFile.path;
     }
 
-    const targetableObjectFieldIdName = getActivityTargetObjectFieldIdName({
-      nameSingular: targetableObject.targetObjectNameSingular,
-      isMorphRelation: isAttachmentMigrated,
+    const targetableObjectFieldIdName = getAttachmentTargetFieldIdName({
+      attachmentObjectMetadataItem: attachmentMetadata,
+      targetObjectNameSingular: targetableObject.targetObjectNameSingular,
+      preferMorphRelation: isAttachmentMigrated,
     });
 
     const attachmentToCreate = {

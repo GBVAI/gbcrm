@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 
 import { type Attachment } from '@/activities/files/types/Attachment';
-import { getActivityTargetObjectFieldIdName } from '@/activities/utils/getActivityTargetObjectFieldIdName';
+import { getAttachmentTargetFieldIdName } from '@/activities/utils/getAttachmentTargetFieldIdName';
+import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { isPageLayoutInEditModeComponentState } from '@/page-layout/states/isPageLayoutInEditModeComponentState';
@@ -52,11 +53,17 @@ export const StandaloneRichTextWidget = ({
     FeatureFlagKey.IS_ATTACHMENT_MIGRATED,
   );
 
+  const { objectMetadataItem: attachmentObjectMetadataItem } =
+    useObjectMetadataItem({
+      objectNameSingular: CoreObjectNameSingular.Attachment,
+    });
+
   const isDashboard = layoutType === PageLayoutType.DASHBOARD;
   const dashboardId = isDashboard ? targetRecordIdentifier?.id : undefined;
-  const attachmentTargetFieldIdName = getActivityTargetObjectFieldIdName({
-    nameSingular: CoreObjectNameSingular.Dashboard,
-    isMorphRelation: isAttachmentMigrated,
+  const attachmentTargetFieldIdName = getAttachmentTargetFieldIdName({
+    attachmentObjectMetadataItem,
+    targetObjectNameSingular: CoreObjectNameSingular.Dashboard,
+    preferMorphRelation: isAttachmentMigrated,
   });
 
   const configuration = widget.configuration as

@@ -1,6 +1,7 @@
 import { type Attachment } from '@/activities/files/types/Attachment';
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
-import { getActivityTargetObjectFieldIdName } from '@/activities/utils/getActivityTargetObjectFieldIdName';
+import { getAttachmentTargetFieldIdName } from '@/activities/utils/getAttachmentTargetFieldIdName';
+import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
@@ -11,9 +12,15 @@ export const useAttachments = (targetableObject: ActivityTargetableObject) => {
     FeatureFlagKey.IS_ATTACHMENT_MIGRATED,
   );
 
-  const targetableObjectFieldIdName = getActivityTargetObjectFieldIdName({
-    nameSingular: targetableObject.targetObjectNameSingular,
-    isMorphRelation: isAttachmentMigrated,
+  const { objectMetadataItem: attachmentObjectMetadataItem } =
+    useObjectMetadataItem({
+      objectNameSingular: CoreObjectNameSingular.Attachment,
+    });
+
+  const targetableObjectFieldIdName = getAttachmentTargetFieldIdName({
+    attachmentObjectMetadataItem,
+    targetObjectNameSingular: targetableObject.targetObjectNameSingular,
+    preferMorphRelation: isAttachmentMigrated,
   });
 
   const { records: attachments, loading } = useFindManyRecords<Attachment>({
