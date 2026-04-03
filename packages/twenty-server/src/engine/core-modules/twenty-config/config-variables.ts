@@ -1330,7 +1330,7 @@ export class ConfigVariables {
 
   // Wildix x-bees Integration
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: true,
     description: 'API key for Wildix x-bees WDA History API integration',
     type: ConfigVariableType.STRING,
@@ -1339,7 +1339,7 @@ export class ConfigVariables {
   WILDIX_API_KEY: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: false,
     description: 'Workspace ID to associate Wildix call records with',
     type: ConfigVariableType.STRING,
@@ -1348,7 +1348,7 @@ export class ConfigVariables {
   WILDIX_WORKSPACE_ID: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: true,
     description:
       'PBX Simple Token for downloading Wildix call recordings (separate from API key)',
@@ -1358,7 +1358,7 @@ export class ConfigVariables {
   WILDIX_PBX_TOKEN: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: true,
     description:
       'Wildix webhook HMAC-SHA256 secret for validating x-signature header',
@@ -1368,7 +1368,7 @@ export class ConfigVariables {
   WILDIX_WEBHOOK_SECRET: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: false,
     description: 'Wildix company ID (e.g. ee_ee012844)',
     type: ConfigVariableType.STRING,
@@ -1377,7 +1377,7 @@ export class ConfigVariables {
   WILDIX_COMPANY_ID: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: false,
     description:
       'Wildix WMS domain used by click-to-call (for example gbhotels.wildixin.com)',
@@ -1387,7 +1387,7 @@ export class ConfigVariables {
   WILDIX_WMS_DOMAIN: string;
 
   @ConfigVariablesMetadata({
-    group: ConfigVariablesGroup.OTHER,
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
     isSensitive: true,
     description:
       'Wildix WMS token for click-to-call and call-control (access_mws...)',

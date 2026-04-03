@@ -1,7 +1,7 @@
 import {
   type ActorMetadata,
   FieldMetadataType,
-  type RichTextV2Metadata,
+  type RichTextMetadata,
 } from 'twenty-shared/types';
 
 import { BaseWorkspaceEntity } from 'src/engine/twenty-orm/base.workspace-entity';
@@ -35,10 +35,10 @@ export class PhoneCallWorkspaceEntity extends BaseWorkspaceEntity {
   waitSeconds: number | null;
   endCause: string | null;
   recordingUrl: string | null;
-  transcript: RichTextV2Metadata | null;
+  transcript: RichTextMetadata | null;
   summary: string | null;
   wildixCallId: string | null;
-  bodyV2: RichTextV2Metadata | null;
+  bodyV2: RichTextMetadata | null;
   createdBy: ActorMetadata;
   updatedBy: ActorMetadata;
   phoneCallTargets: EntityRelation<PhoneCallTargetWorkspaceEntity[]>;
