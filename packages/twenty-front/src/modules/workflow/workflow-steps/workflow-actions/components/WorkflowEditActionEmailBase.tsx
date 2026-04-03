@@ -1,36 +1,32 @@
 import { type ConnectedAccount } from '@/accounts/types/ConnectedAccount';
 import { getMissingDraftEmailScopes } from '@/accounts/utils/hasMissingDraftEmailScopes';
-import { useUploadAttachmentFile } from '@/activities/files/hooks/useUploadAttachmentFile';
 import { WorkflowSendEmailAttachments } from '@/advanced-text-editor/components/WorkflowSendEmailAttachments';
 import { currentWorkspaceMemberState } from '@/auth/states/currentWorkspaceMemberState';
-import { useCommandMenu } from '@/command-menu/hooks/useCommandMenu';
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
+import { useSidePanelMenu } from '@/side-panel/hooks/useSidePanelMenu';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
 import { FormAdvancedTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormAdvancedTextFieldInput';
 import { FormMultiTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormMultiTextFieldInput';
 import { FormTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormTextFieldInput';
 import { useTriggerApisOAuth } from '@/settings/accounts/hooks/useTriggerApiOAuth';
-import { useSnackBar } from '@/ui/feedback/snack-bar-manager/hooks/useSnackBar';
 import { Select } from '@/ui/input/components/Select';
 import { Dropdown } from '@/ui/layout/dropdown/components/Dropdown';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { GenericDropdownContentWidth } from '@/ui/layout/dropdown/constants/GenericDropdownContentWidth';
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useWorkflowWithCurrentVersion } from '@/workflow/hooks/useWorkflowWithCurrentVersion';
 import { workflowVisualizerWorkflowIdComponentState } from '@/workflow/states/workflowVisualizerWorkflowIdComponentState';
+import { type WorkflowEmailAction } from '@/workflow/types/WorkflowEmailAction';
 import { WorkflowStepBody } from '@/workflow/workflow-steps/components/WorkflowStepBody';
 import { WorkflowStepFooter } from '@/workflow/workflow-steps/components/WorkflowStepFooter';
 import { useEmailForm } from '@/workflow/workflow-steps/workflow-actions/hooks/useEmailForm';
 import { WorkflowVariablePicker } from '@/workflow/workflow-variables/components/WorkflowVariablePicker';
-import { useTheme } from '@emotion/react';
 import { t } from '@lingui/core/macro';
 import { useEffect, useState } from 'react';
-import { useRecoilValue } from 'recoil';
 import { ConnectedAccountProvider, SettingsPath } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
-import { type WorkflowEmailAction } from '@/workflow/types/WorkflowEmailAction';
 import { Callout, IconPlus } from 'twenty-ui/display';
 import { Button, type SelectOption } from 'twenty-ui/input';
 import { MenuItem } from 'twenty-ui/navigation';
@@ -56,13 +52,10 @@ export const WorkflowEditActionEmailBase = ({
   action,
   actionOptions,
 }: WorkflowEditActionEmailBaseProps) => {
-  const theme = useTheme();
-  const currentWorkspaceMember = useRecoilValue(currentWorkspaceMemberState);
+  const currentWorkspaceMember = useAtomStateValue(currentWorkspaceMemberState);
   const { triggerApisOAuth } = useTriggerApisOAuth();
-  const { enqueueErrorSnackBar } = useSnackBar();
-  const { uploadAttachmentFile } = useUploadAttachmentFile();
 
-  const workflowVisualizerWorkflowId = useRecoilComponentValue(
+  const workflowVisualizerWorkflowId = useAtomComponentStateValue(
     workflowVisualizerWorkflowIdComponentState,
   );
 
@@ -82,12 +75,14 @@ export const WorkflowEditActionEmailBase = ({
   const [visibleAdvancedFields, setVisibleAdvancedFields] = useState<{
     cc: boolean;
     bcc: boolean;
+    inReplyTo: boolean;
   }>(() => {
     const inputRecipients = action.settings.input.recipients;
 
     return {
       cc: Boolean(inputRecipients?.cc),
       bcc: Boolean(inputRecipients?.bcc),
+      inReplyTo: Boolean(action.settings.input.inReplyTo),
     };
   });
 
@@ -96,7 +91,9 @@ export const WorkflowEditActionEmailBase = ({
   const advancedOptionsDropdownId = `${action.id}-email-advanced-options`;
 
   const hasAvailableAdvancedOptions =
-    !visibleAdvancedFields.cc || !visibleAdvancedFields.bcc;
+    !visibleAdvancedFields.cc ||
+    !visibleAdvancedFields.bcc ||
+    !visibleAdvancedFields.inReplyTo;
 
   const handleReauthorize = async () => {
     if (!isDefined(missingScopes)) {
@@ -111,25 +108,6 @@ export const WorkflowEditActionEmailBase = ({
 
   const handleConnectedAccountChange = (connectedAccountId: string | null) => {
     handleFieldChange('connectedAccountId', connectedAccountId);
-  };
-
-  const handleUploadAttachment = async (file: File) => {
-    if (!isDefined(workflowVisualizerWorkflowId)) {
-      return undefined;
-    }
-
-    const { attachmentAbsoluteURL } = await uploadAttachmentFile(file, {
-      id: workflowVisualizerWorkflowId,
-      targetObjectNameSingular: CoreObjectNameSingular.Workflow,
-    });
-
-    return attachmentAbsoluteURL;
-  };
-
-  const handleImageUploadError = (_: Error, file: File) => {
-    enqueueErrorSnackBar({
-      message: t`Failed to upload image: `.concat(file.name),
-    });
   };
 
   const filter: { or: object[] } = {
@@ -170,9 +148,10 @@ export const WorkflowEditActionEmailBase = ({
     (account) => account.id === formData.connectedAccountId,
   );
 
-  const missingDraftScopes = isDefined(selectedAccount)
-    ? getMissingDraftEmailScopes(selectedAccount)
-    : [];
+  const missingDraftScopes =
+    action.type === 'DRAFT_EMAIL' && isDefined(selectedAccount)
+      ? getMissingDraftEmailScopes(selectedAccount)
+      : [];
 
   const missingScopes =
     isDefined(selectedAccount) &&
@@ -211,7 +190,7 @@ export const WorkflowEditActionEmailBase = ({
 
   const navigate = useNavigateSettings();
 
-  const { closeCommandMenu } = useCommandMenu();
+  const { closeSidePanelMenu } = useSidePanelMenu();
 
   useEffect(() => {
     return () => {
@@ -232,7 +211,7 @@ export const WorkflowEditActionEmailBase = ({
             options={connectedAccountOptions}
             callToActionButton={{
               onClick: () => {
-                closeCommandMenu();
+                closeSidePanelMenu();
                 navigate(SettingsPath.NewAccount);
               },
               Icon: IconPlus,
@@ -242,7 +221,7 @@ export const WorkflowEditActionEmailBase = ({
               handleConnectedAccountChange(connectedAccountId);
             }}
             disabled={actionOptions.readonly}
-            dropdownOffset={{ y: parseInt(theme.spacing(1), 10) }}
+            dropdownOffset={{ y: 4 }}
             dropdownWidth={GenericDropdownContentWidth.ExtraLarge}
           />
           {isDefined(missingScopes) && (
@@ -301,6 +280,18 @@ export const WorkflowEditActionEmailBase = ({
               VariablePicker={WorkflowVariablePicker}
             />
           )}
+          {visibleAdvancedFields.inReplyTo && (
+            <FormTextFieldInput
+              label={t`In-Reply-To`}
+              placeholder={t`Enter Message-ID to reply to`}
+              readonly={actionOptions.readonly}
+              defaultValue={formData.inReplyTo}
+              onChange={(value) => {
+                handleFieldChange('inReplyTo', value);
+              }}
+              VariablePicker={WorkflowVariablePicker}
+            />
+          )}
           {!actionOptions.readonly && hasAvailableAdvancedOptions && (
             <Dropdown
               dropdownId={advancedOptionsDropdownId}
@@ -337,6 +328,18 @@ export const WorkflowEditActionEmailBase = ({
                           setVisibleAdvancedFields((prev) => ({
                             ...prev,
                             bcc: true,
+                          }));
+                          closeDropdown(advancedOptionsDropdownId);
+                        }}
+                      />
+                    )}
+                    {!visibleAdvancedFields.inReplyTo && (
+                      <MenuItem
+                        text={t`Add In-Reply-To`}
+                        onClick={() => {
+                          setVisibleAdvancedFields((prev) => ({
+                            ...prev,
+                            inReplyTo: true,
                           }));
                           closeDropdown(advancedOptionsDropdownId);
                         }}
@@ -379,8 +382,6 @@ export const WorkflowEditActionEmailBase = ({
                 children: t`Email Editor`,
               },
             ]}
-            onImageUpload={handleUploadAttachment}
-            onImageUploadError={handleImageUploadError}
             minHeight={EMAIL_EDITOR_MIN_HEIGHT}
             maxWidth={EMAIL_EDITOR_MAX_WIDTH}
           />

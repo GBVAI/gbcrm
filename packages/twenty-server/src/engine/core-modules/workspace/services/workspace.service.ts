@@ -29,6 +29,7 @@ import { MessageQueueService } from 'src/engine/core-modules/message-queue/servi
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
+import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { UserEntity } from 'src/engine/core-modules/user/user.entity';
 import { type ActivateWorkspaceInput } from 'src/engine/core-modules/workspace/dtos/activate-workspace-input';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
@@ -37,6 +38,9 @@ import {
   WorkspaceExceptionCode,
   WorkspaceNotFoundDefaultError,
 } from 'src/engine/core-modules/workspace/workspace.exception';
+import { CoreEntityCacheService } from 'src/engine/core-entity-cache/services/core-entity-cache.service';
+import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
+import { isModelAllowedByWorkspace } from 'src/engine/metadata-modules/ai/ai-models/utils/is-model-allowed.util';
 import { FieldMetadataEntity } from 'src/engine/metadata-modules/field-metadata/field-metadata.entity';
 import { ALL_METADATA_ENTITY_BY_METADATA_NAME } from 'src/engine/metadata-modules/flat-entity/constant/all-metadata-entity-by-metadata-name.constant';
 import { ALL_METADATA_NAMES_SORTED_ATOMICALLY } from 'src/engine/metadata-modules/flat-entity/constant/all-metadata-names-sorted-atomically.constant';
@@ -50,17 +54,20 @@ import { PermissionsService } from 'src/engine/metadata-modules/permissions/perm
 import { WorkspaceCacheStorageService } from 'src/engine/workspace-cache-storage/workspace-cache-storage.service';
 import { getWorkspaceSchemaName } from 'src/engine/workspace-datasource/utils/get-workspace-schema-name.util';
 import { WorkspaceDataSourceService } from 'src/engine/workspace-datasource/workspace-datasource.service';
-import { prefillCompanies } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-companies';
-import { prefillDashboards } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-dashboards';
-import { prefillOpportunities } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-opportunities';
-import { prefillPeople } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-people';
-import { prefillWorkflows } from 'src/engine/workspace-manager/standard-objects-prefill-data/prefill-workflows';
+import { prefillCompanies } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-companies.util';
+import { prefillDashboards } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-dashboards.util';
+import { prefillOpportunities } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-opportunities.util';
+import { prefillPeople } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-people.util';
+import { prefillWorkflowCommandMenuItems } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-workflow-command-menu-items.util';
+import { getCreateCompanyWhenAddingNewPersonCodeStepLogicFunctionDefinitions } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-workflow-code-step-logic-functions.util';
+import { prefillWorkflows } from 'src/engine/workspace-manager/standard-objects-prefill-data/utils/prefill-workflows.util';
+import { PrefillLogicFunctionService } from 'src/engine/workspace-manager/standard-objects-prefill-data/services/prefill-logic-function.service';
 import { WorkspaceManagerService } from 'src/engine/workspace-manager/workspace-manager.service';
 import { DEFAULT_FEATURE_FLAGS } from 'src/engine/workspace-manager/workspace-migration/constant/default-feature-flags';
 import { extractVersionMajorMinorPatch } from 'src/utils/version/extract-version-major-minor-patch';
 
 @Injectable()
-// eslint-disable-next-line twenty/inject-workspace-repository
+// oxlint-disable-next-line twenty/inject-workspace-repository
 export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
   protected readonly logger = new Logger(WorkspaceService.name);
 
@@ -86,6 +93,8 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     fastModel: PermissionFlagType.WORKSPACE,
     smartModel: PermissionFlagType.WORKSPACE,
     aiAdditionalInstructions: PermissionFlagType.WORKSPACE,
+    enabledAiModelIds: PermissionFlagType.AI_SETTINGS,
+    useRecommendedModels: PermissionFlagType.AI_SETTINGS,
   };
 
   constructor(
@@ -105,15 +114,18 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     private readonly permissionsService: PermissionsService,
     private readonly dnsManagerService: DnsManagerService,
     private readonly flatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
+    private readonly prefillLogicFunctionService: PrefillLogicFunctionService,
     private readonly workspaceCacheStorageService: WorkspaceCacheStorageService,
     private readonly subdomainManagerService: SubdomainManagerService,
     private readonly workspaceDataSourceService: WorkspaceDataSourceService,
     private readonly customDomainManagerService: CustomDomainManagerService,
     private readonly fileCorePictureService: FileCorePictureService,
+    private readonly aiModelRegistryService: AiModelRegistryService,
     @InjectMessageQueue(MessageQueue.deleteCascadeQueue)
     private readonly messageQueueService: MessageQueueService,
     @InjectDataSource()
     private readonly coreDataSource: DataSource,
+    private readonly coreEntityCacheService: CoreEntityCacheService,
   ) {
     super(workspaceRepository);
   }
@@ -141,7 +153,10 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       workspaceActivationStatus: workspace.activationStatus,
     });
 
-    if (payload.subdomain && workspace.subdomain !== payload.subdomain) {
+    if (
+      isDefined(payload.subdomain) &&
+      workspace.subdomain !== payload.subdomain
+    ) {
       await this.subdomainManagerService.validateSubdomainOrThrow(
         payload.subdomain,
       );
@@ -216,6 +231,48 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       );
     }
 
+    const isChangingModels =
+      isDefined(payload.smartModel) || isDefined(payload.fastModel);
+    const isChangingAvailability =
+      payload.useRecommendedModels !== undefined ||
+      payload.enabledAiModelIds !== undefined;
+
+    if (isChangingModels || isChangingAvailability) {
+      const effectiveWorkspace = {
+        useRecommendedModels:
+          payload.useRecommendedModels ?? workspace.useRecommendedModels,
+        enabledAiModelIds:
+          payload.enabledAiModelIds ?? workspace.enabledAiModelIds,
+      };
+
+      const modelsToValidate = [
+        payload.smartModel ?? workspace.smartModel,
+        payload.fastModel ?? workspace.fastModel,
+      ].filter(isDefined);
+
+      for (const modelId of modelsToValidate) {
+        if (!this.aiModelRegistryService.isModelAdminAllowed(modelId)) {
+          throw new WorkspaceException(
+            'Selected model has been disabled by the administrator',
+            WorkspaceExceptionCode.ENVIRONMENT_VAR_NOT_ENABLED,
+          );
+        }
+
+        if (
+          !isModelAllowedByWorkspace(
+            modelId,
+            effectiveWorkspace,
+            this.aiModelRegistryService.getRecommendedModelIds(),
+          )
+        ) {
+          throw new WorkspaceException(
+            'Selected model is not available in this workspace',
+            WorkspaceExceptionCode.ENVIRONMENT_VAR_NOT_ENABLED,
+          );
+        }
+      }
+    }
+
     let updatedWorkspace: WorkspaceEntity;
 
     try {
@@ -235,6 +292,11 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       throw error;
     }
 
+    await this.coreEntityCacheService.invalidate(
+      'workspaceEntity',
+      workspace.id,
+    );
+
     if (payload.logo === null && isDefined(workspace.logoFileId)) {
       await this.fileCorePictureService.deleteCorePicture({
         fileId: workspace.logoFileId,
@@ -246,7 +308,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
   }
 
   async activateWorkspace(
-    user: UserEntity,
+    user: AuthContextUser,
     workspace: WorkspaceEntity,
     data: ActivateWorkspaceInput,
   ) {
@@ -270,8 +332,8 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       activationStatus: WorkspaceActivationStatus.ONGOING_CREATION,
     });
 
-    await this.featureFlagService.enableFeatureFlags(
-      DEFAULT_FEATURE_FLAGS,
+    await this.coreEntityCacheService.invalidate(
+      'workspaceEntity',
       workspace.id,
     );
 
@@ -279,6 +341,11 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       workspace,
       userId: user.id,
     });
+
+    await this.featureFlagService.enableFeatureFlags(
+      DEFAULT_FEATURE_FLAGS,
+      workspace.id,
+    );
 
     await this.userWorkspaceService.createWorkspaceMember(workspace.id, user);
 
@@ -294,6 +361,11 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       activationStatus: WorkspaceActivationStatus.ACTIVE,
       version: extractVersionMajorMinorPatch(appVersion),
     });
+
+    await this.coreEntityCacheService.invalidate(
+      'workspaceEntity',
+      workspace.id,
+    );
 
     return await this.workspaceRepository.findOneBy({
       id: workspace.id,
@@ -332,6 +404,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
 
     if (softDelete) {
       await this.workspaceRepository.softDelete({ id });
+      await this.coreEntityCacheService.invalidate('workspaceEntity', id);
 
       this.logger.log(`workspace ${id} soft deleted`);
 
@@ -363,6 +436,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     }
 
     await this.workspaceRepository.delete(id);
+    await this.coreEntityCacheService.invalidate('workspaceEntity', id);
 
     this.logger.log(`workspace ${id} hard deleted`);
 
@@ -516,6 +590,10 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
         userWorkspaceId: userWorkspaceOfRemovedWorkspaceMember.id,
         softDelete,
       });
+      await this.coreEntityCacheService.invalidate(
+        'userWorkspaceEntity',
+        userWorkspaceOfRemovedWorkspaceMember.id,
+      );
     }
 
     const hasOtherUserWorkspaces = isDefined(
@@ -526,6 +604,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
 
     if (!hasOtherUserWorkspaces) {
       await this.userRepository.softDelete(userId);
+      await this.coreEntityCacheService.invalidate('user', userId);
     }
   }
 
@@ -629,6 +708,14 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
         },
       );
 
+    await this.prefillLogicFunctionService.ensureSeeded({
+      workspaceId,
+      definitions:
+        getCreateCompanyWhenAddingNewPersonCodeStepLogicFunctionDefinitions(
+          workspaceId,
+        ),
+    });
+
     const queryRunner = this.coreDataSource.createQueryRunner();
 
     await queryRunner.connect();
@@ -642,10 +729,13 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
 
       await prefillWorkflows(
         queryRunner.manager,
+        workspaceId,
         schemaName,
         flatObjectMetadataMaps,
         flatFieldMetadataMaps,
       );
+
+      await prefillWorkflowCommandMenuItems(queryRunner.manager, workspaceId);
 
       await prefillOpportunities(queryRunner.manager, schemaName);
 
@@ -666,6 +756,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
           );
         }
       }
+
       throw error;
     } finally {
       await queryRunner.release();

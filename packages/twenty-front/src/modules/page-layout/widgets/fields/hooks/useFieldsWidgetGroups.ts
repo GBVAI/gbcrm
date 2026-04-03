@@ -1,13 +1,14 @@
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
 import { useFieldsWidgetFieldMetadataItems } from '@/page-layout/widgets/fields/hooks/useFieldsWidgetFieldMetadataItems';
+import { type FieldsWidgetDisplayMode } from '@/page-layout/widgets/fields/types/FieldsWidgetDisplayMode';
 import {
   type FieldsWidgetGroup,
   type FieldsWidgetGroupField,
 } from '@/page-layout/widgets/fields/types/FieldsWidgetGroup';
-import { useGetViewById } from '@/views/hooks/useGetViewById';
+import { useViewById } from '@/views/hooks/useViewById';
 import { useLingui } from '@lingui/react/macro';
 import { useMemo } from 'react';
-import { isDefined } from 'twenty-shared/utils';
+import { isDefined, isNonEmptyArray } from 'twenty-shared/utils';
 
 type UseFieldsWidgetGroupsParams = {
   viewId: string | null;
@@ -19,22 +20,22 @@ export const useFieldsWidgetGroups = ({
   objectNameSingular,
 }: UseFieldsWidgetGroupsParams) => {
   const { t } = useLingui();
-  const { view } = useGetViewById(viewId);
+  const { view } = useViewById(viewId);
   const { objectMetadataItem } = useObjectMetadataItem({
     objectNameSingular,
   });
 
-  const { inlineFieldMetadataItems } = useFieldsWidgetFieldMetadataItems({
-    objectNameSingular,
-  });
+  const { inlineFieldMetadataItems, legacyActivityTargetFieldMetadataItems } =
+    useFieldsWidgetFieldMetadataItems({
+      objectNameSingular,
+    });
 
   const groups = useMemo<FieldsWidgetGroup[]>(() => {
     if (!isDefined(objectMetadataItem)) {
       return [];
     }
 
-    // Views are seeded for object
-    if (isDefined(view) && isDefined(view.viewFieldGroups)) {
+    if (isDefined(view) && isNonEmptyArray(view.viewFieldGroups)) {
       const sortedGroups = view.viewFieldGroups.toSorted(
         (a, b) => a.position - b.position,
       );
@@ -118,7 +119,10 @@ export const useFieldsWidgetGroups = ({
       }
     }
 
-    const fieldsToDisplay = inlineFieldMetadataItems;
+    const fieldsToDisplay = [
+      ...inlineFieldMetadataItems,
+      ...legacyActivityTargetFieldMetadataItems,
+    ];
 
     if (fieldsToDisplay.length === 0) {
       return [];
@@ -190,12 +194,21 @@ export const useFieldsWidgetGroups = ({
     t,
     view,
     inlineFieldMetadataItems,
+    legacyActivityTargetFieldMetadataItems,
   ]);
+
+  const displayMode: FieldsWidgetDisplayMode =
+    isDefined(view) &&
+    !isNonEmptyArray(view.viewFieldGroups) &&
+    view.viewFields.length > 0
+      ? 'inline'
+      : 'grouped';
 
   return {
     groups,
+    displayMode,
     isFromView:
       isDefined(view) &&
-      (isDefined(view.viewFieldGroups) || view.viewFields.length > 0),
+      (isNonEmptyArray(view.viewFieldGroups) || view.viewFields.length > 0),
   };
 };

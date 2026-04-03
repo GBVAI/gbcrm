@@ -1,16 +1,23 @@
 import { settingsDraftRoleFamilyState } from '@/settings/roles/states/settingsDraftRoleFamilyState';
-import { useRecoilState } from 'recoil';
+import { useAtomFamilyStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomFamilyStateValue';
+import { useSetAtomFamilyState } from '@/ui/utilities/state/jotai/hooks/useSetAtomFamilyState';
+import { useMutation } from '@apollo/client/react';
 import {
-  useAssignRoleToApiKeyMutation,
   type ApiKeyForRole,
+  AssignRoleToApiKeyDocument,
 } from '~/generated-metadata/graphql';
 
 export const useUpdateApiKeyRole = (roleId: string) => {
-  const [settingsDraftRole, setSettingsDraftRole] = useRecoilState(
-    settingsDraftRoleFamilyState(roleId),
+  const settingsDraftRole = useAtomFamilyStateValue(
+    settingsDraftRoleFamilyState,
+    roleId,
+  );
+  const setSettingsDraftRole = useSetAtomFamilyState(
+    settingsDraftRoleFamilyState,
+    roleId,
   );
 
-  const [assignRoleToApiKeyMutation] = useAssignRoleToApiKeyMutation();
+  const [assignRoleToApiKeyMutation] = useMutation(AssignRoleToApiKeyDocument);
 
   const updateApiKeyRoleDraftState = ({
     apiKey,

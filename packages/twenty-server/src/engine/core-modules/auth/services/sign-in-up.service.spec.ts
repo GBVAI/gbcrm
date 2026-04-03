@@ -76,9 +76,6 @@ const createSignInUpServiceForTests = () => {
     {
       emitCustomBatchEvent: jest.fn(),
     } as any,
-    {
-      getHttpClient: jest.fn(),
-    } as any,
     mockTwentyConfigService as any,
     {
       generateSubdomain: jest.fn(),
@@ -99,6 +96,9 @@ const createSignInUpServiceForTests = () => {
     } as any,
     {
       uploadWorkspaceLogoFromUrl: jest.fn(),
+    } as any,
+    {
+      isValid: jest.fn().mockReturnValue(false),
     } as any,
     {
       createQueryRunner: jest.fn(() => queryRunnerMock),

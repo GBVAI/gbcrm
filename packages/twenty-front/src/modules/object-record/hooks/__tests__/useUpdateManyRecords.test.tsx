@@ -18,8 +18,8 @@ import { InMemoryCache } from '@apollo/client';
 import { type MockedResponse } from '@apollo/client/testing';
 import { act } from 'react';
 import { getJestMetadataAndApolloMocksWrapper } from '~/testing/jest/getJestMetadataAndApolloMocksWrapper';
-import { getMockPersonObjectMetadataItem } from '~/testing/mock-data/people';
-import { generatedMockObjectMetadataItems } from '~/testing/utils/generatedMockObjectMetadataItems';
+import { getTestEnrichedObjectMetadataItemsMock } from '~/testing/utils/getTestEnrichedObjectMetadataItemsMock';
+import { getMockObjectMetadataItemOrThrow } from '~/testing/utils/getMockObjectMetadataItemOrThrow';
 
 const getDefaultMocks = (
   overrides?: Partial<MockedResponse>,
@@ -44,8 +44,8 @@ const mockRefetchAggregateQueries = jest.fn();
   refetchAggregateQueries: mockRefetchAggregateQueries,
 });
 
-const objectMetadataItem = getMockPersonObjectMetadataItem();
-const objectMetadataItems = generatedMockObjectMetadataItems;
+const objectMetadataItem = getMockObjectMetadataItemOrThrow('person');
+const objectMetadataItems = getTestEnrichedObjectMetadataItemsMock();
 
 const expectedCachedRecordsWithUpdatedCity = personRecords.map(
   (personRecord) => ({
@@ -126,7 +126,7 @@ describe('useUpdateManyRecords', () => {
           objectMetadataItems,
           record,
           recordGqlFields: generateDepthRecordGqlFieldsFromRecord({
-            objectMetadataItems: generatedMockObjectMetadataItems,
+            objectMetadataItems: getTestEnrichedObjectMetadataItemsMock(),
             objectMetadataItem,
             record,
             depth: 1,
@@ -211,9 +211,7 @@ describe('useUpdateManyRecords', () => {
           });
           fail('Should have thrown an error');
         } catch (e) {
-          expect(e).toMatchInlineSnapshot(
-            `[ApolloError: Internal server error]`,
-          );
+          expect(e).toMatchInlineSnapshot(`[Error: Internal server error]`);
           assertCachedRecordsMatch(personRecords);
         }
       });

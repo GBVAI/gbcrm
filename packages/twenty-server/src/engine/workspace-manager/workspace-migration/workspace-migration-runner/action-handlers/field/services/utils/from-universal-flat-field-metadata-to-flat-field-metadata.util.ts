@@ -130,9 +130,11 @@ export const fromUniversalFlatFieldMetadataToFlatFieldMetadata = ({
     // Empty aggregator arrays for newly created entities
     viewFieldIds: [],
     viewFilterIds: [],
+    fieldPermissionIds: [],
     calendarViewIds: [],
     mainGroupByFieldMetadataViewIds: [],
     kanbanAggregateOperationViewIds: [],
+    viewSortIds: [],
     ...emptyUniversalForeignKeyAggregators,
   };
 };

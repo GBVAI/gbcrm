@@ -113,6 +113,7 @@ export const createStandardRelationFieldFlatMetadata = <
     morphId,
     viewFieldIds: [],
     viewFilterIds: [],
+    fieldPermissionIds: [],
     kanbanAggregateOperationViewIds: [],
     calendarViewIds: [],
     mainGroupByFieldMetadataViewIds: [],
@@ -127,9 +128,12 @@ export const createStandardRelationFieldFlatMetadata = <
       targetFieldDefinition.universalIdentifier,
     viewFilterUniversalIdentifiers: [],
     viewFieldUniversalIdentifiers: [],
+    fieldPermissionUniversalIdentifiers: [],
     kanbanAggregateOperationViewUniversalIdentifiers: [],
     calendarViewUniversalIdentifiers: [],
     mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+    viewSortIds: [],
+    viewSortUniversalIdentifiers: [],
     universalSettings: settings,
   };
 };

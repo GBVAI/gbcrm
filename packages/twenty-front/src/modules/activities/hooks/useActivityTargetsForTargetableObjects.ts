@@ -1,18 +1,17 @@
-import { useRecoilValue } from 'recoil';
-import { type RecordGqlOperationOrderBy } from 'twenty-shared/types';
+import {
+  type CoreObjectNameSingular,
+  type RecordGqlOperationOrderBy,
+} from 'twenty-shared/types';
 
 import { findActivityTargetsOperationSignatureFactory } from '@/activities/graphql/operation-signatures/factories/findActivityTargetsOperationSignatureFactory';
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
 import { type NoteTarget } from '@/activities/types/NoteTarget';
 import { type TaskTarget } from '@/activities/types/TaskTarget';
 import { getActivityTargetsFilter } from '@/activities/utils/getActivityTargetsFilter';
-import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { useFindManyRecords } from '@/object-record/hooks/useFindManyRecords';
-import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
-
-import { FeatureFlagKey } from '~/generated-metadata/graphql';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 
 export const useActivityTargetsForTargetableObjects = ({
   objectNameSingular,
@@ -32,25 +31,11 @@ export const useActivityTargetsForTargetableObjects = ({
   activityTargetsOrderByVariables: RecordGqlOperationOrderBy;
   limit: number;
 }) => {
-  const objectMetadataItems = useRecoilValue<ObjectMetadataItem[]>(
-    objectMetadataItemsState,
+  const objectMetadataItems = useAtomStateValue<EnrichedObjectMetadataItem[]>(
+    objectMetadataItemsSelector,
   );
-  const isNoteTargetMigrated = useIsFeatureEnabled(
-    FeatureFlagKey.IS_NOTE_TARGET_MIGRATED,
-  );
-  const isTaskTargetMigrated = useIsFeatureEnabled(
-    FeatureFlagKey.IS_TASK_TARGET_MIGRATED,
-  );
-  const isMorphRelation =
-    objectNameSingular === CoreObjectNameSingular.Task
-      ? isTaskTargetMigrated
-      : isNoteTargetMigrated;
-
   const activityTargetsFilter = getActivityTargetsFilter({
-    targetableObjects: targetableObjects,
-    activityObjectNameSingular: objectNameSingular,
-    objectMetadataItems,
-    isMorphRelation,
+    targetableObjects,
   });
 
   const FIND_ACTIVITY_TARGETS_OPERATION_SIGNATURE =

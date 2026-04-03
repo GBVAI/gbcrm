@@ -2,21 +2,19 @@ import { type ApolloCache, type StoreObject } from '@apollo/client';
 import { isNonEmptyString } from '@sniptt/guards';
 
 import { triggerUpdateRelationsOptimisticEffect } from '@/apollo/optimistic-effect/utils/triggerUpdateRelationsOptimisticEffect';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { type RecordGqlRefEdge } from '@/object-record/cache/types/RecordGqlRefEdge';
-import { getEdgeTypename } from '@/object-record/cache/utils/getEdgeTypename';
-import { isObjectRecordConnectionWithRefs } from '@/object-record/cache/utils/isObjectRecordConnectionWithRefs';
-import { type RecordGqlNode } from '@/object-record/graphql/types/RecordGqlNode';
-import { isRecordMatchingFilter } from '@/object-record/record-filter/utils/isRecordMatchingFilter';
-
+import { type ObjectPermissions } from 'twenty-shared/types';
+import { getEdgeTypename, isDefined } from 'twenty-shared/utils';
 import { triggerUpdateGroupByQueriesOptimisticEffect } from '@/apollo/optimistic-effect/group-by/utils/triggerUpdateGroupByQueriesOptimisticEffect';
 import { type CachedObjectRecordQueryVariables } from '@/apollo/types/CachedObjectRecordQueryVariables';
 import { encodeCursor } from '@/apollo/utils/encodeCursor';
 import { getRecordFromCache } from '@/object-record/cache/utils/getRecordFromCache';
 import { getRecordNodeFromRecord } from '@/object-record/cache/utils/getRecordNodeFromRecord';
+import { isObjectRecordConnectionWithRefs } from '@/object-record/cache/utils/isObjectRecordConnectionWithRefs';
+import { type RecordGqlNode } from '@/object-record/graphql/types/RecordGqlNode';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
-import { type ObjectPermissions } from 'twenty-shared/types';
-import { isDefined } from 'twenty-shared/utils';
+import { isRecordMatchingFilter } from '@/object-record/record-filter/utils/isRecordMatchingFilter';
 import { parseApolloStoreFieldName } from '~/utils/parseApolloStoreFieldName';
 
 /*
@@ -25,10 +23,10 @@ import { parseApolloStoreFieldName } from '~/utils/parseApolloStoreFieldName';
   then we'll be able to uncomment the code below so the cached lists are updated coherently with the variables.
 */
 type TriggerCreateRecordsOptimisticEffectArgs = {
-  cache: ApolloCache<object>;
-  objectMetadataItem: ObjectMetadataItem;
+  cache: ApolloCache;
+  objectMetadataItem: EnrichedObjectMetadataItem;
   recordsToCreate: RecordGqlNode[];
-  objectMetadataItems: ObjectMetadataItem[];
+  objectMetadataItems: EnrichedObjectMetadataItem[];
   shouldMatchRootQueryFilter?: boolean;
   checkForRecordInCache?: boolean;
   objectPermissionsByObjectMetadataId: Record<
@@ -165,7 +163,7 @@ export const triggerCreateRecordsOptimisticEffect = ({
                 },
               );
 
-              if (recordToCreateReference && !recordAlreadyInCache) {
+              if (isDefined(recordToCreateReference) && !recordAlreadyInCache) {
                 const cursor = encodeCursor(recordToCreate);
 
                 const edge = {

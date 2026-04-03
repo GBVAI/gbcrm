@@ -49,6 +49,7 @@ export const mapFileStatusToDevUiStatus = (
     building: 'in_progress',
     uploading: 'uploading',
     success: 'done',
+    error: 'error',
   };
 
   return mapping[status];
@@ -101,6 +102,7 @@ export const ENTITY_LABELS: Record<SyncableEntity, string> = {
   [SyncableEntity.View]: 'Views',
   [SyncableEntity.NavigationMenuItem]: 'Navigation menu items',
   [SyncableEntity.PageLayout]: 'Page layouts',
+  [SyncableEntity.Agent]: 'Agents',
 };
 
 export const ENTITY_ORDER = Object.keys(ENTITY_LABELS) as SyncableEntity[];
@@ -182,6 +184,7 @@ export const getPipelineRows = (
 ): DevUiPipelineRow[] => {
   const entities = [...state.entities.values()];
 
+  const hasError = entities.some((entity) => entity.status === 'error');
   const isBuilding = entities.some((entity) => entity.status === 'building');
   const allUploaded =
     entities.length > 0 &&
@@ -189,11 +192,13 @@ export const getPipelineRows = (
       (entity) => entity.status === 'uploading' || entity.status === 'success',
     );
 
-  const resourcesBuildStatus: OrchestratorStateStepStatus = isBuilding
-    ? 'in_progress'
-    : allUploaded
-      ? 'done'
-      : 'idle';
+  const resourcesBuildStatus: OrchestratorStateStepStatus = hasError
+    ? 'error'
+    : isBuilding
+      ? 'in_progress'
+      : allUploaded
+        ? 'done'
+        : 'idle';
 
   return [
     {

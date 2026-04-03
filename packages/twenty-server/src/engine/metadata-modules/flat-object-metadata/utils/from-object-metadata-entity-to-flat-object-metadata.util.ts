@@ -78,6 +78,11 @@ export const fromObjectMetadataEntityToFlatObjectMetadata = ({
     viewIds: objectMetadataEntity.views.map(({ id }) => id),
     indexMetadataIds: objectMetadataEntity.indexMetadatas.map(({ id }) => id),
     fieldIds: objectMetadataEntity.fields.map(({ id }) => id),
+    objectPermissionIds: objectMetadataEntity.objectPermissions.map(
+      ({ id }) => id,
+    ),
+    fieldPermissionIds:
+      objectMetadataEntity.fieldPermissions?.map(({ id }) => id) ?? [],
     applicationUniversalIdentifier,
     labelIdentifierFieldMetadataUniversalIdentifier,
     imageIdentifierFieldMetadataUniversalIdentifier,
@@ -90,5 +95,13 @@ export const fromObjectMetadataEntityToFlatObjectMetadata = ({
     viewUniversalIdentifiers: objectMetadataEntity.views.map(
       ({ universalIdentifier }) => universalIdentifier,
     ),
+    objectPermissionUniversalIdentifiers:
+      objectMetadataEntity.objectPermissions.map(
+        ({ universalIdentifier }) => universalIdentifier,
+      ),
+    fieldPermissionUniversalIdentifiers:
+      objectMetadataEntity.fieldPermissions?.map(
+        ({ universalIdentifier }) => universalIdentifier,
+      ) ?? [],
   };
 };

@@ -5,10 +5,13 @@ import { pageLayoutDraggedAreaComponentState } from '@/page-layout/states/pageLa
 import { pageLayoutEditingWidgetIdComponentState } from '@/page-layout/states/pageLayoutEditingWidgetIdComponentState';
 import { removeWidgetFromTab } from '@/page-layout/utils/removeWidgetFromTab';
 import { removeWidgetLayoutFromTab } from '@/page-layout/utils/removeWidgetLayoutFromTab';
+import { useDeleteViewForRecordTableWidget } from '@/page-layout/widgets/record-table/hooks/useDeleteViewForRecordTableWidget';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
-import { useRecoilCallback } from 'recoil';
+import { useAtomComponentStateCallbackState } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateCallbackState';
+import { useStore } from 'jotai';
+import { useCallback } from 'react';
 import { isDefined } from 'twenty-shared/utils';
+import { WidgetType } from '~/generated-metadata/graphql';
 
 export const useRemovePageLayoutWidgetAndPreservePosition = (
   pageLayoutIdFromProps?: string,
@@ -18,80 +21,98 @@ export const useRemovePageLayoutWidgetAndPreservePosition = (
     pageLayoutIdFromProps,
   );
 
-  const pageLayoutDraftState = useRecoilComponentCallbackState(
+  const pageLayoutDraftState = useAtomComponentStateCallbackState(
     pageLayoutDraftComponentState,
     pageLayoutId,
   );
 
-  const pageLayoutCurrentLayoutsState = useRecoilComponentCallbackState(
+  const pageLayoutCurrentLayoutsState = useAtomComponentStateCallbackState(
     pageLayoutCurrentLayoutsComponentState,
     pageLayoutId,
   );
 
-  const pageLayoutDraggedAreaState = useRecoilComponentCallbackState(
+  const pageLayoutDraggedAreaState = useAtomComponentStateCallbackState(
     pageLayoutDraggedAreaComponentState,
     pageLayoutId,
   );
 
-  const pageLayoutEditingWidgetIdState = useRecoilComponentCallbackState(
+  const pageLayoutEditingWidgetIdState = useAtomComponentStateCallbackState(
     pageLayoutEditingWidgetIdComponentState,
     pageLayoutId,
   );
 
-  const removePageLayoutWidgetAndPreservePosition = useRecoilCallback(
-    ({ snapshot, set }) =>
-      (widgetId: string) => {
-        const pageLayoutDraft = snapshot
-          .getLoadable(pageLayoutDraftState)
-          .getValue();
-        const allTabLayouts = snapshot
-          .getLoadable(pageLayoutCurrentLayoutsState)
-          .getValue();
+  const { deleteViewForRecordTableWidget } =
+    useDeleteViewForRecordTableWidget();
 
-        const tabWithWidget = pageLayoutDraft.tabs.find((tab) =>
-          tab.widgets.some((w) => w.id === widgetId),
+  const store = useStore();
+
+  const removePageLayoutWidgetAndPreservePosition = useCallback(
+    (widgetId: string) => {
+      const pageLayoutDraft = store.get(pageLayoutDraftState);
+      const allTabLayouts = store.get(pageLayoutCurrentLayoutsState);
+
+      const tabWithWidget = pageLayoutDraft.tabs.find((tab) =>
+        tab.widgets.some((widget) => widget.id === widgetId),
+      );
+
+      const widgetToRemove = tabWithWidget?.widgets.find(
+        (widget) => widget.id === widgetId,
+      );
+
+      if (
+        isDefined(widgetToRemove) &&
+        widgetToRemove.type === WidgetType.RECORD_TABLE &&
+        'viewId' in widgetToRemove.configuration &&
+        isDefined(widgetToRemove.configuration.viewId)
+      ) {
+        deleteViewForRecordTableWidget(
+          widgetToRemove.configuration.viewId as string,
         );
-        const tabId = tabWithWidget?.id;
+      }
 
-        if (!isDefined(tabId)) {
-          return;
-        }
+      const tabId = tabWithWidget?.id;
 
-        const tabLayouts = allTabLayouts[tabId];
-        const widgetLayout = tabLayouts?.desktop?.find(
-          (layout) => layout.i === widgetId,
-        );
+      if (!isDefined(tabId)) {
+        return;
+      }
 
-        if (!isDefined(widgetLayout)) {
-          return;
-        }
+      const tabLayouts = allTabLayouts[tabId];
+      const widgetLayout = tabLayouts?.desktop?.find(
+        (layout) => layout.i === widgetId,
+      );
 
-        set(pageLayoutDraggedAreaState, {
-          x: widgetLayout.x,
-          y: widgetLayout.y,
-          w: widgetLayout.w,
-          h: widgetLayout.h,
-        });
+      if (!isDefined(widgetLayout)) {
+        return;
+      }
 
-        const updatedLayouts = removeWidgetLayoutFromTab(
-          allTabLayouts,
-          tabId,
-          widgetId,
-        );
-        set(pageLayoutCurrentLayoutsState, updatedLayouts);
+      store.set(pageLayoutDraggedAreaState, {
+        x: widgetLayout.x,
+        y: widgetLayout.y,
+        w: widgetLayout.w,
+        h: widgetLayout.h,
+      });
 
-        set(pageLayoutDraftState, (prev) => ({
-          ...prev,
-          tabs: removeWidgetFromTab(prev.tabs, tabId, widgetId),
-        }));
+      const updatedLayouts = removeWidgetLayoutFromTab(
+        allTabLayouts,
+        tabId,
+        widgetId,
+      );
+      store.set(pageLayoutCurrentLayoutsState, updatedLayouts);
 
-        set(pageLayoutEditingWidgetIdState, null);
-      },
+      store.set(pageLayoutDraftState, (prev) => ({
+        ...prev,
+        tabs: removeWidgetFromTab(prev.tabs, tabId, widgetId),
+      }));
+
+      store.set(pageLayoutEditingWidgetIdState, null);
+    },
     [
+      deleteViewForRecordTableWidget,
       pageLayoutCurrentLayoutsState,
       pageLayoutDraftState,
       pageLayoutDraggedAreaState,
       pageLayoutEditingWidgetIdState,
+      store,
     ],
   );
 

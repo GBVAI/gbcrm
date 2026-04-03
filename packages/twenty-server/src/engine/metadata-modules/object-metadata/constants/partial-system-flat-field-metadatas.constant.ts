@@ -38,6 +38,8 @@ const PARTIAL_ID_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.UUID>;
 
 const PARTIAL_CREATED_AT_FIELD = {
@@ -65,6 +67,8 @@ const PARTIAL_CREATED_AT_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.DATE_TIME>;
 
 const PARTIAL_UPDATED_AT_FIELD = {
@@ -92,6 +96,8 @@ const PARTIAL_UPDATED_AT_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.DATE_TIME>;
 
 const PARTIAL_DELETED_AT_FIELD = {
@@ -119,6 +125,8 @@ const PARTIAL_DELETED_AT_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.DATE_TIME>;
 
 const PARTIAL_CREATED_BY_FIELD = {
@@ -146,6 +154,8 @@ const PARTIAL_CREATED_BY_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.ACTOR>;
 
 const PARTIAL_UPDATED_BY_FIELD = {
@@ -173,6 +183,8 @@ const PARTIAL_UPDATED_BY_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.ACTOR>;
 
 const PARTIAL_POSITION_FIELD = {
@@ -200,6 +212,8 @@ const PARTIAL_POSITION_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.POSITION>;
 
 const PARTIAL_SEARCH_VECTOR_FIELD = {
@@ -229,6 +243,8 @@ const PARTIAL_SEARCH_VECTOR_FIELD = {
   kanbanAggregateOperationViewUniversalIdentifiers: [],
   calendarViewUniversalIdentifiers: [],
   mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+  fieldPermissionUniversalIdentifiers: [],
+  viewSortUniversalIdentifiers: [],
 } as const satisfies PartialSystemFlatFieldMetadata<FieldMetadataType.TS_VECTOR>;
 
 export const PARTIAL_SYSTEM_FLAT_FIELD_METADATAS = {

@@ -1,5 +1,6 @@
-import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
-import { shouldAppBeLoadingState } from '@/object-metadata/states/shouldAppBeLoadingState';
+import { isMinimalMetadataReadyState } from '@/metadata-store/states/isMinimalMetadataReadyState';
+import { setTestObjectMetadataItemsInMetadataStore } from '~/testing/utils/setTestObjectMetadataItemsInMetadataStore';
+import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
 import { PageLayoutContentProvider } from '@/page-layout/contexts/PageLayoutContentContext';
 import {
   PAGE_LAYOUT_TEST_INSTANCE_ID,
@@ -10,13 +11,12 @@ import { type PageLayout } from '@/page-layout/types/PageLayout';
 import { DashboardWidgetPlaceholder } from '@/page-layout/widgets/components/DashboardWidgetPlaceholder';
 import { LayoutRenderingProvider } from '@/ui/layout/contexts/LayoutRenderingContext';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
-import { type MutableSnapshot } from 'recoil';
 import { ComponentDecorator } from 'twenty-ui/testing';
 import {
   PageLayoutTabLayoutMode,
   PageLayoutType,
 } from '~/generated-metadata/graphql';
-import { generatedMockObjectMetadataItems } from '~/testing/utils/generatedMockObjectMetadataItems';
+import { getTestEnrichedObjectMetadataItemsMock } from '~/testing/utils/getTestEnrichedObjectMetadataItemsMock';
 
 const mockPageLayout: PageLayout = {
   id: 'page-layout-1',
@@ -33,25 +33,23 @@ const meta: Meta<typeof DashboardWidgetPlaceholder> = {
   component: DashboardWidgetPlaceholder,
   decorators: [
     (Story) => {
-      const initializeState = (snapshot: MutableSnapshot) => {
-        snapshot.set(
-          objectMetadataItemsState,
-          generatedMockObjectMetadataItems,
-        );
-        snapshot.set(shouldAppBeLoadingState, false);
-        snapshot.set(
-          pageLayoutPersistedComponentState.atomFamily({
-            instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-          }),
-          mockPageLayout,
-        );
-      };
+      setTestObjectMetadataItemsInMetadataStore(
+        jotaiStore,
+        getTestEnrichedObjectMetadataItemsMock(),
+      );
+      jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+      jotaiStore.set(
+        pageLayoutPersistedComponentState.atomFamily({
+          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+        }),
+        mockPageLayout,
+      );
 
       return (
-        <PageLayoutTestWrapper initializeState={initializeState}>
+        <PageLayoutTestWrapper store={jotaiStore}>
           <LayoutRenderingProvider
             value={{
-              isInRightDrawer: false,
+              isInSidePanel: false,
               layoutType: PageLayoutType.DASHBOARD,
               targetRecordIdentifier: undefined,
             }}

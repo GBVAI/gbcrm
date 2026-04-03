@@ -1,7 +1,6 @@
 import { type EntityFilePaths } from '@/cli/utilities/build/manifest/manifest-extract-config';
 import { type BuildManifestOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/build-manifest-orchestrator-step';
 import { type CheckServerOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/check-server-orchestrator-step';
-import { type ResolveApplicationOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/resolve-application-orchestrator-step';
 import { type StartWatchersOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/start-watchers-orchestrator-step';
 import { type SyncApplicationOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/sync-application-orchestrator-step';
 import { type UploadFilesOrchestratorStepOutput } from '@/cli/utilities/dev/orchestrator/steps/upload-files-orchestrator-step';
@@ -40,7 +39,8 @@ export type OrchestratorStateFileStatus =
   | 'pending'
   | 'building'
   | 'uploading'
-  | 'success';
+  | 'success'
+  | 'error';
 
 export type OrchestratorStateEntityInfo = {
   name: string;
@@ -54,6 +54,7 @@ export type OrchestratorStateBuiltFileInfo = {
   builtPath: string;
   sourcePath: string;
   fileFolder: FileFolder;
+  usesSdkClient?: boolean;
 };
 
 export type OrchestratorStatePipeline = {
@@ -81,10 +82,11 @@ const FILE_STATUS_TRANSITION_MATRIX: Record<
   OrchestratorStateFileStatus,
   OrchestratorStateFileStatus[]
 > = {
-  pending: ['building', 'uploading', 'success'],
-  building: ['pending', 'uploading', 'success'],
-  uploading: ['pending', 'success'],
-  success: ['pending', 'building', 'uploading'],
+  pending: ['building', 'uploading', 'success', 'error'],
+  building: ['pending', 'uploading', 'success', 'error'],
+  uploading: ['pending', 'success', 'error'],
+  success: ['pending', 'building', 'uploading', 'error'],
+  error: ['pending', 'building', 'uploading', 'success'],
 };
 
 export class OrchestratorState {
@@ -94,7 +96,10 @@ export class OrchestratorState {
   steps: {
     checkServer: OrchestratorStepState<CheckServerOrchestratorStepOutput>;
     ensureValidTokens: OrchestratorStepState<Record<string, never>>;
-    resolveApplication: OrchestratorStepState<ResolveApplicationOrchestratorStepOutput>;
+    resolveApplication: OrchestratorStepState<{
+      applicationId: string | null;
+      universalIdentifier: string | null;
+    }>;
     buildManifest: OrchestratorStepState<BuildManifestOrchestratorStepOutput>;
     uploadFiles: OrchestratorStepState<UploadFilesOrchestratorStepOutput>;
     generateApiClient: OrchestratorStepState<Record<string, never>>;
@@ -264,6 +269,17 @@ export class OrchestratorState {
         ...entity,
         type: entityTypeMap.get(filePath),
       });
+    }
+
+    for (const [filePath, syncableEntity] of entityTypeMap) {
+      if (!entities.has(filePath)) {
+        entities.set(filePath, {
+          name: filePath,
+          path: filePath,
+          type: syncableEntity,
+          status: 'pending',
+        });
+      }
     }
 
     this.entities = entities;

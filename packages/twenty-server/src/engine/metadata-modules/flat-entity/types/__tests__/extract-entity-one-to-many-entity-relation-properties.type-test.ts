@@ -13,11 +13,11 @@ type FieldMetadataOneToManySyncableRelations =
     SyncableEntity
   >;
 
-// eslint-disable-next-line unused-imports/no-unused-vars
+// oxlint-disable-next-line unused-imports/no-unused-vars
 type Assertions = [
   // FieldMetadataEntity OneToMany relations (all targets):
   // - indexFieldMetadatas, fieldPermissions, viewFields, viewFilters,
-  // - kanbanAggregateOperationViews, calendarViews, mainGroupByFieldMetadataViews
+  // - kanbanAggregateOperationViews, calendarViews, mainGroupByFieldMetadataViews, viewSorts
   Expect<
     Equal<
       FieldMetadataOneToManyRelations,
@@ -28,6 +28,7 @@ type Assertions = [
       | 'kanbanAggregateOperationViews'
       | 'calendarViews'
       | 'mainGroupByFieldMetadataViews'
+      | 'viewSorts'
     >
   >,
 
@@ -35,11 +36,13 @@ type Assertions = [
   Expect<
     Equal<
       FieldMetadataOneToManySyncableRelations,
+      | 'fieldPermissions'
       | 'viewFields'
       | 'viewFilters'
       | 'kanbanAggregateOperationViews'
       | 'calendarViews'
       | 'mainGroupByFieldMetadataViews'
+      | 'viewSorts'
     >
   >,
 ];

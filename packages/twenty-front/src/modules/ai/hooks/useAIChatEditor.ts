@@ -3,14 +3,20 @@ import { Document } from '@tiptap/extension-document';
 import { HardBreak } from '@tiptap/extension-hard-break';
 import { Paragraph } from '@tiptap/extension-paragraph';
 import { Text } from '@tiptap/extension-text';
-import { Placeholder } from '@tiptap/extensions';
+import { Placeholder } from '@tiptap/extensions/placeholder';
 import { useEditor } from '@tiptap/react';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 
 import { AI_CHAT_INPUT_ID } from '@/ai/constants/AiChatInputId';
-import { agentChatInputStateV2 } from '@/ai/states/agentChatInputStateV2';
-import { useSetRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilStateV2';
+import {
+  AGENT_CHAT_NEW_THREAD_DRAFT_KEY,
+  agentChatDraftsByThreadIdState,
+} from '@/ai/states/agentChatDraftsByThreadIdState';
+import { agentChatInputState } from '@/ai/states/agentChatInputState';
+import { currentAIChatThreadState } from '@/ai/states/currentAIChatThreadState';
+import { dispatchAgentChatEnsureThreadForDraftEvent } from '@/ai/utils/dispatchAgentChatEnsureThreadForDraftEvent';
+import { dispatchAgentChatSendMessageEvent } from '@/ai/utils/dispatchAgentChatSendMessageEvent';
 import { MENTION_SUGGESTION_PLUGIN_KEY } from '@/mention/constants/MentionSuggestionPluginKey';
 import { MentionSuggestion } from '@/mention/extensions/MentionSuggestion';
 import { MentionTag } from '@/mention/extensions/MentionTag';
@@ -18,18 +24,34 @@ import { useMentionSearch } from '@/mention/hooks/useMentionSearch';
 import { usePushFocusItemToFocusStack } from '@/ui/utilities/focus/hooks/usePushFocusItemToFocusStack';
 import { useRemoveFocusItemFromFocusStackById } from '@/ui/utilities/focus/hooks/useRemoveFocusItemFromFocusStackById';
 import { FocusComponentType } from '@/ui/utilities/focus/types/FocusComponentType';
+import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
 import { turnIntoEmptyStringIfWhitespacesOnly } from '~/utils/string/turnIntoEmptyStringIfWhitespacesOnly';
 
-type UseAIChatEditorProps = {
-  onSendMessage: () => void;
-};
+const textToTiptapContent = (text: string) => ({
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      content: text ? [{ type: 'text', text }] : [],
+    },
+  ],
+});
 
-export const useAIChatEditor = ({ onSendMessage }: UseAIChatEditorProps) => {
-  const setAgentChatInput = useSetRecoilStateV2(agentChatInputStateV2);
+export const useAIChatEditor = () => {
+  const setAgentChatInput = useSetAtomState(agentChatInputState);
+  const currentAIChatThread = useAtomStateValue(currentAIChatThreadState);
+  const [agentChatDraftsByThreadId, setAgentChatDraftsByThreadId] =
+    useAtomState(agentChatDraftsByThreadIdState);
   const { searchMentionRecords } = useMentionSearch();
   const { pushFocusItemToFocusStack } = usePushFocusItemToFocusStack();
   const { removeFocusItemFromFocusStackById } =
     useRemoveFocusItemFromFocusStackById();
+
+  const draftKey = currentAIChatThread;
+  const initialDraft = agentChatDraftsByThreadId[draftKey] ?? '';
+  const initialContent = textToTiptapContent(initialDraft);
 
   const extensions = useMemo(
     () => [
@@ -49,6 +71,7 @@ export const useAIChatEditor = ({ onSendMessage }: UseAIChatEditorProps) => {
   );
 
   const editor = useEditor({
+    content: initialContent,
     extensions,
     editorProps: {
       handleKeyDown: (view, event) => {
@@ -61,7 +84,7 @@ export const useAIChatEditor = ({ onSendMessage }: UseAIChatEditorProps) => {
           }
 
           event.preventDefault();
-          onSendMessage();
+          dispatchAgentChatSendMessageEvent();
 
           const { state } = view;
           view.dispatch(state.tr.delete(0, state.doc.content.size));
@@ -75,6 +98,10 @@ export const useAIChatEditor = ({ onSendMessage }: UseAIChatEditorProps) => {
         currentEditor.getText({ blockSeparator: '\n' }),
       );
       setAgentChatInput(text);
+      setAgentChatDraftsByThreadId((prev) => ({ ...prev, [draftKey]: text }));
+      if (draftKey === AGENT_CHAT_NEW_THREAD_DRAFT_KEY && text.trim() !== '') {
+        dispatchAgentChatEnsureThreadForDraftEvent();
+      }
     },
     onFocus: () => {
       pushFocusItemToFocusStack({
@@ -107,10 +134,10 @@ export const useAIChatEditor = ({ onSendMessage }: UseAIChatEditorProps) => {
     mentionStorage.searchMentionRecords = searchMentionRecords;
   }
 
-  const handleSendAndClear = useCallback(() => {
-    onSendMessage();
+  const handleSendAndClear = () => {
+    dispatchAgentChatSendMessageEvent();
     editor?.commands.clearContent();
-  }, [onSendMessage, editor]);
+  };
 
   return { editor, handleSendAndClear };
 };

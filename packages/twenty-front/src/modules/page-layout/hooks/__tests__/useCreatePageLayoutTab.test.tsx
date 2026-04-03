@@ -1,13 +1,15 @@
 import { useCreatePageLayoutTab } from '@/page-layout/hooks/useCreatePageLayoutTab';
 import { pageLayoutCurrentLayoutsComponentState } from '@/page-layout/states/pageLayoutCurrentLayoutsComponentState';
 import { pageLayoutDraftComponentState } from '@/page-layout/states/pageLayoutDraftComponentState';
+import { getTabListInstanceIdFromPageLayoutId } from '@/page-layout/utils/getTabListInstanceIdFromPageLayoutId';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
-import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
-import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import { act, renderHook } from '@testing-library/react';
-import { useSetAtom } from 'jotai';
-import { PageLayoutType } from '~/generated-metadata/graphql';
+import {
+  PageLayoutTabLayoutMode,
+  PageLayoutType,
+} from '~/generated-metadata/graphql';
 import {
   PAGE_LAYOUT_TEST_INSTANCE_ID,
   PageLayoutTestWrapper,
@@ -28,19 +30,19 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => ({
-        createTab: useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        pageLayoutDraft: useRecoilComponentValue(
+        createTab: useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        pageLayoutDraft: useAtomComponentStateValue(
           pageLayoutDraftComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
-        pageLayoutCurrentLayouts: useRecoilComponentValue(
+        pageLayoutCurrentLayouts: useAtomComponentStateValue(
           pageLayoutCurrentLayoutsComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
-        ),
-        activeTabId: useSetAtom(
-          activeTabIdComponentState.atomFamily({
-            instanceId: `${PAGE_LAYOUT_TEST_INSTANCE_ID}-tab-list`,
-          }),
         ),
       }),
       {
@@ -56,6 +58,9 @@ describe('useCreatePageLayoutTab', () => {
     expect(result.current.pageLayoutDraft.tabs[0].id).toBe('mock-uuid');
     expect(result.current.pageLayoutDraft.tabs[0].title).toBe('Tab 1');
     expect(result.current.pageLayoutDraft.tabs[0].position).toBe(0);
+    expect(result.current.pageLayoutDraft.tabs[0].layoutMode).toBe(
+      PageLayoutTabLayoutMode.GRID,
+    );
     expect(result.current.pageLayoutDraft.tabs[0].widgets).toEqual([]);
 
     expect(result.current.pageLayoutCurrentLayouts['mock-uuid']).toEqual({
@@ -70,8 +75,13 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => ({
-        createTab: useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        pageLayoutDraft: useRecoilComponentValue(
+        createTab: useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        pageLayoutDraft: useAtomComponentStateValue(
           pageLayoutDraftComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
@@ -98,8 +108,13 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => ({
-        createTab: useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        pageLayoutDraft: useRecoilComponentValue(
+        createTab: useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        pageLayoutDraft: useAtomComponentStateValue(
           pageLayoutDraftComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
@@ -126,6 +141,53 @@ describe('useCreatePageLayoutTab', () => {
     expect(result.current.pageLayoutDraft.tabs[1].title).toBe('Tab 2');
   });
 
+  it('should default layoutMode to VERTICAL_LIST for record page layouts', () => {
+    const uuidModule = require('uuid');
+    uuidModule.v4.mockReturnValue('mock-uuid');
+
+    const { result } = renderHook(
+      () => {
+        const setPageLayoutDraft = useSetAtomComponentState(
+          pageLayoutDraftComponentState,
+          PAGE_LAYOUT_TEST_INSTANCE_ID,
+        );
+        const pageLayoutDraft = useAtomComponentStateValue(
+          pageLayoutDraftComponentState,
+          PAGE_LAYOUT_TEST_INSTANCE_ID,
+        );
+        const createTab = useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        });
+        return { setPageLayoutDraft, pageLayoutDraft, createTab };
+      },
+      {
+        wrapper: PageLayoutTestWrapper,
+      },
+    );
+
+    act(() => {
+      result.current.setPageLayoutDraft({
+        id: 'test-layout',
+        name: 'Test Layout',
+        type: PageLayoutType.RECORD_PAGE,
+        objectMetadataId: null,
+        tabs: [],
+      });
+    });
+
+    act(() => {
+      result.current.createTab.createPageLayoutTab();
+    });
+
+    expect(result.current.pageLayoutDraft.tabs).toHaveLength(1);
+    expect(result.current.pageLayoutDraft.tabs[0].layoutMode).toBe(
+      PageLayoutTabLayoutMode.VERTICAL_LIST,
+    );
+  });
+
   it('should create isolated layouts for multiple tabs', () => {
     const uuidModule = require('uuid');
     uuidModule.v4
@@ -134,8 +196,13 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => ({
-        createTab: useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        pageLayoutCurrentLayouts: useRecoilComponentValue(
+        createTab: useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        pageLayoutCurrentLayouts: useAtomComponentStateValue(
           pageLayoutCurrentLayoutsComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
@@ -175,13 +242,18 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => {
-        const getActiveTabId = useRecoilComponentValueV2(
+        const activeTabId = useAtomComponentStateValue(
           activeTabIdComponentState,
           `${PAGE_LAYOUT_TEST_INSTANCE_ID}-tab-list`,
         );
         return {
-          createTab: useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID),
-          activeTabId: getActiveTabId,
+          createTab: useCreatePageLayoutTab({
+            pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+            tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+              PAGE_LAYOUT_TEST_INSTANCE_ID,
+            ),
+          }),
+          activeTabId: activeTabId,
         };
       },
       {
@@ -204,15 +276,20 @@ describe('useCreatePageLayoutTab', () => {
 
     const { result } = renderHook(
       () => {
-        const setPageLayoutDraft = useSetRecoilComponentState(
+        const setPageLayoutDraft = useSetAtomComponentState(
           pageLayoutDraftComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         );
-        const pageLayoutDraft = useRecoilComponentValue(
+        const pageLayoutDraft = useAtomComponentStateValue(
           pageLayoutDraftComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         );
-        const createTab = useCreatePageLayoutTab(PAGE_LAYOUT_TEST_INSTANCE_ID);
+        const createTab = useCreatePageLayoutTab({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        });
         return { setPageLayoutDraft, pageLayoutDraft, createTab };
       },
       {
@@ -234,6 +311,7 @@ describe('useCreatePageLayoutTab', () => {
             position: 0,
             pageLayoutId: 'test-layout',
             widgets: [],
+            isOverridden: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,

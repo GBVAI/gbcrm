@@ -5,7 +5,12 @@ import {
 
 export type FrontComponentType = React.ComponentType<any>;
 
-export type FrontComponentCommandConfig = FrontComponentCommandManifest;
+export type FrontComponentCommandConfig = Omit<
+  FrontComponentCommandManifest,
+  'conditionalAvailabilityExpression'
+> & {
+  conditionalAvailabilityExpression?: boolean | string;
+};
 
 export type FrontComponentConfig = Omit<
   FrontComponentManifest,
@@ -13,6 +18,9 @@ export type FrontComponentConfig = Omit<
   | 'builtComponentPath'
   | 'builtComponentChecksum'
   | 'componentName'
+  | 'usesSdkClient'
+  | 'command'
 > & {
   component: FrontComponentType;
+  command?: FrontComponentCommandConfig;
 };

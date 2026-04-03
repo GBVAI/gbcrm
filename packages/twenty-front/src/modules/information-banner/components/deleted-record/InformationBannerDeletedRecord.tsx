@@ -1,6 +1,6 @@
 import { InformationBanner } from '@/information-banner/components/InformationBanner';
 import { useRestoreManyRecords } from '@/object-record/hooks/useRestoreManyRecords';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { IconRefresh } from 'twenty-ui/display';
 
@@ -28,7 +28,7 @@ export const InformationBannerDeletedRecord = ({
     <StyledInformationBannerDeletedRecord>
       <InformationBanner
         componentInstanceId="information-banner-deleted-record"
-        variant="danger"
+        color="danger"
         message={t`This record has been deleted`}
         buttonTitle={t`Restore`}
         buttonIcon={IconRefresh}

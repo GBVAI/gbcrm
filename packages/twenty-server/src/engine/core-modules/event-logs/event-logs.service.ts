@@ -1,14 +1,17 @@
 /* @license Enterprise */
 
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 
 import { EventLogTable } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
+import { Repository } from 'typeorm';
 
 import { ClickHouseService } from 'src/database/clickHouse/clickHouse.service';
 import { formatDateForClickHouse } from 'src/database/clickHouse/clickHouse.util';
 import { BillingEntitlementKey } from 'src/engine/core-modules/billing/enums/billing-entitlement-key.enum';
 import { BillingService } from 'src/engine/core-modules/billing/services/billing.service';
+import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 
 import {
   EventLogsException,
@@ -20,17 +23,30 @@ import { EventLogQueryInput } from './dtos/event-log-query.input';
 import {
   EventLogQueryResult,
   EventLogRecord,
-} from './dtos/event-log-result.output';
+} from './dtos/event-log-result.dto';
 
 type ClickHouseEventRecord = {
   event?: string;
   name?: string;
   timestamp: string;
-  userWorkspaceId?: string;
+  userId?: string;
   properties?: Record<string, unknown>;
   recordId?: string;
   objectMetadataId?: string;
   isCustom?: boolean;
+};
+
+type ClickHouseUsageEventRecord = {
+  timestamp: string;
+  userWorkspaceId?: string;
+  resourceType?: string;
+  operationType?: string;
+  quantity?: number;
+  unit?: string;
+  creditsUsedMicro?: number;
+  resourceId?: string;
+  resourceContext?: string;
+  metadata?: Record<string, unknown>;
 };
 
 const ALLOWED_TABLES = Object.values(EventLogTable);
@@ -40,6 +56,7 @@ const CLICKHOUSE_TABLE_NAMES: Record<EventLogTable, string> = {
   [EventLogTable.WORKSPACE_EVENT]: 'workspaceEvent',
   [EventLogTable.PAGEVIEW]: 'pageview',
   [EventLogTable.OBJECT_EVENT]: 'objectEvent',
+  [EventLogTable.USAGE_EVENT]: 'usageEvent',
 };
 
 @Injectable()
@@ -47,6 +64,8 @@ export class EventLogsService {
   constructor(
     private readonly clickHouseService: ClickHouseService,
     private readonly billingService: BillingService,
+    @InjectRepository(UserWorkspaceEntity)
+    private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
   ) {}
 
   async queryEventLogs(
@@ -62,12 +81,16 @@ export class EventLogsService {
     const limit = Math.min(input.first ?? 100, MAX_LIMIT);
     const tableName = CLICKHOUSE_TABLE_NAMES[input.table];
     const eventFieldName =
-      input.table === EventLogTable.PAGEVIEW ? 'name' : 'event';
+      input.table === EventLogTable.USAGE_EVENT
+        ? 'resourceType'
+        : input.table === EventLogTable.PAGEVIEW
+          ? 'name'
+          : 'event';
 
     const whereClauses: string[] = ['"workspaceId" = {workspaceId:String}'];
     const params: Record<string, unknown> = { workspaceId };
 
-    this.applyFilters(
+    await this.applyFilters(
       whereClauses,
       params,
       input.filters,
@@ -155,13 +178,13 @@ export class EventLogsService {
     }
   }
 
-  private applyFilters(
+  private async applyFilters(
     whereClauses: string[],
     params: Record<string, unknown>,
     filters: EventLogFiltersInput | undefined,
     eventFieldName: string,
     table: EventLogTable,
-  ): void {
+  ): Promise<void> {
     if (!isDefined(filters)) {
       return;
     }
@@ -173,9 +196,25 @@ export class EventLogsService {
       params.eventTypePattern = `%${filters.eventType.toLowerCase()}%`;
     }
 
+    // TODO: Legacy event tables (workspaceEvent, pageview, objectEvent) use
+    // userId because some actions are logged out. Usage events use
+    // userWorkspaceId directly which is more relevant in a workspace context.
+    // Consider migrating all event tables to userWorkspaceId for consistency.
     if (isDefined(filters.userWorkspaceId)) {
-      whereClauses.push('"userWorkspaceId" = {userWorkspaceId:String}');
-      params.userWorkspaceId = filters.userWorkspaceId;
+      if (table === EventLogTable.USAGE_EVENT) {
+        whereClauses.push('"userWorkspaceId" = {userWorkspaceId:String}');
+        params.userWorkspaceId = filters.userWorkspaceId;
+      } else {
+        const userWorkspace = await this.userWorkspaceRepository.findOne({
+          where: { id: filters.userWorkspaceId },
+          select: ['userId'],
+        });
+
+        if (isDefined(userWorkspace)) {
+          whereClauses.push('"userId" = {userId:String}');
+          params.userId = userWorkspace.userId;
+        }
+      }
     }
 
     if (isDefined(filters.dateRange?.start)) {
@@ -210,10 +249,27 @@ export class EventLogsService {
   }
 
   private normalizeRecords(
-    records: ClickHouseEventRecord[],
+    records: ClickHouseEventRecord[] | ClickHouseUsageEventRecord[],
     table: EventLogTable,
   ): EventLogRecord[] {
-    return records.map((record) => {
+    if (table === EventLogTable.USAGE_EVENT) {
+      return (records as ClickHouseUsageEventRecord[]).map((record) => ({
+        event: record.resourceType ?? '',
+        timestamp: new Date(record.timestamp),
+        userId: record.userWorkspaceId,
+        properties: {
+          operationType: record.operationType,
+          quantity: record.quantity,
+          unit: record.unit,
+          creditsUsedMicro: record.creditsUsedMicro,
+          resourceId: record.resourceId,
+          resourceContext: record.resourceContext,
+          ...(record.metadata ?? {}),
+        },
+      }));
+    }
+
+    return (records as ClickHouseEventRecord[]).map((record) => {
       const eventName =
         table === EventLogTable.PAGEVIEW
           ? (record.name ?? '')
@@ -222,7 +278,7 @@ export class EventLogsService {
       return {
         event: eventName,
         timestamp: new Date(record.timestamp),
-        userWorkspaceId: record.userWorkspaceId,
+        userId: record.userId,
         properties: record.properties,
         recordId: record.recordId,
         objectMetadataId: record.objectMetadataId,

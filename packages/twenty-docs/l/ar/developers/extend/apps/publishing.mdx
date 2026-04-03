@@ -1,0 +1,191 @@
+---
+title: النشر
+description: وزّع تطبيق Twenty الخاص بك على سوق Twenty أو انشره داخليًا.
+---
+
+<Warning>
+  التطبيقات حاليًا في مرحلة الألفا. الميزة تعمل لكنها لا تزال قيد التطور.
+</Warning>
+
+## نظرة عامة
+
+بمجرد أن يكون تطبيقك [مبنيًا ومختبرًا محليًا](/l/ar/developers/extend/apps/building)، لديك مساران لتوزيعه:
+
+* **نشر أرشيف tar** — ارفع تطبيقك مباشرةً إلى خادم Twenty محدد للاستخدام الداخلي أو الخاص.
+* **النشر على npm** — أدرج تطبيقك في سوق Twenty ليتسنى لأي مساحة عمل اكتشافه وتثبيته.
+
+كلا المسارين يبدآن من نفس خطوة **build**.
+
+## بناء تطبيقك
+
+شغّل أمر build لتجميع تطبيقك وإنشاء ملف `manifest.json` جاهز للتوزيع:
+
+```bash filename="Terminal"
+yarn twenty build
+```
+
+يقوم هذا بتجميع مصادر TypeScript، وتحويل دوال المنطق ومكوّنات الواجهة الأمامية، وكتابة كل شيء إلى `.twenty/output/`. أضِف `--tarball` لإنتاج حزمة `.tgz` أيضًا للتوزيع اليدوي أو لأمر deploy.
+
+## النشر إلى خادم (tarball)
+
+بالنسبة للتطبيقات التي لا تريد إتاحتها للعامة — مثل الأدوات المملوكة، أو عمليات التكامل الخاصة بالمؤسسات فقط، أو الإصدارات التجريبية — يمكنك نشر tarball مباشرةً إلى خادم Twenty.
+
+### المتطلبات الأساسية
+
+قبل النشر، تحتاج إلى remote مُعدّ يشير إلى خادم الهدف. تُخزّن remotes عنوان URL للخادم وبيانات اعتماد المصادقة محليًا في `~/.twenty/config.json`.
+
+أضِف remote:
+
+```bash filename="Terminal"
+yarn twenty remote add --api-url https://your-twenty-server.com --as production
+```
+
+### النشر
+
+بناء تطبيقك ورفعه إلى الخادم في خطوة واحدة:
+
+```bash filename="Terminal"
+yarn twenty deploy
+# To deploy to a specific remote:
+# yarn twenty deploy --remote production
+```
+
+### مشاركة تطبيق منشور
+
+تطبيقات tarball لا تُدرَج في السوق العامة، لذا لن تكتشفها مساحات العمل الأخرى على الخادم نفسه عبر الاستعراض. لمشاركة تطبيق منشور:
+
+1. اذهب إلى **الإعدادات > التطبيقات > التسجيلات** وافتح تطبيقك
+2. في علامة التبويب **التوزيع**، انقر **نسخ رابط المشاركة**
+3. شارك هذا الرابط مع المستخدمين في مساحات عمل أخرى — سيأخذهم مباشرةً إلى صفحة تثبيت التطبيق
+
+يستخدم رابط المشاركة عنوان URL الأساسي للخادم (من دون أي نطاق فرعي لمساحة عمل)، لذا يعمل مع أي مساحة عمل على الخادم.
+
+<Warning>
+مشاركة التطبيقات الخاصة هي ميزة ضمن باقة Enterprise. اذهب إلى [الإعدادات > لوحة الإدارة > Enterprise](/settings/admin-panel#enterprise) لتمكينها.
+</Warning>
+
+### إدارة الإصدارات
+
+لطرح تحديث:
+
+1. ارفع قيمة الحقل `version` في ملف `package.json`
+2. شغّل `yarn twenty deploy` (أو `yarn twenty deploy --remote production`)
+3. سترى مساحات العمل التي ثبّتت التطبيق الترقية متاحة في إعداداتها
+
+{/* TODO: add screenshot of the Upgrade button */}
+
+## النشر على npm
+
+يُتيح النشر على npm إمكانية العثور على تطبيقك في سوق Twenty. يمكن لأي مساحة عمل في Twenty استعراض تطبيقات السوق وتثبيتها وترقيتها مباشرةً من واجهة المستخدم.
+
+### المتطلبات
+
+* حساب على [npm](https://www.npmjs.com)
+* الكلمة المفتاحية `twenty-app` في مصفوفة `keywords` في `package.json` (موجودة مسبقًا عند تهيئة المشروع باستخدام `create-twenty-app`)
+
+```json filename="package.json"
+{
+  "name": "twenty-app-postcard-sender",
+  "version": "1.0.0",
+  "keywords": ["twenty-app"]
+}
+```
+
+### بيانات التعريف لسوق التطبيقات
+
+يدعم إعداد `defineApplication()` حقولًا اختيارية تتحكم في كيفية ظهور تطبيقك في السوق. استخدم `logoUrl` و`screenshots` للإشارة إلى الصور من مجلد `public/`:
+
+```ts src/application-config.ts
+export default defineApplication({
+  universalIdentifier: '...',
+  displayName: 'My App',
+  description: 'A great app',
+  defaultRoleUniversalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
+  logoUrl: 'public/logo.png',
+  screenshots: [
+    'public/screenshot-1.png',
+    'public/screenshot-2.png',
+  ],
+});
+```
+
+اطّلع على [أكورديون defineApplication](/l/ar/developers/extend/apps/building#defineentity-functions) في صفحة بناء التطبيقات للاطلاع على القائمة الكاملة لحقول السوق (`author` و`category` و`aboutDescription` و`websiteUrl` و`termsUrl` وغيرها).
+
+### النشر
+
+```bash filename="Terminal"
+yarn twenty publish
+```
+
+للنشر تحت dist-tag معيّن (مثلًا: `beta` أو `next`):
+
+```bash filename="Terminal"
+yarn twenty publish --tag beta
+```
+
+### كيف تعمل آلية الاكتشاف في السوق
+
+يقوم خادم Twenty بمزامنة كتالوج السوق من سجل npm **كل ساعة**.
+
+يمكنك تشغيل المزامنة فورًا بدلًا من الانتظار:
+
+```bash filename="Terminal"
+yarn twenty catalog-sync
+# To target a specific remote:
+# yarn twenty catalog-sync --remote production
+```
+
+تأتي بيانات التعريف المعروضة في السوق من إعداد `defineApplication()` — حقول مثل `displayName` و`description` و`author` و`category` و`logoUrl` و`screenshots` و`aboutDescription` و`websiteUrl` و`termsUrl`.
+
+<Note>
+إذا لم يحدد تطبيقك `aboutDescription` في `defineApplication()`، فسيستخدم السوق تلقائيًا ملف `README.md` الخاص بحزمتك من npm كمحتوى لصفحة حول. هذا يعني أنه يمكنك الاحتفاظ بملف README واحد لكل من npm وسوق Twenty. إذا كنت تريد وصفًا مختلفًا في السوق، فقم بتعيين `aboutDescription` بشكل صريح.
+</Note>
+
+### النشر عبر CI
+
+استخدم سير عمل GitHub Actions هذا للنشر تلقائيًا مع كل إصدار (يستخدم [OIDC](https://docs.npmjs.com/trusted-publishers)):
+
+```yaml filename=".github/workflows/publish.yml"
+name: Publish
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - run: yarn install --immutable
+      - run: npx twenty build
+      - run: npm publish --provenance --access public
+        working-directory: .twenty/output
+```
+
+بالنسبة لأنظمة CI الأخرى (GitLab CI، وCircleCI، إلخ)، تنطبق الأوامر الثلاثة نفسها: `yarn install`، ثم `yarn twenty build`، ثم `npm publish` من `.twenty/output`.
+
+<Note>
+**npm provenance** اختياري ولكنه موصى به. يضيف النشر باستخدام `--provenance` شارة ثقة إلى إدراجك على npm، مما يتيح للمستخدمين التحقق من أن الحزمة تم بناؤها من التزام محدد ضمن خط أنابيب CI عام. راجع [وثائق npm provenance](https://docs.npmjs.com/generating-provenance-statements) للحصول على تعليمات الإعداد.
+</Note>
+
+## تثبيت التطبيقات
+
+بعد نشر التطبيق (npm) أو نشره (tarball)، يمكن لمساحات العمل تثبيته عبر واجهة المستخدم.
+
+اذهب إلى صفحة **الإعدادات > التطبيقات** في Twenty، حيث يمكن استعراض تطبيقات السوق والتطبيقات المنشورة عبر tarball وتثبيتها.
+
+{/* TODO: add screenshot of the UI when the app is registered */}
+
+يمكنك أيضًا تثبيت التطبيقات من سطر الأوامر:
+
+```bash filename="Terminal"
+yarn twenty install
+```

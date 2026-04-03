@@ -1,151 +1,148 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import { anthropic } from '@ai-sdk/anthropic';
-import { groq } from '@ai-sdk/groq';
-import { createOpenAI, openai } from '@ai-sdk/openai';
-import { xai } from '@ai-sdk/xai';
 import { type LanguageModel } from 'ai';
+import { type AiSdkPackage } from 'twenty-shared/ai';
 
-import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { AiModelRole } from 'src/engine/metadata-modules/ai/ai-models/types/ai-model-role.enum';
+
 import {
   AgentException,
   AgentExceptionCode,
 } from 'src/engine/metadata-modules/ai/ai-agent/agent.exception';
+import { AiModelPreferencesService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-preferences.service';
+import { ProviderConfigService } from 'src/engine/metadata-modules/ai/ai-models/services/provider-config.service';
+import { SdkProviderFactoryService } from 'src/engine/metadata-modules/ai/ai-models/services/sdk-provider-factory.service';
+import { type AIModelConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-model-config.type';
+import { type AiProviderConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-provider-config.type';
+import { type AiProviderModelConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-provider-model-config.type';
+import { type AiProvidersConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-providers-config.type';
+import { DEFAULT_CONTEXT_WINDOW_TOKENS } from 'src/engine/metadata-modules/ai/ai-models/types/default-context-window-tokens.const';
 import {
-  AI_MODELS,
-  DEFAULT_FAST_MODEL,
-  DEFAULT_SMART_MODEL,
-  ModelProvider,
-  type AIModelConfig,
-} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-models.const';
-import { ANTHROPIC_MODELS } from 'src/engine/metadata-modules/ai/ai-models/constants/anthropic-models.const';
-import { GROQ_MODELS } from 'src/engine/metadata-modules/ai/ai-models/constants/groq-models.const';
-import { OPENAI_MODELS } from 'src/engine/metadata-modules/ai/ai-models/constants/openai-models.const';
-import { XAI_MODELS } from 'src/engine/metadata-modules/ai/ai-models/constants/xai-models.const';
+  AUTO_SELECT_FAST_MODEL_ID,
+  AUTO_SELECT_SMART_MODEL_ID,
+} from 'twenty-shared/constants';
+import { isAutoSelectModelId } from 'twenty-shared/utils';
+
+import { DEFAULT_MAX_OUTPUT_TOKENS } from 'src/engine/metadata-modules/ai/ai-models/types/default-max-output-tokens.const';
+import { buildCompositeModelId } from 'src/engine/metadata-modules/ai/ai-models/utils/composite-model-id.util';
+import { inferModelFamily } from 'src/engine/metadata-modules/ai/ai-models/utils/infer-model-family.util';
+import { isProviderConfigured } from 'src/engine/metadata-modules/ai/ai-models/utils/is-provider-configured.util';
+import {
+  isModelAllowedByWorkspace,
+  type WorkspaceModelAvailabilitySettings,
+} from 'src/engine/metadata-modules/ai/ai-models/utils/is-model-allowed.util';
 
 export interface RegisteredAIModel {
   modelId: string;
-  provider: ModelProvider;
+  sdkPackage: AiSdkPackage;
   model: LanguageModel;
-  doesSupportThinking?: boolean;
+  supportsReasoning?: boolean;
+  providerName?: string;
+  modelsDevName?: string;
 }
 
 @Injectable()
 export class AiModelRegistryService {
+  private readonly logger = new Logger(AiModelRegistryService.name);
   private modelRegistry: Map<string, RegisteredAIModel> = new Map();
+  private modelConfigCache: Map<string, AIModelConfig> = new Map();
+  private providerModelDefCache: Map<
+    string,
+    { providerName: string; modelDef: AiProviderModelConfig }
+  > = new Map();
 
-  constructor(private twentyConfigService: TwentyConfigService) {
+  constructor(
+    private readonly providerConfigService: ProviderConfigService,
+    private readonly sdkProviderFactory: SdkProviderFactoryService,
+    private readonly preferencesService: AiModelPreferencesService,
+  ) {
     this.buildModelRegistry();
   }
 
   private buildModelRegistry(): void {
     this.modelRegistry.clear();
+    this.sdkProviderFactory.clearCache();
+    this.modelConfigCache.clear();
+    this.providerModelDefCache.clear();
 
-    const openaiApiKey = this.twentyConfigService.get('OPENAI_API_KEY');
+    const providers = this.providerConfigService.getResolvedProviders();
 
-    if (openaiApiKey) {
-      this.registerOpenAIModels();
-    }
+    this.registerModelsFromProviders(providers);
+  }
 
-    const anthropicApiKey = this.twentyConfigService.get('ANTHROPIC_API_KEY');
+  private registerModelsFromProviders(providers: AiProvidersConfig): void {
+    for (const [providerKey, config] of Object.entries(providers)) {
+      if (!config.npm) {
+        this.logger.warn(
+          `Skipping provider "${providerKey}": missing npm field`,
+        );
+        continue;
+      }
 
-    if (anthropicApiKey) {
-      this.registerAnthropicModels();
-    }
+      const models = config.models ?? [];
 
-    const xaiApiKey = this.twentyConfigService.get('XAI_API_KEY');
+      if (models.length === 0) {
+        continue;
+      }
 
-    if (xaiApiKey) {
-      this.registerXaiModels();
-    }
+      const sdkInstance = isProviderConfigured(config)
+        ? this.sdkProviderFactory.createProvider(providerKey, config)
+        : undefined;
 
-    const groqApiKey = this.twentyConfigService.get('GROQ_API_KEY');
+      for (const modelDef of models) {
+        const compositeId = buildCompositeModelId(providerKey, modelDef.name);
 
-    if (groqApiKey) {
-      this.registerGroqModels();
-    }
+        this.modelConfigCache.set(
+          compositeId,
+          this.toAIModelConfig(compositeId, config, modelDef),
+        );
 
-    const openaiCompatibleBaseUrl = this.twentyConfigService.get(
-      'OPENAI_COMPATIBLE_BASE_URL',
-    );
-    const openaiCompatibleModelNames = this.twentyConfigService.get(
-      'OPENAI_COMPATIBLE_MODEL_NAMES',
-    );
+        this.providerModelDefCache.set(compositeId, {
+          providerName: providerKey,
+          modelDef,
+        });
 
-    if (openaiCompatibleBaseUrl && openaiCompatibleModelNames) {
-      this.registerOpenAICompatibleModels(
-        openaiCompatibleBaseUrl,
-        openaiCompatibleModelNames,
-      );
+        if (sdkInstance) {
+          this.modelRegistry.set(compositeId, {
+            modelId: compositeId,
+            sdkPackage: config.npm,
+            model: sdkInstance.createModel(modelDef.name),
+            supportsReasoning: modelDef.supportsReasoning,
+            providerName: providerKey,
+            modelsDevName: config.name,
+          });
+        }
+      }
     }
   }
 
-  private registerOpenAIModels(): void {
-    OPENAI_MODELS.forEach((modelConfig) => {
-      this.modelRegistry.set(modelConfig.modelId, {
-        modelId: modelConfig.modelId,
-        provider: ModelProvider.OPENAI,
-        model: openai(modelConfig.modelId),
-        doesSupportThinking: modelConfig.doesSupportThinking,
-      });
-    });
-  }
-
-  private registerAnthropicModels(): void {
-    ANTHROPIC_MODELS.forEach((modelConfig) => {
-      this.modelRegistry.set(modelConfig.modelId, {
-        modelId: modelConfig.modelId,
-        provider: ModelProvider.ANTHROPIC,
-        model: anthropic(modelConfig.modelId),
-        doesSupportThinking: modelConfig.doesSupportThinking,
-      });
-    });
-  }
-
-  private registerXaiModels(): void {
-    XAI_MODELS.forEach((modelConfig) => {
-      this.modelRegistry.set(modelConfig.modelId, {
-        modelId: modelConfig.modelId,
-        provider: ModelProvider.XAI,
-        model: xai(modelConfig.modelId),
-        doesSupportThinking: modelConfig.doesSupportThinking,
-      });
-    });
-  }
-
-  private registerGroqModels(): void {
-    GROQ_MODELS.forEach((modelConfig) => {
-      this.modelRegistry.set(modelConfig.modelId, {
-        modelId: modelConfig.modelId,
-        provider: ModelProvider.GROQ,
-        model: groq(modelConfig.modelId),
-        doesSupportThinking: modelConfig.doesSupportThinking,
-      });
-    });
-  }
-
-  private registerOpenAICompatibleModels(
-    baseUrl: string,
-    modelNamesString: string,
-  ): void {
-    const apiKey = this.twentyConfigService.get('OPENAI_COMPATIBLE_API_KEY');
-    const provider = createOpenAI({
-      baseURL: baseUrl,
-      apiKey: apiKey,
-    });
-
-    const modelNames = modelNamesString
-      .split(',')
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0);
-
-    modelNames.forEach((modelId) => {
-      this.modelRegistry.set(modelId, {
-        modelId,
-        provider: ModelProvider.OPENAI_COMPATIBLE,
-        model: provider(modelId),
-      });
-    });
+  private toAIModelConfig(
+    compositeId: string,
+    providerConfig: AiProviderConfig,
+    modelDef: AiProviderModelConfig,
+  ): AIModelConfig {
+    return {
+      modelId: compositeId,
+      label: modelDef.label,
+      sdkPackage: providerConfig.npm,
+      description: modelDef.description ?? compositeId,
+      modelFamily:
+        modelDef.modelFamily ??
+        inferModelFamily(providerConfig.name ?? '', modelDef.name),
+      dataResidency: providerConfig.dataResidency,
+      inputCostPerMillionTokens: modelDef.inputCostPerMillionTokens ?? 0,
+      outputCostPerMillionTokens: modelDef.outputCostPerMillionTokens ?? 0,
+      cachedInputCostPerMillionTokens: modelDef.cachedInputCostPerMillionTokens,
+      cacheCreationCostPerMillionTokens:
+        modelDef.cacheCreationCostPerMillionTokens,
+      longContextCost: modelDef.longContextCost,
+      contextWindowTokens:
+        modelDef.contextWindowTokens ?? DEFAULT_CONTEXT_WINDOW_TOKENS,
+      maxOutputTokens: modelDef.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
+      modalities: modelDef.modalities,
+      supportsReasoning: modelDef.supportsReasoning,
+      isDeprecated: modelDef.isDeprecated,
+    };
   }
 
   getModel(modelId: string): RegisteredAIModel | undefined {
@@ -156,14 +153,17 @@ export class AiModelRegistryService {
     return Array.from(this.modelRegistry.values());
   }
 
-  private getFirstAvailableModelFromList(
-    modelIdList: string,
-  ): RegisteredAIModel | undefined {
-    const modelIds = modelIdList
-      .split(',')
-      .map((id) => id.trim())
-      .filter((id) => id.length > 0);
+  getModelConfig(modelId: string): AIModelConfig | undefined {
+    return this.modelConfigCache.get(modelId);
+  }
 
+  getRecommendedModelIds(): Set<string> {
+    return this.preferencesService.getRecommendedModelIds();
+  }
+
+  private getFirstAvailableModelFromList(
+    modelIds: string[],
+  ): RegisteredAIModel | undefined {
     for (const modelId of modelIds) {
       const model = this.getModel(modelId);
 
@@ -176,42 +176,27 @@ export class AiModelRegistryService {
   }
 
   getDefaultSpeedModel(): RegisteredAIModel {
-    const defaultModelIds = this.twentyConfigService.get(
-      'DEFAULT_AI_SPEED_MODEL_ID',
-    );
-    let model = this.getFirstAvailableModelFromList(defaultModelIds);
-
-    if (!model) {
-      const availableModels = this.getAvailableModels();
-
-      model = availableModels[0];
-    }
-
-    if (!model) {
-      throw new AgentException(
-        'No AI models are available. Please configure at least one AI provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY, or GROQ_API_KEY).',
-        AgentExceptionCode.API_KEY_NOT_CONFIGURED,
-      );
-    }
-
-    return model;
+    return this.getDefaultModelForRole(AiModelRole.FAST);
   }
 
   getDefaultPerformanceModel(): RegisteredAIModel {
-    const defaultModelIds = this.twentyConfigService.get(
-      'DEFAULT_AI_PERFORMANCE_MODEL_ID',
-    );
-    let model = this.getFirstAvailableModelFromList(defaultModelIds);
+    return this.getDefaultModelForRole(AiModelRole.SMART);
+  }
+
+  private getDefaultModelForRole(role: AiModelRole): RegisteredAIModel {
+    const prefs = this.preferencesService.getPreferences();
+    const preferenceKey =
+      role === AiModelRole.FAST ? 'defaultFastModels' : 'defaultSmartModels';
+
+    let model = this.getFirstAvailableModelFromList(prefs[preferenceKey] ?? []);
 
     if (!model) {
-      const availableModels = this.getAvailableModels();
-
-      model = availableModels[0];
+      model = this.getAvailableModels()[0];
     }
 
     if (!model) {
       throw new AgentException(
-        'No AI models are available. Please configure at least one AI provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, XAI_API_KEY, or GROQ_API_KEY).',
+        'No AI models are available. Configure at least one AI provider.',
         AgentExceptionCode.API_KEY_NOT_CONFIGURED,
       );
     }
@@ -220,30 +205,22 @@ export class AiModelRegistryService {
   }
 
   getEffectiveModelConfig(modelId: string): AIModelConfig {
-    if (modelId === DEFAULT_FAST_MODEL || modelId === DEFAULT_SMART_MODEL) {
-      // getDefaultSpeedModel/getDefaultPerformanceModel will throw AgentException if no models available
+    if (isAutoSelectModelId(modelId)) {
       const defaultModel =
-        modelId === DEFAULT_FAST_MODEL
+        modelId === AUTO_SELECT_FAST_MODEL_ID
           ? this.getDefaultSpeedModel()
           : this.getDefaultPerformanceModel();
 
-      const modelConfig = AI_MODELS.find(
-        (model) => model.modelId === defaultModel.modelId,
+      return (
+        this.modelConfigCache.get(defaultModel.modelId) ??
+        this.createDefaultConfigForCustomModel(defaultModel)
       );
-
-      if (modelConfig) {
-        return modelConfig;
-      }
-
-      return this.createDefaultConfigForCustomModel(defaultModel);
     }
 
-    const predefinedModel = AI_MODELS.find(
-      (model) => model.modelId === modelId,
-    );
+    const config = this.modelConfigCache.get(modelId);
 
-    if (predefinedModel) {
-      return predefinedModel;
+    if (config) {
+      return config;
     }
 
     const registeredModel = this.getModel(modelId);
@@ -265,65 +242,138 @@ export class AiModelRegistryService {
       modelId: registeredModel.modelId,
       label: registeredModel.modelId,
       description: `Custom model: ${registeredModel.modelId}`,
-      provider: registeredModel.provider,
-      inputCostPer1kTokensInCents: 0,
-      outputCostPer1kTokensInCents: 0,
-      contextWindowTokens: 128000,
-      maxOutputTokens: 4096,
+      modelFamily: inferModelFamily(
+        registeredModel.modelsDevName ?? '',
+        registeredModel.modelId,
+      ),
+      sdkPackage: registeredModel.sdkPackage,
+      inputCostPerMillionTokens: 0,
+      outputCostPerMillionTokens: 0,
+      contextWindowTokens: DEFAULT_CONTEXT_WINDOW_TOKENS,
+      maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     };
   }
 
-  // Force refresh the registry (useful if config changes)
-  refreshRegistry(): void {
-    this.buildModelRegistry();
+  isModelAdminAllowed(modelId: string): boolean {
+    if (isAutoSelectModelId(modelId)) {
+      return true;
+    }
+
+    const prefs = this.preferencesService.getPreferences();
+    const disabledModels = prefs.disabledModels ?? [];
+
+    return !disabledModels.includes(modelId);
   }
 
-  async resolveModelForAgent(agent: { modelId: string } | null) {
-    const aiModel = this.getEffectiveModelConfig(
-      agent?.modelId ?? DEFAULT_SMART_MODEL,
-    );
-
-    await this.validateApiKey(aiModel.provider);
-    const registeredModel = this.getModel(aiModel.modelId);
-
-    if (!registeredModel) {
+  validateModelAvailability(
+    modelId: string,
+    workspace: WorkspaceModelAvailabilitySettings,
+  ): void {
+    if (!this.isModelAdminAllowed(modelId)) {
       throw new AgentException(
-        `Model ${aiModel.modelId} not found in registry`,
+        'The selected model has been disabled by the administrator.',
         AgentExceptionCode.AGENT_EXECUTION_FAILED,
       );
     }
 
-    return registeredModel;
+    if (
+      !isModelAllowedByWorkspace(
+        modelId,
+        workspace,
+        this.getRecommendedModelIds(),
+      )
+    ) {
+      throw new AgentException(
+        'The selected model is not available in this workspace.',
+        AgentExceptionCode.AGENT_EXECUTION_FAILED,
+      );
+    }
   }
 
-  async validateApiKey(provider: ModelProvider): Promise<void> {
-    let apiKey: string | undefined;
+  getAdminFilteredModels(): RegisteredAIModel[] {
+    return this.getAvailableModels().filter((model) =>
+      this.isModelAdminAllowed(model.modelId),
+    );
+  }
 
-    switch (provider) {
-      case ModelProvider.OPENAI:
-        apiKey = this.twentyConfigService.get('OPENAI_API_KEY');
-        break;
-      case ModelProvider.ANTHROPIC:
-        apiKey = this.twentyConfigService.get('ANTHROPIC_API_KEY');
-        break;
-      case ModelProvider.XAI:
-        apiKey = this.twentyConfigService.get('XAI_API_KEY');
-        break;
-      case ModelProvider.GROQ:
-        apiKey = this.twentyConfigService.get('GROQ_API_KEY');
-        break;
-      case ModelProvider.OPENAI_COMPATIBLE:
-        apiKey = this.twentyConfigService.get('OPENAI_COMPATIBLE_API_KEY');
-        break;
-      default:
-        return;
-    }
+  getAllModelsWithStatus(): Array<{
+    modelConfig: AIModelConfig;
+    isAvailable: boolean;
+    isAdminEnabled: boolean;
+    isRecommended: boolean;
+    providerName?: string;
+    name?: string;
+  }> {
+    const recommended = this.getRecommendedModelIds();
 
-    if (!apiKey) {
+    return Array.from(this.modelConfigCache.values()).map((modelConfig) => {
+      const registered = this.modelRegistry.get(modelConfig.modelId);
+      const cached = this.providerModelDefCache.get(modelConfig.modelId);
+
+      return {
+        modelConfig,
+        isAvailable: !!registered,
+        isAdminEnabled: this.isModelAdminAllowed(modelConfig.modelId),
+        isRecommended: recommended.has(modelConfig.modelId),
+        providerName: registered?.providerName ?? cached?.providerName,
+        name: cached?.modelDef.name,
+      };
+    });
+  }
+
+  async setModelAdminEnabled(modelId: string, enabled: boolean): Promise<void> {
+    this.validateModelInRegistry(modelId);
+    await this.preferencesService.setModelAdminEnabled(modelId, enabled);
+  }
+
+  async setModelRecommended(
+    modelId: string,
+    recommended: boolean,
+  ): Promise<void> {
+    this.validateModelInRegistry(modelId);
+    await this.preferencesService.setModelRecommended(modelId, recommended);
+  }
+
+  async setDefaultModel(role: AiModelRole, modelId: string): Promise<void> {
+    this.validateModelInRegistry(modelId);
+    await this.preferencesService.setDefaultModel(role, modelId);
+  }
+
+  private validateModelInRegistry(modelId: string): void {
+    if (!this.providerModelDefCache.has(modelId)) {
       throw new AgentException(
-        `${provider.toUpperCase()} API key not configured. Please set the appropriate environment variable.`,
+        `Cannot update model "${modelId}": not found in registry`,
+        AgentExceptionCode.AGENT_EXECUTION_FAILED,
+      );
+    }
+  }
+
+  getResolvedProvidersForAdmin(): AiProvidersConfig {
+    return this.providerConfigService.getResolvedProviders();
+  }
+
+  getCatalogProviderNames(): Set<string> {
+    return this.providerConfigService.getCatalogProviderNames();
+  }
+
+  refreshRegistry(): void {
+    this.buildModelRegistry();
+  }
+
+  resolveModelForAgent(agent: { modelId: string } | null): RegisteredAIModel {
+    const aiModel = this.getEffectiveModelConfig(
+      agent?.modelId ?? AUTO_SELECT_SMART_MODEL_ID,
+    );
+
+    const registeredModel = this.getModel(aiModel.modelId);
+
+    if (!registeredModel) {
+      throw new AgentException(
+        `Model ${aiModel.modelId} not found in registry. Check that the corresponding AI provider is configured.`,
         AgentExceptionCode.API_KEY_NOT_CONFIGURED,
       );
     }
+
+    return registeredModel;
   }
 }

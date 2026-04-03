@@ -1,39 +1,51 @@
-import { MockedProvider, type MockedResponse } from '@apollo/client/testing';
+import { type MockedResponse } from '@apollo/client/testing';
+import { MockedProvider } from '@apollo/client/testing/react';
 import { Provider as JotaiProvider } from 'jotai';
-import { type ReactNode } from 'react';
-import { RecoilRoot, type MutableSnapshot } from 'recoil';
+import { type ReactNode, useState } from 'react';
 
 import { ContextStoreComponentInstanceContext } from '@/context-store/states/contexts/ContextStoreComponentInstanceContext';
 
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { RecordComponentInstanceContextsWrapper } from '@/object-record/components/RecordComponentInstanceContextsWrapper';
 import { SnackBarComponentInstanceContext } from '@/ui/feedback/snack-bar-manager/contexts/SnackBarComponentInstanceContext';
-import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
+import {
+  jotaiStore,
+  resetJotaiStore,
+} from '@/ui/utilities/state/jotai/jotaiStore';
 import { ViewComponentInstanceContext } from '@/views/states/contexts/ViewComponentInstanceContext';
 import { type InMemoryCache } from '@apollo/client';
+import type { Store } from 'jotai/vanilla/store';
 import { JestContextStoreSetter } from '~/testing/jest/JestContextStoreSetter';
 import { JestObjectMetadataItemSetter } from '~/testing/jest/JestObjectMetadataItemSetter';
 
 export const getJestMetadataAndApolloMocksWrapper = ({
   apolloMocks,
   cache,
-  onInitializeRecoilSnapshot,
+  onInitializeJotaiStore,
   objectMetadataItems,
 }: {
   cache?: InMemoryCache;
   apolloMocks?:
     | readonly MockedResponse<Record<string, any>, Record<string, any>>[]
     | undefined;
-  onInitializeRecoilSnapshot?: (snapshot: MutableSnapshot) => void;
-  objectMetadataItems?: ObjectMetadataItem[];
+  onInitializeJotaiStore?: (store: Store) => void;
+  objectMetadataItems?: EnrichedObjectMetadataItem[];
 }) => {
-  return ({ children }: { children: ReactNode }) => (
-    <JotaiProvider store={jotaiStore}>
-      <RecoilRoot initializeState={onInitializeRecoilSnapshot}>
+  resetJotaiStore();
+
+  return ({ children }: { children: ReactNode }) => {
+    const [store] = useState(() => {
+      const currentStore = jotaiStore;
+      onInitializeJotaiStore?.(currentStore);
+      return currentStore;
+    });
+
+    return (
+      <JotaiProvider store={store}>
         <SnackBarComponentInstanceContext.Provider
           value={{ instanceId: 'snack-bar-manager' }}
         >
-          <MockedProvider mocks={apolloMocks} addTypename={false} cache={cache}>
+          <MockedProvider mocks={apolloMocks} cache={cache}>
             <RecordComponentInstanceContextsWrapper componentInstanceId="instanceId">
               <ViewComponentInstanceContext.Provider
                 value={{ instanceId: 'instanceId' }}
@@ -51,7 +63,7 @@ export const getJestMetadataAndApolloMocksWrapper = ({
             </RecordComponentInstanceContextsWrapper>
           </MockedProvider>
         </SnackBarComponentInstanceContext.Provider>
-      </RecoilRoot>
-    </JotaiProvider>
-  );
+      </JotaiProvider>
+    );
+  };
 };

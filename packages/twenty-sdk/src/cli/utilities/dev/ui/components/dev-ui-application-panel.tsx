@@ -33,7 +33,6 @@ export const DevUiSyncStatusIndicator = ({
   return (
     <Text color={config.color}>
       {icon} {label}
-      {state.pipeline.error && `: ${state.pipeline.error}`}
     </Text>
   );
 };
@@ -114,11 +113,7 @@ export const DevUiApplicationPanel = ({
           const entities = groupedEntities.get(type) ?? [];
 
           return (
-            <DevUiEntitySection
-              key={type}
-              type={type}
-              entities={entities}
-            />
+            <DevUiEntitySection key={type} type={type} entities={entities} />
           );
         })}
       </Box>

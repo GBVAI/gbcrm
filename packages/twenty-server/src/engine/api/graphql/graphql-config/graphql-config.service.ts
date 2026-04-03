@@ -18,25 +18,28 @@ import { isDefined } from 'twenty-shared/utils';
 
 import { NodeEnvironment } from 'src/engine/core-modules/twenty-config/interfaces/node-environment.interface';
 
+import { DirectExecutionService } from 'src/engine/api/graphql/direct-execution/direct-execution.service';
+import { useDirectExecution } from 'src/engine/api/graphql/direct-execution/hooks/use-direct-execution.hook';
 import { WorkspaceSchemaFactory } from 'src/engine/api/graphql/workspace-schema.factory';
+import { type FlatAuthContextUser } from 'src/engine/core-modules/auth/types/flat-auth-context-user.type';
 import { CoreEngineModule } from 'src/engine/core-modules/core-engine.module';
 import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
 import { useSentryTracing } from 'src/engine/core-modules/exception-handler/hooks/use-sentry-tracing';
+import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { useDisableIntrospectionAndSuggestionsForUnauthenticatedUsers } from 'src/engine/core-modules/graphql/hooks/use-disable-introspection-and-suggestions-for-unauthenticated-users.hook';
 import { useGraphQLErrorHandlerHook } from 'src/engine/core-modules/graphql/hooks/use-graphql-error-handler.hook';
 import { useValidateGraphqlQueryComplexity } from 'src/engine/core-modules/graphql/hooks/use-validate-graphql-query-complexity.hook';
 import { I18nService } from 'src/engine/core-modules/i18n/i18n.service';
 import { MetricsService } from 'src/engine/core-modules/metrics/metrics.service';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
-import { UserEntity } from 'src/engine/core-modules/user/user.entity';
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
+import { type FlatWorkspace } from 'src/engine/core-modules/workspace/types/flat-workspace.type';
 import { DataloaderService } from 'src/engine/dataloaders/dataloader.service';
 import { handleExceptionAndConvertToGraphQLError } from 'src/engine/utils/global-exception-handler.util';
 import { renderApolloPlayground } from 'src/engine/utils/render-apollo-playground.util';
 
 export interface GraphQLContext extends YogaDriverServerContext<'express'> {
-  user?: UserEntity;
-  workspace?: WorkspaceEntity;
+  user?: FlatAuthContextUser;
+  workspace?: FlatWorkspace;
 }
 
 @Injectable()
@@ -50,12 +53,18 @@ export class GraphQLConfigService
     private readonly metricsService: MetricsService,
     private readonly dataloaderService: DataloaderService,
     private readonly i18nService: I18nService,
+    private readonly directExecutionService: DirectExecutionService,
+    private readonly featureFlagService: FeatureFlagService,
   ) {}
 
   createGqlOptions(): YogaDriverConfig {
     const isDebugMode =
       this.twentyConfigService.get('NODE_ENV') === NodeEnvironment.DEVELOPMENT;
     const plugins = [
+      useDirectExecution({
+        directExecutionService: this.directExecutionService,
+        featureFlagService: this.featureFlagService,
+      }),
       useGraphQLErrorHandlerHook({
         metricsService: this.metricsService,
         exceptionHandlerService: this.exceptionHandlerService,
@@ -85,10 +94,11 @@ export class GraphQLConfigService
       resolverSchemaScope: 'core',
       buildSchemaOptions: {},
       conditionalSchema: async (context) => {
-        const { workspace, user, application } = context.req;
+        const { workspace, user, application, skipWorkspaceSchemaCreation } =
+          context.req;
 
         try {
-          if (!isDefined(workspace)) {
+          if (!isDefined(workspace) || skipWorkspaceSchemaCreation) {
             return new GraphQLSchema({});
           }
 
@@ -158,7 +168,7 @@ export class GraphQLConfigService
 
   async createSchema(
     context: YogaDriverServerContext<'express'> & YogaInitialContext,
-    workspace: WorkspaceEntity,
+    workspace: FlatWorkspace,
     applicationId?: string,
   ): Promise<GraphQLSchemaWithContext<YogaDriverServerContext<'express'>>> {
     // Create a new contextId for each request

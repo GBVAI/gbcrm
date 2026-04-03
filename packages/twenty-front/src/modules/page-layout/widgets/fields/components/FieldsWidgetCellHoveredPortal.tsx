@@ -1,16 +1,16 @@
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { RecordFieldListCellHoveredPortalContent } from '@/object-record/record-field-list/anchored-portal/components/RecordFieldListCellHoveredPortalContent';
 import { RecordFieldListInputContextProvider } from '@/object-record/record-field-list/anchored-portal/components/RecordFieldListInputContextProvider';
 import { RecordFieldListComponentInstanceContext } from '@/object-record/record-field-list/states/contexts/RecordFieldListComponentInstanceContext';
 import { recordFieldListHoverPositionComponentState } from '@/object-record/record-field-list/states/recordFieldListHoverPositionComponentState';
 import { RecordInlineCellAnchoredPortal } from '@/object-record/record-inline-cell/components/RecordInlineCellAnchoredPortal';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
 import { isDefined } from 'twenty-shared/utils';
 
 type FieldsWidgetCellHoveredPortalProps = {
-  objectMetadataItem: ObjectMetadataItem;
+  objectMetadataItem: EnrichedObjectMetadataItem;
   recordId: string;
   flattenedFieldMetadataItems: FieldMetadataItem[];
 };
@@ -24,15 +24,18 @@ export const FieldsWidgetCellHoveredPortal = ({
     RecordFieldListComponentInstanceContext,
   );
 
-  const hoverPosition = useRecoilComponentValue(
+  const recordFieldListHoverPosition = useAtomComponentStateValue(
     recordFieldListHoverPositionComponentState,
   );
 
-  const hoveredFieldMetadataItem = isDefined(hoverPosition)
-    ? flattenedFieldMetadataItems.at(hoverPosition)
+  const hoveredFieldMetadataItem = isDefined(recordFieldListHoverPosition)
+    ? flattenedFieldMetadataItems.at(recordFieldListHoverPosition)
     : undefined;
 
-  if (!isDefined(hoverPosition) || !isDefined(hoveredFieldMetadataItem)) {
+  if (
+    !isDefined(recordFieldListHoverPosition) ||
+    !isDefined(hoveredFieldMetadataItem)
+  ) {
     return null;
   }
 

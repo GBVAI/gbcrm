@@ -1,7 +1,7 @@
-import { type ApolloError } from '@apollo/client';
+import { type CombinedGraphQLErrors } from '@apollo/client/errors';
 import { t } from '@lingui/core/macro';
 
-import { classifyMetadataError } from '@/metadata-error-handler/utils/classify-metadata-error.util';
+import { classifyMetadataError } from '@/metadata-error-handler/utils/classifyMetadataError';
 import { useSnackBar } from '@/ui/feedback/snack-bar-manager/hooks/useSnackBar';
 import {
   type AllMetadataName,
@@ -30,6 +30,9 @@ export const useMetadataErrorHandler = () => {
     viewFilter: t`view filter`,
     index: t`index`,
     logicFunction: t`logic function`,
+    permissionFlag: t`permission flag`,
+    objectPermission: t`object permission`,
+    fieldPermission: t`field permission`,
     role: t`role`,
     roleTarget: t`role target`,
     agent: t`agent`,
@@ -44,10 +47,11 @@ export const useMetadataErrorHandler = () => {
     frontComponent: t`front component`,
     navigationMenuItem: t`navigation menu item`,
     webhook: t`webhook`,
+    viewSort: t`view sort`,
   } as const satisfies Record<AllMetadataName, string>;
 
   const handleMetadataError = (
-    error: ApolloError,
+    error: CombinedGraphQLErrors,
     options: {
       primaryMetadataName: AllMetadataName;
       operationType: CrudOperationType;

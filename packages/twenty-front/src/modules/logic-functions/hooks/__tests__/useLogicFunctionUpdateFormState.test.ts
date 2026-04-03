@@ -1,6 +1,5 @@
 import { useLogicFunctionUpdateFormState } from '@/logic-functions/hooks/useLogicFunctionUpdateFormState';
 import { renderHook } from '@testing-library/react';
-import { RecoilRoot } from 'recoil';
 
 jest.mock('@/logic-functions/hooks/useGetOneLogicFunction', () => ({
   useGetOneLogicFunction: jest.fn(),
@@ -31,17 +30,14 @@ describe('useLogicFunctionUpdateFormState', () => {
         loading: false,
       },
     );
-    const { result } = renderHook(
-      () => useLogicFunctionUpdateFormState({ logicFunctionId }),
-      {
-        wrapper: RecoilRoot,
-      },
+    const { result } = renderHook(() =>
+      useLogicFunctionUpdateFormState({ logicFunctionId }),
     );
 
     const { formValues } = result.current;
 
     expect(formValues).toEqual({
-      name: '',
+      name: 'name',
       description: '',
       sourceHandlerCode: '',
       isTool: false,

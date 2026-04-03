@@ -5,7 +5,6 @@ import { ALL_METADATA_NAME } from 'twenty-shared/metadata';
 import { isDefined } from 'twenty-shared/utils';
 
 import { findFlatEntityByUniversalIdentifier } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-universal-identifier.util';
-import { validateFlatObjectMetadataIdentifiers } from 'src/engine/metadata-modules/flat-object-metadata/validators/utils/validate-flat-object-metadata-identifiers.util';
 import { validateFlatObjectMetadataNameAndLabels } from 'src/engine/metadata-modules/flat-object-metadata/validators/utils/validate-flat-object-metadata-name-and-labels.util';
 import { ObjectMetadataExceptionCode } from 'src/engine/metadata-modules/object-metadata/object-metadata.exception';
 import { belongsToTwentyStandardApp } from 'src/engine/metadata-modules/utils/belongs-to-twenty-standard-app.util';
@@ -23,7 +22,6 @@ export class FlatObjectMetadataValidatorService {
     buildOptions,
     optimisticFlatEntityMapsAndRelatedFlatEntityMaps: {
       flatObjectMetadataMaps: optimisticFlatObjectMetadataMaps,
-      flatFieldMetadataMaps,
     },
   }: FlatEntityUpdateValidationArgs<
     typeof ALL_METADATA_NAME.objectMetadata
@@ -63,11 +61,18 @@ export class FlatObjectMetadataValidatorService {
     };
 
     if (!buildOptions.isSystemBuild && existingFlatObjectMetadata.isSystem) {
-      validationResult.errors.push({
-        code: ObjectMetadataExceptionCode.INVALID_OBJECT_INPUT,
-        message: t`System objects cannot be updated`,
-        userFriendlyMessage: msg`System objects cannot be updated`,
-      });
+      const allowedOverrideKeys = new Set(['standardOverrides', 'isActive']);
+      const disallowedProperties = Object.keys(flatEntityUpdate).filter(
+        (property) => !allowedOverrideKeys.has(property),
+      );
+
+      if (disallowedProperties.length > 0) {
+        validationResult.errors.push({
+          code: ObjectMetadataExceptionCode.INVALID_OBJECT_INPUT,
+          message: t`System objects cannot be updated directly. Use standardOverrides for cosmetic changes.`,
+          userFriendlyMessage: msg`System objects cannot be updated`,
+        });
+      }
     }
 
     validationResult.errors.push(
@@ -93,13 +98,6 @@ export class FlatObjectMetadataValidatorService {
           userFriendlyMessage: msg`Field label identifier is required`,
         });
       }
-
-      validationResult.errors.push(
-        ...validateFlatObjectMetadataIdentifiers({
-          universalFlatObjectMetadata: updatedFlatObjectMetadata,
-          universalFlatFieldMetadataMaps: flatFieldMetadataMaps,
-        }),
-      );
     }
 
     return validationResult;
@@ -175,7 +173,6 @@ export class FlatObjectMetadataValidatorService {
     flatEntityToValidate: flatObjectMetadataToValidate,
     optimisticFlatEntityMapsAndRelatedFlatEntityMaps: {
       flatObjectMetadataMaps: optimisticUniversalFlatObjectMetadataMaps,
-      flatFieldMetadataMaps,
     },
     buildOptions,
   }: UniversalFlatEntityValidationArgs<
@@ -214,12 +211,6 @@ export class FlatObjectMetadataValidatorService {
       });
     }
 
-    objectValidationResult.errors.push(
-      ...validateFlatObjectMetadataIdentifiers({
-        universalFlatObjectMetadata: flatObjectMetadataToValidate,
-        universalFlatFieldMetadataMaps: flatFieldMetadataMaps,
-      }),
-    );
     objectValidationResult.errors.push(
       ...validateFlatObjectMetadataNameAndLabels({
         optimisticUniversalFlatObjectMetadataMaps,

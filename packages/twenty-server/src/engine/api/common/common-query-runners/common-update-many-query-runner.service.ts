@@ -100,22 +100,27 @@ export class CommonUpdateManyQueryRunnerService extends CommonBaseQueryRunnerSer
     args: CommonInput<UpdateManyQueryArgs>,
     queryRunnerContext: CommonBaseQueryRunnerContext,
   ): Promise<CommonInput<UpdateManyQueryArgs>> {
-    const { authContext, flatObjectMetadata, flatFieldMetadataMaps } =
-      queryRunnerContext;
+    const {
+      authContext,
+      flatObjectMetadata,
+      flatFieldMetadataMaps,
+      flatObjectMetadataMaps,
+    } = queryRunnerContext;
 
     return {
       ...args,
-      filter: this.queryRunnerArgsFactory.overrideFilterByFieldMetadata(
-        args.filter,
+      filter: this.filterArgProcessor.process({
+        filter: args.filter,
         flatObjectMetadata,
         flatFieldMetadataMaps,
-      ),
+      }),
       data: (
         await this.dataArgProcessor.process({
           partialRecordInputs: [args.data],
           authContext,
           flatObjectMetadata,
           flatFieldMetadataMaps,
+          flatObjectMetadataMaps,
           shouldBackfillPositionIfUndefined: false,
         })
       )[0],

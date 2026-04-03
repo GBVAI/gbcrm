@@ -1,17 +1,17 @@
+import { useMutation } from '@apollo/client/react';
 import {
   type DeleteWorkspaceInvitationMutationVariables,
-  useDeleteWorkspaceInvitationMutation,
+  DeleteWorkspaceInvitationDocument,
 } from '~/generated-metadata/graphql';
 import { workspaceInvitationsState } from '@/workspace-invitation/states/workspaceInvitationsStates';
-import { useSetRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilStateV2';
+import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
 
 export const useDeleteWorkspaceInvitation = () => {
-  const [deleteWorkspaceInvitationMutation] =
-    useDeleteWorkspaceInvitationMutation();
-
-  const setWorkspaceInvitations = useSetRecoilStateV2(
-    workspaceInvitationsState,
+  const [deleteWorkspaceInvitationMutation] = useMutation(
+    DeleteWorkspaceInvitationDocument,
   );
+
+  const setWorkspaceInvitations = useSetAtomState(workspaceInvitationsState);
 
   const deleteWorkspaceInvitation = async ({
     appTokenId,

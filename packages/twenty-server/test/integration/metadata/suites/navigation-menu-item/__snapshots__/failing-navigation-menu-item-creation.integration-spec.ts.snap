@@ -10,7 +10,7 @@ exports[`NavigationMenuItem creation should fail when creating with empty target
     "userFriendlyMessage": "An error occurred.",
     "value": "",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: ''",
   "name": "ValidationError",
 }
 `;
@@ -25,7 +25,7 @@ exports[`NavigationMenuItem creation should fail when creating with empty target
     "userFriendlyMessage": "An error occurred.",
     "value": "",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: ''",
   "name": "ValidationError",
 }
 `;
@@ -40,7 +40,7 @@ exports[`NavigationMenuItem creation should fail when creating with invalid fold
     "userFriendlyMessage": "An error occurred.",
     "value": "not-a-valid-uuid",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: 'not-a-valid-uuid'",
   "name": "ValidationError",
 }
 `;
@@ -55,7 +55,7 @@ exports[`NavigationMenuItem creation should fail when creating with invalid targ
     "userFriendlyMessage": "An error occurred.",
     "value": "not-a-valid-uuid",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: 'not-a-valid-uuid'",
   "name": "ValidationError",
 }
 `;
@@ -70,7 +70,7 @@ exports[`NavigationMenuItem creation should fail when creating with invalid targ
     "userFriendlyMessage": "An error occurred.",
     "value": "not-a-valid-uuid",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: 'not-a-valid-uuid'",
   "name": "ValidationError",
 }
 `;
@@ -85,7 +85,7 @@ exports[`NavigationMenuItem creation should fail when creating with invalid user
     "userFriendlyMessage": "An error occurred.",
     "value": "not-a-valid-uuid",
   },
-  "message": "Invalid UUID",
+  "message": "Invalid UUID: 'not-a-valid-uuid'",
   "name": "ValidationError",
 }
 `;
@@ -100,13 +100,8 @@ exports[`NavigationMenuItem creation should fail when creating with missing targ
           "errors": [
             {
               "code": "INVALID_NAVIGATION_MENU_ITEM_INPUT",
-              "message": "targetObjectMetadataId is required when targetRecordId is provided",
-              "userFriendlyMessage": "targetObjectMetadataId is required when targetRecordId is provided",
-            },
-            {
-              "code": "INVALID_NAVIGATION_MENU_ITEM_INPUT",
-              "message": "Navigation menu item must be either a folder (with name), a view link (with viewId), a record link (with targetRecordId and targetObjectMetadataId), or an external link (with link)",
-              "userFriendlyMessage": "Navigation menu item must be either a folder (with name), a view link (with viewId), a record link (with targetRecordId and targetObjectMetadataId), or an external link (with link)",
+              "message": "targetRecordId and targetObjectMetadataId are required for RECORD type",
+              "userFriendlyMessage": "targetRecordId and targetObjectMetadataId are required for RECORD type",
             },
           ],
           "flatEntityMinimalInformation": {
@@ -125,7 +120,7 @@ exports[`NavigationMenuItem creation should fail when creating with missing targ
     },
     "userFriendlyMessage": "Metadata validation failed",
   },
-  "message": "Multiple validation errors occurred while creating navigation menu item",
+  "message": "Multiple validation errors occurred while creating navigation menu items",
   "name": "GraphQLError",
 }
 `;
@@ -141,4 +136,3 @@ exports[`NavigationMenuItem creation should fail when creating with missing targ
   "name": "NotFoundError",
 }
 `;
-

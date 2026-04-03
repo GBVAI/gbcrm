@@ -1,11 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { type PermissionFlagType } from 'twenty-shared/constants';
-import { isDefined } from 'twenty-shared/utils';
 
 import { QueryResultFieldValue } from 'src/engine/api/graphql/workspace-query-runner/factories/query-result-getters/interfaces/query-result-field-value';
 
-import { DataArgProcessor } from 'src/engine/api/common/common-args-processors/data-arg-processor/data-arg.processor';
+import { DataArgProcessorService } from 'src/engine/api/common/common-args-processors/data-arg-processor/data-arg-processor.service';
+import { FilterArgProcessorService } from 'src/engine/api/common/common-args-processors/filter-arg-processor/filter-arg-processor.service';
+import { GroupByArgProcessorService } from 'src/engine/api/common/common-args-processors/group-by-arg-processor/group-by-arg-processor.service';
+import { OrderByArgProcessorService } from 'src/engine/api/common/common-args-processors/order-by-arg-processor/order-by-arg-processor.service';
+import { OrderByWithGroupByArgProcessorService } from 'src/engine/api/common/common-args-processors/order-by-with-group-by-arg-processor/order-by-with-group-by-arg-processor.service';
 import { QueryRunnerArgsFactory } from 'src/engine/api/common/common-args-processors/query-runner-args.factory';
 import { ProcessNestedRelationsHelper } from 'src/engine/api/common/common-nested-relations-processor/process-nested-relations.helper';
 import {
@@ -28,11 +31,8 @@ import { OBJECTS_WITH_SETTINGS_PERMISSIONS_REQUIREMENTS } from 'src/engine/api/g
 import { GraphqlQueryParser } from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query.parser';
 import { WorkspacePreQueryHookPayload } from 'src/engine/api/graphql/workspace-query-runner/workspace-query-hook/types/workspace-query-hook.type';
 import { WorkspaceQueryHookService } from 'src/engine/api/graphql/workspace-query-runner/workspace-query-hook/workspace-query-hook.service';
-import { ApiKeyRoleService } from 'src/engine/core-modules/api-key/services/api-key-role.service';
 import { isApiKeyAuthContext } from 'src/engine/core-modules/auth/guards/is-api-key-auth-context.guard';
 import { isUserAuthContext } from 'src/engine/core-modules/auth/guards/is-user-auth-context.guard';
-import { isWorkspaceAuthContext } from 'src/engine/core-modules/auth/guards/is-workspace-auth-context.guard';
-import { AuthContext } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { MetricsService } from 'src/engine/core-modules/metrics/metrics.service';
@@ -48,9 +48,9 @@ import {
   PermissionsExceptionMessage,
 } from 'src/engine/metadata-modules/permissions/permissions.exception';
 import { PermissionsService } from 'src/engine/metadata-modules/permissions/permissions.service';
-import { UserRoleService } from 'src/engine/metadata-modules/user-role/user-role.service';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
-import type { RolePermissionConfig } from 'src/engine/twenty-orm/types/role-permission-config';
+import { getWorkspaceContext } from 'src/engine/twenty-orm/storage/orm-workspace-context.storage';
+import { resolveRolePermissionConfig } from 'src/engine/twenty-orm/utils/resolve-role-permission-config.util';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 
 @Injectable()
@@ -63,17 +63,21 @@ export abstract class CommonBaseQueryRunnerService<
   @Inject()
   protected readonly queryRunnerArgsFactory: QueryRunnerArgsFactory;
   @Inject()
-  protected readonly dataArgProcessor: DataArgProcessor;
+  protected readonly dataArgProcessor: DataArgProcessorService;
+  @Inject()
+  protected readonly filterArgProcessor: FilterArgProcessorService;
+  @Inject()
+  protected readonly groupByArgProcessor: GroupByArgProcessorService;
+  @Inject()
+  protected readonly orderByArgProcessor: OrderByArgProcessorService;
+  @Inject()
+  protected readonly orderByWithGroupByArgProcessor: OrderByWithGroupByArgProcessorService;
   @Inject()
   protected readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager;
   @Inject()
   protected readonly processNestedRelationsHelper: ProcessNestedRelationsHelper;
   @Inject()
   protected readonly permissionsService: PermissionsService;
-  @Inject()
-  protected readonly userRoleService: UserRoleService;
-  @Inject()
-  protected readonly apiKeyRoleService: ApiKeyRoleService;
   @Inject()
   protected readonly workspaceCacheService: WorkspaceCacheService;
   @Inject()
@@ -101,14 +105,6 @@ export abstract class CommonBaseQueryRunnerService<
       flatObjectMetadataMaps,
       flatFieldMetadataMaps,
     } = queryRunnerContext;
-
-    if (!isWorkspaceAuthContext(authContext)) {
-      throw new CommonQueryRunnerException(
-        'Invalid auth context',
-        CommonQueryRunnerExceptionCode.INVALID_AUTH_CONTEXT,
-        { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
-      );
-    }
 
     await this.throttleQueryExecution(authContext);
 
@@ -146,7 +142,6 @@ export abstract class CommonBaseQueryRunnerService<
       async () =>
         this.executeQueryAndEnrichResults(
           processedArgs,
-          authContext,
           queryRunnerContext,
           commonQueryParser,
         ),
@@ -211,13 +206,11 @@ export abstract class CommonBaseQueryRunnerService<
 
   private async executeQueryAndEnrichResults(
     processedArgs: CommonExtendedInput<Args>,
-    authContext: WorkspaceAuthContext,
     queryRunnerContext: CommonBaseQueryRunnerContext,
     commonQueryParser: GraphqlQueryParser,
   ): Promise<Output> {
     const extendedQueryRunnerContext =
       await this.prepareExtendedQueryRunnerContextWithGlobalDatasource(
-        authContext,
         queryRunnerContext,
       );
 
@@ -229,7 +222,7 @@ export abstract class CommonBaseQueryRunnerService<
     return this.enrichResultsWithGettersAndHooks({
       results,
       operationName: this.operationName,
-      authContext,
+      authContext: extendedQueryRunnerContext.authContext,
       flatObjectMetadata: queryRunnerContext.flatObjectMetadata,
       flatObjectMetadataMaps: queryRunnerContext.flatObjectMetadataMaps,
       flatFieldMetadataMaps: queryRunnerContext.flatFieldMetadataMaps,
@@ -308,46 +301,24 @@ export abstract class CommonBaseQueryRunnerService<
     }
   }
 
-  private async getRoleIdOrThrow(
-    authContext: AuthContext,
-    workspaceId: string,
-  ): Promise<string> {
-    if (isDefined(authContext.apiKey)) {
-      return this.apiKeyRoleService.getRoleIdForApiKeyId(
-        authContext.apiKey.id,
-        workspaceId,
-      );
-    }
+  private async prepareExtendedQueryRunnerContextWithGlobalDatasource(
+    queryRunnerContext: CommonBaseQueryRunnerContext,
+  ): Promise<Omit<CommonExtendedQueryRunnerContext, 'commonQueryParser'>> {
+    const context = getWorkspaceContext();
 
-    if (isDefined(authContext.application?.defaultRoleId)) {
-      return authContext.application?.defaultRoleId;
-    }
+    const rolePermissionConfig = resolveRolePermissionConfig({
+      authContext: context.authContext,
+      userWorkspaceRoleMap: context.userWorkspaceRoleMap,
+      apiKeyRoleMap: context.apiKeyRoleMap,
+    });
 
-    if (!isDefined(authContext.userWorkspaceId)) {
+    if (!rolePermissionConfig) {
       throw new CommonQueryRunnerException(
         'Invalid auth context',
         CommonQueryRunnerExceptionCode.INVALID_AUTH_CONTEXT,
         { userFriendlyMessage: STANDARD_ERROR_MESSAGE },
       );
     }
-
-    return this.userRoleService.getRoleIdForUserWorkspace({
-      userWorkspaceId: authContext.userWorkspaceId,
-      workspaceId,
-    });
-  }
-
-  private async prepareExtendedQueryRunnerContextWithGlobalDatasource(
-    authContext: WorkspaceAuthContext,
-    queryRunnerContext: CommonBaseQueryRunnerContext,
-  ): Promise<Omit<CommonExtendedQueryRunnerContext, 'commonQueryParser'>> {
-    const workspaceId = authContext.workspace.id;
-
-    const roleId = await this.getRoleIdOrThrow(authContext, workspaceId);
-
-    const rolePermissionConfig: RolePermissionConfig = {
-      intersectionOf: [roleId],
-    };
 
     const globalWorkspaceDataSource = this.isReadOnly
       ? await this.globalWorkspaceOrmManager.getGlobalWorkspaceDataSourceReplica()
@@ -360,7 +331,7 @@ export abstract class CommonBaseQueryRunnerService<
 
     return {
       ...queryRunnerContext,
-      authContext,
+      authContext: context.authContext,
       workspaceDataSource: globalWorkspaceDataSource,
       rolePermissionConfig,
       repository,

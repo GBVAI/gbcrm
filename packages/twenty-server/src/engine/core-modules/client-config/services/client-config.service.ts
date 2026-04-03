@@ -1,24 +1,32 @@
 import { Injectable } from '@nestjs/common';
 
 import { isNonEmptyString } from '@sniptt/guards';
+import { isDefined } from 'twenty-shared/utils';
+import { type AiSdkPackage } from 'twenty-shared/ai';
 
+import {
+  AI_SDK_ANTHROPIC,
+  AI_SDK_BEDROCK,
+  AI_SDK_OPENAI,
+} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-sdk-package.const';
 import { NodeEnvironment } from 'src/engine/core-modules/twenty-config/interfaces/node-environment.interface';
 import { SupportDriver } from 'src/engine/core-modules/twenty-config/interfaces/support.interface';
 
+import { MaintenanceModeService } from 'src/engine/core-modules/admin-panel/maintenance-mode.service';
 import {
   type ClientAIModelConfig,
   type ClientConfig,
+  type NativeModelCapabilities,
 } from 'src/engine/core-modules/client-config/client-config.entity';
 import { DomainServerConfigService } from 'src/engine/core-modules/domain/domain-server-config/services/domain-server-config.service';
 import { PUBLIC_FEATURE_FLAGS } from 'src/engine/core-modules/feature-flag/constants/public-feature-flag.const';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
-import { convertCentsToBillingCredits } from 'src/engine/metadata-modules/ai/ai-billing/utils/convert-cents-to-billing-credits.util';
+import { convertDollarsToBillingCredits } from 'src/engine/metadata-modules/ai/ai-billing/utils/convert-dollars-to-billing-credits.util';
 import {
-  AI_MODELS,
-  DEFAULT_FAST_MODEL,
-  DEFAULT_SMART_MODEL,
-  ModelProvider,
-} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-models.const';
+  AUTO_SELECT_FAST_MODEL_ID,
+  AUTO_SELECT_SMART_MODEL_ID,
+} from 'twenty-shared/constants';
+import { MODEL_FAMILY_LABELS } from 'src/engine/metadata-modules/ai/ai-models/constants/model-family-labels.const';
 import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
 
 @Injectable()
@@ -27,7 +35,21 @@ export class ClientConfigService {
     private twentyConfigService: TwentyConfigService,
     private domainServerConfigService: DomainServerConfigService,
     private aiModelRegistryService: AiModelRegistryService,
+    private maintenanceModeService: MaintenanceModeService,
   ) {}
+
+  private deriveNativeCapabilities(
+    sdkPackage?: AiSdkPackage,
+  ): NativeModelCapabilities | undefined {
+    switch (sdkPackage) {
+      case AI_SDK_OPENAI:
+      case AI_SDK_ANTHROPIC:
+      case AI_SDK_BEDROCK:
+        return { webSearch: true };
+      default:
+        return undefined;
+    }
+  }
 
   private isCloudflareIntegrationEnabled(): boolean {
     return (
@@ -43,30 +65,44 @@ export class ClientConfigService {
       'CALENDAR_BOOKING_PAGE_ID',
     );
 
-    const availableModels = this.aiModelRegistryService.getAvailableModels();
+    const availableModels =
+      this.aiModelRegistryService.getAdminFilteredModels();
+    const recommendedModelIds =
+      this.aiModelRegistryService.getRecommendedModelIds();
 
     const aiModels: ClientAIModelConfig[] = availableModels.map(
       (registeredModel) => {
-        const builtInModel = AI_MODELS.find(
-          (m) => m.modelId === registeredModel.modelId,
+        const modelConfig = this.aiModelRegistryService.getModelConfig(
+          registeredModel.modelId,
         );
+
+        const modelFamily = modelConfig?.modelFamily;
 
         return {
           modelId: registeredModel.modelId,
-          label: builtInModel?.label || registeredModel.modelId,
-          provider: registeredModel.provider,
-          nativeCapabilities: builtInModel?.nativeCapabilities,
-          inputCostPer1kTokensInCredits: builtInModel
-            ? convertCentsToBillingCredits(
-                builtInModel.inputCostPer1kTokensInCents,
+          label: modelConfig?.label || registeredModel.modelId,
+          modelFamily,
+          modelFamilyLabel: modelFamily
+            ? MODEL_FAMILY_LABELS[modelFamily]
+            : undefined,
+          sdkPackage: registeredModel.sdkPackage,
+          providerName: registeredModel.providerName,
+          nativeCapabilities: this.deriveNativeCapabilities(
+            registeredModel.sdkPackage,
+          ),
+          inputCostPerMillionTokensInCredits: modelConfig
+            ? convertDollarsToBillingCredits(
+                modelConfig.inputCostPerMillionTokens,
               )
             : 0,
-          outputCostPer1kTokensInCredits: builtInModel
-            ? convertCentsToBillingCredits(
-                builtInModel.outputCostPer1kTokensInCents,
+          outputCostPerMillionTokensInCredits: modelConfig
+            ? convertDollarsToBillingCredits(
+                modelConfig.outputCostPerMillionTokens,
               )
             : 0,
-          deprecated: builtInModel?.deprecated,
+          isDeprecated: modelConfig?.isDeprecated,
+          isRecommended: recommendedModelIds.has(registeredModel.modelId),
+          dataResidency: modelConfig?.dataResidency,
         };
       },
     );
@@ -74,38 +110,40 @@ export class ClientConfigService {
     if (aiModels.length > 0) {
       const defaultSpeedModel =
         this.aiModelRegistryService.getDefaultSpeedModel();
-      const defaultSpeedModelConfig = AI_MODELS.find(
-        (m) => m.modelId === defaultSpeedModel?.modelId,
-      );
-      const defaultSpeedModelLabel =
-        defaultSpeedModelConfig?.label ||
-        defaultSpeedModel?.modelId ||
-        'Default';
+      const defaultSpeedModelConfig =
+        this.aiModelRegistryService.getModelConfig(defaultSpeedModel?.modelId);
 
       const defaultPerformanceModel =
         this.aiModelRegistryService.getDefaultPerformanceModel();
-      const defaultPerformanceModelConfig = AI_MODELS.find(
-        (m) => m.modelId === defaultPerformanceModel?.modelId,
-      );
-      const defaultPerformanceModelLabel =
-        defaultPerformanceModelConfig?.label ||
-        defaultPerformanceModel?.modelId ||
-        'Default';
+      const defaultPerformanceModelConfig =
+        this.aiModelRegistryService.getModelConfig(
+          defaultPerformanceModel?.modelId,
+        );
 
       aiModels.unshift(
         {
-          modelId: DEFAULT_SMART_MODEL,
-          label: `Smart (${defaultPerformanceModelLabel})`,
-          provider: ModelProvider.NONE,
-          inputCostPer1kTokensInCredits: 0,
-          outputCostPer1kTokensInCredits: 0,
+          modelId: AUTO_SELECT_SMART_MODEL_ID,
+          label:
+            defaultPerformanceModelConfig?.label ||
+            defaultPerformanceModel?.modelId ||
+            'Default',
+          modelFamily: defaultPerformanceModelConfig?.modelFamily,
+          providerName: defaultPerformanceModel?.providerName,
+          sdkPackage: defaultPerformanceModel?.sdkPackage ?? null,
+          inputCostPerMillionTokensInCredits: 0,
+          outputCostPerMillionTokensInCredits: 0,
         },
         {
-          modelId: DEFAULT_FAST_MODEL,
-          label: `Fast (${defaultSpeedModelLabel})`,
-          provider: ModelProvider.NONE,
-          inputCostPer1kTokensInCredits: 0,
-          outputCostPer1kTokensInCredits: 0,
+          modelId: AUTO_SELECT_FAST_MODEL_ID,
+          label:
+            defaultSpeedModelConfig?.label ||
+            defaultSpeedModel?.modelId ||
+            'Default',
+          modelFamily: defaultSpeedModelConfig?.modelFamily,
+          providerName: defaultSpeedModel?.providerName,
+          sdkPackage: defaultSpeedModel?.sdkPackage ?? null,
+          inputCostPerMillionTokensInCredits: 0,
+          outputCostPerMillionTokensInCredits: 0,
         },
       );
     }
@@ -162,7 +200,6 @@ export class ClientConfigService {
         provider: captchaProvider ? captchaProvider : undefined,
         siteKey: this.twentyConfigService.get('CAPTCHA_SITE_KEY'),
       },
-      chromeExtensionId: this.twentyConfigService.get('CHROME_EXTENSION_ID'),
       api: {
         mutationMaximumAffectedRecords: this.twentyConfigService.get(
           'MUTATION_MAXIMUM_AFFECTED_RECORDS',
@@ -203,7 +240,21 @@ export class ClientConfigService {
         : undefined,
       isCloudflareIntegrationEnabled: this.isCloudflareIntegrationEnabled(),
       isClickHouseConfigured: !!this.twentyConfigService.get('CLICKHOUSE_URL'),
+      isWorkspaceSchemaDDLLocked: this.twentyConfigService.get(
+        'WORKSPACE_SCHEMA_DDL_LOCKED',
+      ),
     };
+
+    const maintenanceMode =
+      await this.maintenanceModeService.getMaintenanceMode();
+
+    if (isDefined(maintenanceMode)) {
+      clientConfig.maintenance = {
+        startAt: new Date(maintenanceMode.startAt),
+        endAt: new Date(maintenanceMode.endAt),
+        link: maintenanceMode.link,
+      };
+    }
 
     return clientConfig;
   }

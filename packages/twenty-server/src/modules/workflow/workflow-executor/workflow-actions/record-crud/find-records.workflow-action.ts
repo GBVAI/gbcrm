@@ -7,15 +7,12 @@ import {
 import {
   computeRecordGqlOperationFilter,
   isDefined,
+  isRecordFilterValueValid,
   resolveInput,
 } from 'twenty-shared/utils';
 
 import { type WorkflowAction } from 'src/modules/workflow/workflow-executor/interfaces/workflow-action.interface';
 
-import {
-  RecordCrudException,
-  RecordCrudExceptionCode,
-} from 'src/engine/core-modules/record-crud/exceptions/record-crud.exception';
 import { FindRecordsService } from 'src/engine/core-modules/record-crud/services/find-records.service';
 import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { WorkflowCommonWorkspaceService } from 'src/modules/workflow/common/workspace-services/workflow-common.workspace-service';
@@ -98,6 +95,17 @@ export class FindRecordsWorkflowAction implements WorkflowAction {
       })
       .filter(isDefined);
 
+    if (workflowActionInput.filter?.recordFilters) {
+      for (const filter of workflowActionInput.filter.recordFilters) {
+        if (!isRecordFilterValueValid(filter)) {
+          throw new WorkflowStepExecutorException(
+            `Filter condition has an empty value after variable resolution. This likely means a workflow variable could not be resolved. Filter field: ${filter.fieldMetadataId}, operand: ${filter.operand}`,
+            WorkflowStepExecutorExceptionCode.INVALID_STEP_INPUT,
+          );
+        }
+      }
+    }
+
     const gqlOperationFilter =
       workflowActionInput.filter?.recordFilters &&
       workflowActionInput.filter?.recordFilterGroups
@@ -121,10 +129,7 @@ export class FindRecordsWorkflowAction implements WorkflowAction {
     });
 
     if (!toolOutput.success) {
-      throw new RecordCrudException(
-        toolOutput.error || toolOutput.message,
-        RecordCrudExceptionCode.QUERY_FAILED,
-      );
+      return { error: toolOutput.error || toolOutput.message };
     }
 
     const records = toolOutput.result?.records ?? [];

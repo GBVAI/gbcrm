@@ -1,9 +1,10 @@
+import { usePageLayoutHandleLayoutChange } from '@/page-layout/hooks/usePageLayoutHandleLayoutChange';
+import { pageLayoutCurrentLayoutsComponentState } from '@/page-layout/states/pageLayoutCurrentLayoutsComponentState';
+import { getTabListInstanceIdFromPageLayoutId } from '@/page-layout/utils/getTabListInstanceIdFromPageLayoutId';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
 import { act, renderHook } from '@testing-library/react';
 import { useSetAtom } from 'jotai';
-import { pageLayoutCurrentLayoutsComponentState } from '@/page-layout/states/pageLayoutCurrentLayoutsComponentState';
-import { usePageLayoutHandleLayoutChange } from '@/page-layout/hooks/usePageLayoutHandleLayoutChange';
 import {
   PAGE_LAYOUT_TEST_INSTANCE_ID,
   PageLayoutTestWrapper,
@@ -13,8 +14,13 @@ describe('usePageLayoutHandleLayoutChange', () => {
   it('should update layouts for specific tab only', () => {
     const { result } = renderHook(
       () => ({
-        handler: usePageLayoutHandleLayoutChange(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        layouts: useRecoilComponentValue(
+        handler: usePageLayoutHandleLayoutChange({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        layouts: useAtomComponentStateValue(
           pageLayoutCurrentLayoutsComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
@@ -56,8 +62,13 @@ describe('usePageLayoutHandleLayoutChange', () => {
   it('should isolate layouts between different tabs', () => {
     const { result } = renderHook(
       () => ({
-        handler: usePageLayoutHandleLayoutChange(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        layouts: useRecoilComponentValue(
+        handler: usePageLayoutHandleLayoutChange({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        layouts: useAtomComponentStateValue(
           pageLayoutCurrentLayoutsComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),
@@ -91,8 +102,13 @@ describe('usePageLayoutHandleLayoutChange', () => {
   it('should not update layouts when activeTabId is null', () => {
     const { result } = renderHook(
       () => ({
-        handler: usePageLayoutHandleLayoutChange(PAGE_LAYOUT_TEST_INSTANCE_ID),
-        layouts: useRecoilComponentValue(
+        handler: usePageLayoutHandleLayoutChange({
+          pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+          tabListInstanceId: getTabListInstanceIdFromPageLayoutId(
+            PAGE_LAYOUT_TEST_INSTANCE_ID,
+          ),
+        }),
+        layouts: useAtomComponentStateValue(
           pageLayoutCurrentLayoutsComponentState,
           PAGE_LAYOUT_TEST_INSTANCE_ID,
         ),

@@ -13,6 +13,7 @@ import { GraphqlQueryOrderGroupByParser } from 'src/engine/api/graphql/graphql-q
 import {
   GraphqlQueryOrderFieldParser,
   type OrderByClause,
+  type RelationJoinInfo,
 } from 'src/engine/api/graphql/graphql-query-runner/graphql-query-parsers/graphql-query-order/graphql-query-order.parser';
 import {
   GraphqlQuerySelectedFieldsParser,
@@ -58,11 +59,11 @@ export class GraphqlQueryParser {
   }
 
   public applyFilterToBuilder(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     queryBuilder: WorkspaceSelectQueryBuilder<any>,
     objectNameSingular: string,
     recordFilter: Partial<ObjectRecordFilter>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
   ): WorkspaceSelectQueryBuilder<any> {
     return this.filterConditionParser.parse(
       queryBuilder,
@@ -72,10 +73,10 @@ export class GraphqlQueryParser {
   }
 
   public applyDeletedAtToBuilder(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     queryBuilder: WorkspaceSelectQueryBuilder<any>,
     recordFilter: Partial<ObjectRecordFilter>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
   ): WorkspaceSelectQueryBuilder<any> {
     if (this.checkForDeletedAtFilter(recordFilter)) {
       queryBuilder.withDeleted();
@@ -111,7 +112,7 @@ export class GraphqlQueryParser {
   };
 
   public applyOrderToBuilder(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     queryBuilder: WorkspaceSelectQueryBuilder<any>,
     orderBy: ObjectRecordOrderBy | OrderByWithGroupBy,
     objectNameSingular: string,
@@ -138,7 +139,7 @@ export class GraphqlQueryParser {
   }
 
   public addRelationOrderColumnsToBuilder(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     queryBuilder: WorkspaceSelectQueryBuilder<any>,
     parsedOrderBy: Record<string, OrderByClause>,
     objectNameSingular: string,
@@ -172,7 +173,7 @@ export class GraphqlQueryParser {
     orderBy: ObjectRecordOrderBy | OrderByWithGroupBy,
     objectNameSingular: string,
     isForwardPagination = true,
-  ): string {
+  ): { orderByRawSQL: string; relationJoins: RelationJoinInfo[] } {
     const parseResult = this.orderFieldParser.parse(
       orderBy as ObjectRecordOrderBy,
       objectNameSingular,
@@ -208,19 +209,19 @@ export class GraphqlQueryParser {
 
     const orderByRawSQLString = orderByRawSQLClauseArray.join(', ');
 
-    const orderByCompleteSQLClause = isNonEmptyString(orderByRawSQLString)
+    const orderByRawSQL = isNonEmptyString(orderByRawSQLString)
       ? `ORDER BY ${orderByRawSQLString}`
       : '';
 
-    return orderByCompleteSQLClause;
+    return { orderByRawSQL, relationJoins: parseResult.relationJoins };
   }
 
   public applyGroupByOrderToBuilder(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     queryBuilder: WorkspaceSelectQueryBuilder<any>,
     orderBy: ObjectRecordOrderBy | OrderByWithGroupBy,
     groupByFields: GroupByField[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
   ): WorkspaceSelectQueryBuilder<any> {
     const parsedOrderBys = this.orderGroupByParser.parse({
       orderBy,
@@ -241,7 +242,7 @@ export class GraphqlQueryParser {
   }
 
   public parseSelectedFields(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     graphqlSelectedFields: Partial<Record<string, any>>,
   ): GraphqlQuerySelectedFieldsResult {
     const selectedFieldsParser = new GraphqlQuerySelectedFieldsParser(

@@ -29,7 +29,6 @@ const getFieldId = (
 export const getPageLayoutWidgetDataSeeds = (
   workspaceId: string,
   objectMetadataItems: ObjectMetadataEntity[],
-  isDashboardV2Enabled: boolean,
 ): SeederFlatPageLayoutWidget[] => {
   const opportunityObject = objectMetadataItems.find(
     (obj) =>
@@ -106,6 +105,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: opportunityObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(rocketIdFieldId)
@@ -137,6 +137,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: rocketObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(opportunityAmountFieldId) &&
@@ -176,6 +177,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: opportunityObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -214,6 +216,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: rocketObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(opportunityIdFieldId)
@@ -245,6 +248,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: opportunityObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -278,6 +282,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: companyObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(companyIdFieldId) &&
@@ -320,6 +325,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: companyObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -353,6 +359,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: companyObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(companyLinkedinLinkFieldId)
@@ -384,6 +391,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: companyObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -414,6 +422,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: personObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
     isDefined(personIdFieldId) && isDefined(personCityFieldId)
@@ -450,6 +459,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: personObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -483,6 +493,7 @@ export const getPageLayoutWidgetDataSeeds = (
             firstDayOfTheWeek: CalendarStartDay.MONDAY,
           },
           objectMetadataId: taskObject?.id ?? null,
+          overrides: null,
         } satisfies SeederFlatPageLayoutWidget)
       : null,
 
@@ -508,12 +519,14 @@ export const getPageLayoutWidgetDataSeeds = (
         frontComponentId: '6cdf2607-4b28-40e6-8c53-cc06799ddc88',
       } as const,
       objectMetadataId: null,
+      overrides: null,
     } satisfies SeederFlatPageLayoutWidget,
   ].filter(isDefined);
 
-  const v2Widgets = isDashboardV2Enabled
-    ? getPageLayoutWidgetDataSeedsV2(workspaceId, objectMetadataItems)
-    : [];
+  const v2Widgets = getPageLayoutWidgetDataSeedsV2(
+    workspaceId,
+    objectMetadataItems,
+  );
 
   return [...v1Widgets, ...v2Widgets];
 };

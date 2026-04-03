@@ -2,15 +2,22 @@ import { FormFieldInputContainer } from '@/object-record/record-field/ui/form-ty
 import { FormTextFieldInput } from '@/object-record/record-field/ui/form-types/components/FormTextFieldInput';
 
 import { type OutputSchemaField } from '@/ai/constants/OutputFieldTypeOptions';
+import { createDefaultOutputSchemaField } from '@/ai/utils/createDefaultOutputSchemaField';
 import { InputLabel } from '@/ui/input/components/InputLabel';
-import { useTheme } from '@emotion/react';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
-import { IconPlus, IconTrash } from 'twenty-ui/display';
-import { LightIconButton } from 'twenty-ui/input';
-import { v4 } from 'uuid';
+import { useContext, useState } from 'react';
+import {
+  IconChevronDown,
+  IconPlus,
+  IconVariable,
+  IconX,
+} from 'twenty-ui/display';
+import { AnimatedLightIconButton, LightIconButton } from 'twenty-ui/input';
+import { AnimatedExpandableContainer } from 'twenty-ui/layout';
+import { MenuItem } from 'twenty-ui/navigation';
+import { ThemeContext, themeCssVariables } from 'twenty-ui/theme-constants';
 import { WorkflowOutputFieldTypeSelector } from './WorkflowOutputFieldTypeSelector';
-
 type WorkflowOutputSchemaBuilderProps = {
   fields: OutputSchemaField[];
   onChange: (fields: OutputSchemaField[]) => void;
@@ -25,80 +32,70 @@ const StyledOutputSchemaContainer = styled.div`
 const StyledFieldsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledOutputSchemaFieldContainer = styled.div`
-  background-color: ${({ theme }) => theme.background.transparent.lighter};
-  border: 1px solid ${({ theme }) => theme.border.color.light};
-  border-radius: ${({ theme }) => theme.border.radius.md};
+  background-color: ${themeCssVariables.background.transparent.lighter};
+  border: 1px solid ${themeCssVariables.border.color.light};
+  border-radius: ${themeCssVariables.border.radius.sm};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(1)};
+  gap: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledSettingsContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(2)};
-  padding: ${({ theme }) => theme.spacing(3)};
+  gap: ${themeCssVariables.spacing[2]};
+  padding-bottom: ${themeCssVariables.spacing[3]};
+  padding-inline: ${themeCssVariables.spacing[3]};
+  padding-top: ${themeCssVariables.spacing[2]};
 `;
 
-const StyledSettingsHeader = styled.div`
-  border-bottom: 1px solid ${({ theme }) => theme.border.color.light};
+const StyledSettingsHeader = styled.div<{
+  showRemoveFieldButton: boolean;
+  isExpanded: boolean;
+}>`
+  align-items: center;
+  border-bottom: ${({ isExpanded }) =>
+    isExpanded ? `1px solid ${themeCssVariables.border.color.medium}` : 'none'};
+  cursor: pointer;
   display: grid;
-  gap: ${({ theme }) => theme.spacing(1)};
-  padding-right: ${({ theme }) => theme.spacing(2)};
-  padding-left: ${({ theme }) => theme.spacing(3)};
-  grid-template-columns: 1fr 24px;
-  padding-bottom: ${({ theme }) => theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[1]};
+  grid-template-columns: ${({ showRemoveFieldButton }) =>
+    showRemoveFieldButton
+      ? `1fr ${themeCssVariables.spacing[6]} ${themeCssVariables.spacing[6]}`
+      : `1fr ${themeCssVariables.spacing[6]}`};
+  height: ${themeCssVariables.spacing[8]};
+  padding-left: ${themeCssVariables.spacing[2]};
+  padding-right: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledTitleContainer = styled.div`
-  color: ${({ theme }) => theme.font.color.primary};
+  align-items: center;
+  color: ${themeCssVariables.font.color.primary};
   display: flex;
   flex-direction: row;
-  gap: ${({ theme }) => theme.spacing(1)};
-  padding-top: ${({ theme }) => theme.spacing(3)};
+  gap: ${themeCssVariables.spacing[1]};
 `;
 
-const StyledCloseButtonContainer = styled.div`
-  padding-top: ${({ theme }) => theme.spacing(2)};
-`;
-
-const StyledAddFieldButton = styled.button`
-  align-items: center;
-  border: 1px solid ${({ theme }) => theme.border.color.light};
-  border-radius: ${({ theme }) => theme.border.radius.sm};
-  color: ${({ theme }) => theme.font.color.secondary};
-  cursor: pointer;
-  display: flex;
-  font-family: inherit;
-  font-weight: ${({ theme }) => theme.font.weight.medium};
-  gap: ${({ theme }) => theme.spacing(1)};
-  justify-content: center;
-  margin-top: ${({ theme }) => theme.spacing(2)};
-  padding: ${({ theme }) => theme.spacing(2)};
-  width: 100%;
-  background-color: ${({ theme }) => theme.background.transparent.lighter};
-
-  &:hover {
-    background-color: ${({ theme }) => theme.background.transparent.light};
-  }
+const StyledAddFieldButtonContainer = styled.div`
+  margin-top: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledMessageContentContainer = styled.div`
-  flex-direction: column;
-  color: ${({ theme }) => theme.font.color.secondary};
+  color: ${themeCssVariables.font.color.secondary};
   display: flex;
-  gap: ${({ theme }) => theme.spacing(4)};
-  padding: ${({ theme }) => theme.spacing(4)};
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[4]};
   line-height: normal;
+  padding: ${themeCssVariables.spacing[4]};
 `;
 
 const StyledMessageDescription = styled.div`
-  color: ${({ theme }) => theme.font.color.secondary};
-  font-weight: ${({ theme }) => theme.font.weight.regular};
+  color: ${themeCssVariables.font.color.secondary};
+  font-weight: ${themeCssVariables.font.weight.regular};
 `;
 
 export const WorkflowOutputSchemaBuilder = ({
@@ -106,21 +103,47 @@ export const WorkflowOutputSchemaBuilder = ({
   onChange,
   readonly,
 }: WorkflowOutputSchemaBuilderProps) => {
-  const theme = useTheme();
+  const { theme } = useContext(ThemeContext);
+  const [expandedFieldIds, setExpandedFieldIds] = useState<Set<string>>(
+    () => new Set(fields.map((field) => field.id)),
+  );
+
+  const toggleField = (id: string) => {
+    setExpandedFieldIds((previousExpandedFieldIds) => {
+      const nextExpandedFieldIds = new Set(previousExpandedFieldIds);
+
+      if (nextExpandedFieldIds.has(id)) {
+        nextExpandedFieldIds.delete(id);
+      } else {
+        nextExpandedFieldIds.add(id);
+      }
+
+      return nextExpandedFieldIds;
+    });
+  };
 
   const addField = () => {
-    const newField: OutputSchemaField = {
-      id: v4(),
-      name: '',
-      description: '',
-      type: 'string',
-    };
+    const newField = createDefaultOutputSchemaField();
+
+    setExpandedFieldIds(
+      (previousExpandedFieldIds) =>
+        new Set([...previousExpandedFieldIds, newField.id]),
+    );
+
     onChange([...fields, newField]);
   };
 
   const removeField = (id: string) => {
+    setExpandedFieldIds((previousExpandedFieldIds) => {
+      const nextExpandedFieldIds = new Set(previousExpandedFieldIds);
+      nextExpandedFieldIds.delete(id);
+      return nextExpandedFieldIds;
+    });
+
     onChange(fields.filter((field) => field.id !== id));
   };
+
+  const showRemoveFieldButton = !readonly && fields.length > 1;
 
   const updateField = (id: string, updates: Partial<OutputSchemaField>) => {
     onChange(
@@ -132,7 +155,7 @@ export const WorkflowOutputSchemaBuilder = ({
 
   return (
     <StyledOutputSchemaContainer>
-      <InputLabel>{t`AI Response Schema`}</InputLabel>
+      <InputLabel>{t`Output`}</InputLabel>
 
       {fields.length === 0 && (
         <StyledOutputSchemaFieldContainer>
@@ -146,63 +169,78 @@ export const WorkflowOutputSchemaBuilder = ({
 
       {fields.length > 0 && (
         <StyledFieldsContainer>
-          {fields.map((field, index) => {
-            const fieldNumber = index + 1;
+          {fields.map((field) => {
+            const isExpanded = expandedFieldIds.has(field.id);
 
             return (
               <StyledOutputSchemaFieldContainer key={field.id}>
-                <StyledSettingsHeader>
+                <StyledSettingsHeader
+                  showRemoveFieldButton={showRemoveFieldButton}
+                  onClick={() => toggleField(field.id)}
+                  isExpanded={isExpanded}
+                >
                   <StyledTitleContainer>
-                    <span>{t`Output Field ${fieldNumber}`}</span>
+                    <IconVariable size={theme.icon.size.sm} />
+                    <span>{field.name || t`Untitled field`}</span>
                   </StyledTitleContainer>
-                  <StyledCloseButtonContainer>
-                    {!readonly && (
-                      <LightIconButton
-                        testId="close-button"
-                        Icon={IconTrash}
-                        size="small"
-                        accent="secondary"
-                        onClick={() => removeField(field.id)}
-                      />
-                    )}
-                  </StyledCloseButtonContainer>
+                  <AnimatedLightIconButton
+                    Icon={IconChevronDown}
+                    size="small"
+                    animate={{ rotate: isExpanded ? -180 : 0 }}
+                  />
+                  {showRemoveFieldButton && (
+                    <LightIconButton
+                      testId="remove-output-field-button"
+                      Icon={IconX}
+                      size="small"
+                      onClick={() => {
+                        removeField(field.id);
+                      }}
+                    />
+                  )}
                 </StyledSettingsHeader>
-                <StyledSettingsContent>
-                  <FormFieldInputContainer>
-                    <FormTextFieldInput
-                      label={t`Field Name`}
-                      placeholder={t`e.g., summary, status, count`}
-                      defaultValue={field.name}
-                      onChange={(value) =>
-                        updateField(field.id, { name: value })
-                      }
-                      readonly={readonly}
-                    />
-                  </FormFieldInputContainer>
+                <AnimatedExpandableContainer
+                  isExpanded={isExpanded}
+                  initial={false}
+                  mode="fit-content"
+                >
+                  <StyledSettingsContent>
+                    <FormFieldInputContainer>
+                      <FormTextFieldInput
+                        label={t`Variable Name`}
+                        placeholder={t`e.g., summary, status, count`}
+                        defaultValue={field.name}
+                        onChange={(value) =>
+                          updateField(field.id, { name: value.trim() })
+                        }
+                        readonly={readonly}
+                      />
+                    </FormFieldInputContainer>
 
-                  <FormFieldInputContainer>
-                    <WorkflowOutputFieldTypeSelector
-                      onChange={(value) =>
-                        updateField(field.id, { type: value })
-                      }
-                      value={field.type}
-                      disabled={readonly}
-                      dropdownId={`output-field-type-selector-${field.id}`}
-                    />
-                  </FormFieldInputContainer>
+                    <FormFieldInputContainer>
+                      <WorkflowOutputFieldTypeSelector
+                        onChange={(value) =>
+                          updateField(field.id, { type: value })
+                        }
+                        value={field.type}
+                        disabled={readonly}
+                        dropdownId={`output-field-type-selector-${field.id}`}
+                      />
+                    </FormFieldInputContainer>
 
-                  <FormFieldInputContainer>
-                    <FormTextFieldInput
-                      label={t`Description`}
-                      placeholder={t`Brief explanation of this output field`}
-                      defaultValue={field.description}
-                      onChange={(value) =>
-                        updateField(field.id, { description: value })
-                      }
-                      readonly={readonly}
-                    />
-                  </FormFieldInputContainer>
-                </StyledSettingsContent>
+                    <FormFieldInputContainer>
+                      <FormTextFieldInput
+                        label={t`Instruction for AI`}
+                        placeholder={t`Brief explanation of this output field`}
+                        defaultValue={field.description}
+                        onChange={(value) =>
+                          updateField(field.id, { description: value })
+                        }
+                        readonly={readonly}
+                      />
+                    </FormFieldInputContainer>
+                  </StyledSettingsContent>
+                </AnimatedExpandableContainer>
               </StyledOutputSchemaFieldContainer>
             );
           })}
@@ -210,10 +248,13 @@ export const WorkflowOutputSchemaBuilder = ({
       )}
 
       {!readonly && (
-        <StyledAddFieldButton onClick={addField}>
-          <IconPlus size={theme.icon.size.sm} />
-          {t`Add Output Field`}
-        </StyledAddFieldButton>
+        <StyledAddFieldButtonContainer>
+          <MenuItem
+            LeftIcon={IconPlus}
+            text={t`Add Output Field`}
+            onClick={addField}
+          />
+        </StyledAddFieldButtonContainer>
       )}
     </StyledOutputSchemaContainer>
   );

@@ -1,18 +1,18 @@
-import { useCreateFavorite } from '@/favorites/hooks/useCreateFavorite';
-import { useFavorites } from '@/favorites/hooks/useFavorites';
-import { usePrefetchedNavigationMenuItemsData } from '@/navigation-menu-item/hooks/usePrefetchedNavigationMenuItemsData';
+import { useCreateManyNavigationMenuItems } from '@/navigation-menu-item/common/hooks/useCreateManyNavigationMenuItems';
+import { useNavigationMenuItemsData } from '@/navigation-menu-item/display/hooks/useNavigationMenuItemsData';
 import { useHasPermissionFlag } from '@/settings/roles/hooks/useHasPermissionFlag';
 import { DropdownContent } from '@/ui/layout/dropdown/components/DropdownContent';
 import { DropdownMenuItemsContainer } from '@/ui/layout/dropdown/components/DropdownMenuItemsContainer';
 import { useCloseDropdown } from '@/ui/layout/dropdown/hooks/useCloseDropdown';
 import { MenuItemWithOptionDropdown } from '@/ui/navigation/menu-item/components/MenuItemWithOptionDropdown';
-import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import { type View } from '@/views/types/View';
 import { useDestroyViewFromCurrentState } from '@/views/view-picker/hooks/useDestroyViewFromCurrentState';
-import { useViewPickerMode } from '@/views/view-picker/hooks/useViewPickerMode';
 import { viewPickerReferenceViewIdComponentState } from '@/views/view-picker/states/viewPickerReferenceViewIdComponentState';
-import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
 import { useLingui } from '@lingui/react/macro';
+import { NavigationMenuItemType } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
+import { v4 as uuidv4 } from 'uuid';
 import {
   IconHeart,
   IconLock,
@@ -22,21 +22,16 @@ import {
 } from 'twenty-ui/display';
 import { MenuItem } from 'twenty-ui/navigation';
 import {
-  FeatureFlagKey,
   PermissionFlagType,
   ViewVisibility,
 } from '~/generated-metadata/graphql';
 
 type ViewPickerOptionDropdownProps = {
   isIndexView: boolean;
+  isLastView: boolean;
   view: Pick<
     View,
-    | 'id'
-    | 'name'
-    | 'icon'
-    | '__typename'
-    | 'visibility'
-    | 'createdByUserWorkspaceId'
+    'id' | 'name' | 'icon' | 'visibility' | 'createdByUserWorkspaceId'
   >;
   onEdit: (event: React.MouseEvent<HTMLElement>, viewId: string) => void;
   handleViewSelect: (viewId: string) => void;
@@ -44,6 +39,7 @@ type ViewPickerOptionDropdownProps = {
 
 export const ViewPickerOptionDropdown = ({
   isIndexView,
+  isLastView,
   onEdit,
   view,
   handleViewSelect,
@@ -54,35 +50,25 @@ export const ViewPickerOptionDropdown = ({
   const { closeDropdown } = useCloseDropdown();
   const { getIcon } = useIcons();
   const { destroyViewFromCurrentState } = useDestroyViewFromCurrentState();
-  const setViewPickerReferenceViewId = useSetRecoilComponentState(
+  const setViewPickerReferenceViewId = useSetAtomComponentState(
     viewPickerReferenceViewIdComponentState,
   );
-  const { setViewPickerMode } = useViewPickerMode();
   const hasViewsPermission = useHasPermissionFlag(PermissionFlagType.VIEWS);
 
-  const { sortedFavorites: favorites } = useFavorites();
-  const { createFavorite } = useCreateFavorite();
-  const isNavigationMenuItemEditingEnabled = useIsFeatureEnabled(
-    FeatureFlagKey.IS_NAVIGATION_MENU_ITEM_EDITING_ENABLED,
-  );
+  const { createManyNavigationMenuItems } = useCreateManyNavigationMenuItems();
   const { navigationMenuItems, currentWorkspaceMemberId } =
-    usePrefetchedNavigationMenuItemsData();
+    useNavigationMenuItemsData();
 
   // Users with VIEWS permission can edit all views
   // Users without VIEWS permission can only edit unlisted views (which are always their own, filtered by backend)
   const canEditView =
     hasViewsPermission || view.visibility === ViewVisibility.UNLISTED;
 
-  const isFavorite = isNavigationMenuItemEditingEnabled
-    ? navigationMenuItems.some(
-        (item) =>
-          item.viewId === view.id &&
-          item.userWorkspaceId === currentWorkspaceMemberId,
-      )
-    : favorites.some(
-        (favorite) =>
-          favorite.recordId === view.id && favorite.forWorkspaceMemberId,
-      );
+  const isFavorite = navigationMenuItems.some(
+    (item) =>
+      item.viewId === view.id &&
+      item.userWorkspaceId === currentWorkspaceMemberId,
+  );
 
   const handleDelete = () => {
     setViewPickerReferenceViewId(view.id);
@@ -92,10 +78,24 @@ export const ViewPickerOptionDropdown = ({
 
   const handleAddToFavorites = () => {
     if (!isFavorite) {
-      createFavorite(view, 'view');
-    } else {
-      setViewPickerReferenceViewId(view.id);
-      setViewPickerMode('favorite-folders-picker');
+      const relevantItems = navigationMenuItems.filter(
+        (item) => !isDefined(item.folderId) && isDefined(item.userWorkspaceId),
+      );
+
+      const maxPosition = Math.max(
+        ...relevantItems.map((item) => item.position),
+        0,
+      );
+
+      createManyNavigationMenuItems([
+        {
+          id: uuidv4(),
+          type: NavigationMenuItemType.VIEW,
+          viewId: view.id,
+          userWorkspaceId: currentWorkspaceMemberId,
+          position: maxPosition + 1,
+        },
+      ]);
     }
     closeDropdown(dropdownId);
   };
@@ -147,12 +147,14 @@ export const ViewPickerOptionDropdown = ({
                           closeDropdown(dropdownId);
                         }}
                       />
-                      <MenuItem
-                        LeftIcon={IconTrash}
-                        text={t`Delete`}
-                        onClick={handleDelete}
-                        accent="danger"
-                      />
+                      {!isLastView && (
+                        <MenuItem
+                          LeftIcon={IconTrash}
+                          text={t`Delete`}
+                          onClick={handleDelete}
+                          accent="danger"
+                        />
+                      )}
                     </>
                   )}
                 </>

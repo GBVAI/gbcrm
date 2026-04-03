@@ -1,11 +1,11 @@
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import {
   computeStepOutputSchema,
   shouldComputeOutputSchemaOnFrontend,
 } from '@/workflow/workflow-variables/utils/generate/computeStepOutputSchema';
 import { FieldMetadataType } from 'twenty-shared/types';
 
-const mockCompanyObjectMetadataItem: ObjectMetadataItem = {
+const mockCompanyObjectMetadataItem: EnrichedObjectMetadataItem = {
   id: 'company-metadata-id',
   nameSingular: 'company',
   namePlural: 'companies',
@@ -22,7 +22,7 @@ const mockCompanyObjectMetadataItem: ObjectMetadataItem = {
       isSystem: false,
     },
   ],
-} as ObjectMetadataItem;
+} as EnrichedObjectMetadataItem;
 
 describe('computeStepOutputSchema', () => {
   describe('PERSISTED_OUTPUT_SCHEMA_TYPES', () => {
@@ -38,15 +38,6 @@ describe('computeStepOutputSchema', () => {
     it('should return undefined for HTTP_REQUEST step type', () => {
       const result = computeStepOutputSchema({
         step: { type: 'HTTP_REQUEST', settings: {} } as any,
-        objectMetadataItems: [],
-      });
-
-      expect(result).toBeUndefined();
-    });
-
-    it('should return undefined for AI_AGENT step type', () => {
-      const result = computeStepOutputSchema({
-        step: { type: 'AI_AGENT', settings: {} } as any,
         objectMetadataItems: [],
       });
 
@@ -414,6 +405,17 @@ describe('computeStepOutputSchema', () => {
           value: true,
         },
       });
+    });
+  });
+
+  describe('AI_AGENT step', () => {
+    it('should return undefined for AI_AGENT step type', () => {
+      const result = computeStepOutputSchema({
+        step: { type: 'AI_AGENT', settings: {} } as any,
+        objectMetadataItems: [],
+      });
+
+      expect(result).toBeUndefined();
     });
   });
 

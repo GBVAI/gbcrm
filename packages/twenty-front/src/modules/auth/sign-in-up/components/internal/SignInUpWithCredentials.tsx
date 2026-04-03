@@ -15,19 +15,23 @@ import { AuthenticatedMethod } from '@/auth/types/AuthenticatedMethod.enum';
 import { SignInUpMode } from '@/auth/types/signInUpMode';
 import { isRequestingCaptchaTokenState } from '@/captcha/states/isRequestingCaptchaTokenState';
 import { captchaState } from '@/client-config/states/captchaState';
-import styled from '@emotion/styled';
+import { isDDLLockedState } from '@/client-config/states/isDDLLockedState';
+import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { useRecoilState, useRecoilValue } from 'recoil';
 import { isDefined } from 'twenty-shared/utils';
 import { Loader } from 'twenty-ui/feedback';
 import { MainButton } from 'twenty-ui/input';
+import { InputHint } from '@/ui/input/components/InputHint';
+import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 
 const StyledForm = styled.form`
   align-items: center;
   display: flex;
   flex-direction: column;
+  max-width: 100%;
   width: 100%;
 `;
 
@@ -39,13 +43,16 @@ export const SignInUpWithCredentials = ({
   const { t } = useLingui();
   const form = useFormContext<Form>();
 
-  const [signInUpStep, setSignInUpStep] = useRecoilState(signInUpStepState);
+  const [signInUpStep, setSignInUpStep] = useAtomState(signInUpStepState);
   const [showErrors, setShowErrors] = useState(false);
-  const captcha = useRecoilValue(captchaState);
-  const isRequestingCaptchaToken = useRecoilValue(
+  const captcha = useAtomStateValue(captchaState);
+  const isDDLLocked = useAtomStateValue(isDDLLockedState);
+  const isRequestingCaptchaToken = useAtomStateValue(
     isRequestingCaptchaTokenState,
   );
-  const lastAuthenticatedMethod = useRecoilValue(lastAuthenticatedMethodState);
+  const lastAuthenticatedMethod = useAtomStateValue(
+    lastAuthenticatedMethodState,
+  );
   const hasMultipleAuthMethods = useHasMultipleAuthMethods();
 
   const {
@@ -126,9 +133,15 @@ export const SignInUpWithCredentials = ({
       form.formState.isSubmitting ||
       shouldWaitForCaptchaToken);
 
+  const isSignUpBlockedByDDLLock =
+    isDDLLocked &&
+    signInUpMode === SignInUpMode.SignUp &&
+    signInUpStep === SignInUpStep.Password;
+
   const isSubmitButtonDisabled =
     isEmailStepSubmitButtonDisabledCondition ||
-    isPasswordStepSubmitButtonDisabledCondition;
+    isPasswordStepSubmitButtonDisabledCondition ||
+    isSignUpBlockedByDDLLock;
 
   return (
     <>
@@ -160,6 +173,9 @@ export const SignInUpWithCredentials = ({
               fullWidth
             />
             {isLastUsed && <LastUsedPill />}
+            {isSignUpBlockedByDDLLock && (
+              <InputHint>{t`Sign-up is temporarily unavailable during maintenance.`}</InputHint>
+            )}
           </StyledSSOButtonContainer>
         </StyledForm>
       )}

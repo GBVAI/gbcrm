@@ -1,14 +1,15 @@
 import { RecordIndexContextProvider } from '@/object-record/record-index/contexts/RecordIndexContext';
 
-import { ActionMenuComponentInstanceContext } from '@/action-menu/states/contexts/ActionMenuComponentInstanceContext';
-import { getActionMenuIdFromRecordIndexId } from '@/action-menu/utils/getActionMenuIdFromRecordIndexId';
+import { getCommandMenuIdFromRecordIndexId } from '@/command-menu-item/utils/getCommandMenuIdFromRecordIndexId';
+import { CommandMenuComponentInstanceContext } from '@/command-menu/states/contexts/CommandMenuComponentInstanceContext';
 import { getObjectPermissionsForObject } from '@/object-metadata/utils/getObjectPermissionsForObject';
-import { MainContainerLayoutWithCommandMenu } from '@/object-record/components/MainContainerLayoutWithCommandMenu';
+import { MainContainerLayoutWithSidePanel } from '@/object-record/components/MainContainerLayoutWithSidePanel';
 import { RecordComponentInstanceContextsWrapper } from '@/object-record/components/RecordComponentInstanceContextsWrapper';
 import { useObjectPermissions } from '@/object-record/hooks/useObjectPermissions';
 import { lastShowPageRecordIdState } from '@/object-record/record-field/ui/states/lastShowPageRecordId';
 import { RecordIndexContainer } from '@/object-record/record-index/components/RecordIndexContainer';
 import { RecordIndexContainerContextStoreNumberOfSelectedRecordsEffect } from '@/object-record/record-index/components/RecordIndexContainerContextStoreNumberOfSelectedRecordsEffect';
+import { RecordIndexEmptyStateNotShared } from '@/object-record/record-index/components/RecordIndexEmptyStateNotShared';
 import { RecordIndexLoadBaseOnContextStoreEffect } from '@/object-record/record-index/components/RecordIndexLoadBaseOnContextStoreEffect';
 import { RecordIndexPageHeader } from '@/object-record/record-index/components/RecordIndexPageHeader';
 import { useHandleIndexIdentifierClick } from '@/object-record/record-index/hooks/useHandleIndexIdentifierClick';
@@ -17,9 +18,9 @@ import { useRecordIndexIdFromCurrentContextStore } from '@/object-record/record-
 import { RECORD_INDEX_DRAG_SELECT_BOUNDARY_CLASS } from '@/ui/utilities/drag-select/constants/RecordIndecDragSelectBoundaryClass';
 import { PageTitle } from '@/ui/utilities/page-title/components/PageTitle';
 import { ViewComponentInstanceContext } from '@/views/states/contexts/ViewComponentInstanceContext';
-import styled from '@emotion/styled';
-import { useRecoilCallback } from 'recoil';
-import { NotFound } from '~/pages/not-found/NotFound';
+import { styled } from '@linaria/react';
+import { useStore } from 'jotai';
+import { useCallback } from 'react';
 
 const StyledIndexContainer = styled.div`
   display: flex;
@@ -28,21 +29,18 @@ const StyledIndexContainer = styled.div`
 `;
 
 export const RecordIndexContainerGater = () => {
+  const store = useStore();
+
   const { recordIndexId, objectMetadataItem } =
     useRecordIndexIdFromCurrentContextStore();
 
-  const handleIndexRecordsLoaded = useRecoilCallback(
-    ({ set }) =>
-      () => {
-        // TODO: find a better way to reset this state ?
-        set(lastShowPageRecordIdState, null);
-      },
-    [],
-  );
+  const handleIndexRecordsLoaded = useCallback(() => {
+    // TODO: find a better way to reset this state ?
+    store.set(lastShowPageRecordIdState.atom, null);
+  }, [store]);
 
   const { indexIdentifierUrl } = useHandleIndexIdentifierClick({
     objectMetadataItem,
-    recordIndexId,
   });
 
   const { objectPermissionsByObjectMetadataId } = useObjectPermissions();
@@ -62,10 +60,6 @@ export const RecordIndexContainerGater = () => {
     objectMetadataItem,
     recordIndexId,
   );
-
-  if (!hasObjectReadPermissions) {
-    return <NotFound />;
-  }
 
   return (
     <>
@@ -91,22 +85,28 @@ export const RecordIndexContainerGater = () => {
           <RecordComponentInstanceContextsWrapper
             componentInstanceId={recordIndexId}
           >
-            <ActionMenuComponentInstanceContext.Provider
+            <CommandMenuComponentInstanceContext.Provider
               value={{
-                instanceId: getActionMenuIdFromRecordIndexId(recordIndexId),
+                instanceId: getCommandMenuIdFromRecordIndexId(recordIndexId),
               }}
             >
               <PageTitle title={objectMetadataItem.labelPlural} />
               <RecordIndexPageHeader />
-              <MainContainerLayoutWithCommandMenu>
+              <MainContainerLayoutWithSidePanel>
                 <StyledIndexContainer
                   className={RECORD_INDEX_DRAG_SELECT_BOUNDARY_CLASS}
                 >
-                  <RecordIndexContainerContextStoreNumberOfSelectedRecordsEffect />
-                  <RecordIndexContainer />
+                  {hasObjectReadPermissions ? (
+                    <>
+                      <RecordIndexContainerContextStoreNumberOfSelectedRecordsEffect />
+                      <RecordIndexContainer />
+                    </>
+                  ) : (
+                    <RecordIndexEmptyStateNotShared />
+                  )}
                 </StyledIndexContainer>
-              </MainContainerLayoutWithCommandMenu>
-            </ActionMenuComponentInstanceContext.Provider>
+              </MainContainerLayoutWithSidePanel>
+            </CommandMenuComponentInstanceContext.Provider>
           </RecordComponentInstanceContextsWrapper>
           <RecordIndexLoadBaseOnContextStoreEffect />
         </ViewComponentInstanceContext.Provider>

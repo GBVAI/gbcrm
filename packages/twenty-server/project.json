@@ -10,9 +10,13 @@
       "options": {
         "cwd": "packages/twenty-server",
         "parallel": false,
-        "commands": ["rimraf dist", "nest build --path ./tsconfig.build.json"]
+        "commands": [
+          "rimraf dist",
+          "nest build --path ./tsconfig.build.json",
+          "mkdir -p dist/assets/twenty-client-sdk && cp ../twenty-client-sdk/package.json dist/assets/twenty-client-sdk/ && cp -r ../twenty-client-sdk/dist dist/assets/twenty-client-sdk/dist"
+        ]
       },
-      "dependsOn": ["^build", "lingui:compile"]
+      "dependsOn": ["^build"]
     },
     "test:integration": {
       "executor": "nx:run-commands",
@@ -150,18 +154,37 @@
       }
     },
     "lint": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["twenty-oxlint-rules:build"],
+      "inputs": [
+        "{projectRoot}/src/**/*.{ts,tsx}",
+        "{projectRoot}/tsconfig*.json",
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/.oxlintrc.json",
+        "{workspaceRoot}/packages/twenty-oxlint-rules/dist/oxlint-plugin.mjs"
+      ],
       "options": {
-        "lintFilePatterns": ["{projectRoot}/src/**/*.{ts,json}"],
-        "maxWarnings": 0
+        "cwd": "{projectRoot}",
+        "command": "npx oxlint --type-aware -c .oxlintrc.json src/ && (prettier src/ --check --cache --cache-location ../../.cache/prettier/{projectRoot} --cache-strategy metadata || (echo 'ERROR: Prettier formatting check failed! Fix with: npx nx lint twenty-server --configuration=fix' && false))"
       },
       "configurations": {
-        "ci": { "lintFilePatterns": ["{projectRoot}/**/*.{ts,json}"] },
-        "fix": {}
+        "ci": {},
+        "fix": {
+          "command": "npx oxlint --type-aware --fix -c .oxlintrc.json src/ && prettier src/ --write --cache --cache-location ../../.cache/prettier/{projectRoot} --cache-strategy metadata"
+        }
       }
     },
     "lint:diff-with-main": {
+      "executor": "nx:run-commands",
       "options": {
-        "pattern": "\\.(ts|tsx|js|jsx|json)$"
+        "cwd": "{projectRoot}",
+        "command": "FILES=$(git diff --name-only --relative --diff-filter=d main...HEAD -- src/ | grep -E '\\.(ts|tsx)$'); [ -z \"$FILES\" ] && echo 'No changed files.' || (npx oxlint --type-aware -c .oxlintrc.json $FILES && (prettier --check $FILES || (echo 'ERROR: Prettier formatting check failed! Fix with: npx nx lint:diff-with-main twenty-server --configuration=fix' && false)))"
+      },
+      "configurations": {
+        "fix": {
+          "command": "FILES=$(git diff --name-only --relative --diff-filter=d main...HEAD -- src/ | grep -E '\\.(ts|tsx)$'); [ -z \"$FILES\" ] && echo 'No changed files.' || (npx oxlint --type-aware --fix -c .oxlintrc.json $FILES && prettier --write $FILES)"
+        }
       }
     },
     "test": {},
@@ -223,8 +246,8 @@
         "no-seed": {
           "cwd": "packages/twenty-server",
           "commands": [
-            "nx ts-node-no-deps-transpile-only -- ./scripts/truncate-db.ts",
-            "nx ts-node-no-deps-transpile-only -- ./scripts/setup-db.ts",
+            "node dist/database/scripts/truncate-db.js",
+            "node dist/database/scripts/setup-db.js",
             "nx database:migrate",
             "nx command-no-deps -- cache:flush"
           ],
@@ -233,8 +256,8 @@
         "seed": {
           "cwd": "packages/twenty-server",
           "commands": [
-            "nx ts-node-no-deps-transpile-only -- ./scripts/truncate-db.ts",
-            "nx ts-node-no-deps-transpile-only -- ./scripts/setup-db.ts",
+            "node dist/database/scripts/truncate-db.js",
+            "node dist/database/scripts/setup-db.js",
             "nx database:migrate",
             "nx command-no-deps -- cache:flush",
             "nx command-no-deps -- workspace:seed:dev"
@@ -248,21 +271,19 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "packages/twenty-server",
-        "command": "nx ts-node-no-deps -- src/database/clickHouse/migrations/run-migrations.ts"
+        "command": "nx ts-node-no-deps-transpile-only -- src/database/clickHouse/migrations/run-migrations.ts"
       }
     },
     "clickhouse:seed": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "packages/twenty-server",
-        "command": "nx ts-node-no-deps -- src/database/clickHouse/seeds/run-seeds.ts"
+        "command": "nx ts-node-no-deps-transpile-only -- src/database/clickHouse/seeds/run-seeds.ts"
       }
     },
     "lingui:extract": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "options": {
         "cwd": "{projectRoot}",
         "command": "lingui extract --overwrite --clean"
@@ -270,9 +291,7 @@
     },
     "lingui:compile": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "options": {
         "cwd": "{projectRoot}",
         "command": "lingui compile --typescript"

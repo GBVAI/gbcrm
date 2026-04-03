@@ -5,6 +5,8 @@ import { type ToolSet } from 'ai';
 import { isDefined } from 'twenty-shared/utils';
 import { Repository } from 'typeorm';
 
+import { type FlatWorkspace } from 'src/engine/core-modules/workspace/types/flat-workspace.type';
+import { fromUserEntityToFlat } from 'src/engine/core-modules/user/utils/from-user-entity-to-flat.util';
 import { type ToolProviderContext } from 'src/engine/core-modules/tool-provider/interfaces/tool-provider.interface';
 
 import {
@@ -20,7 +22,7 @@ import { DeleteRecordService } from 'src/engine/core-modules/record-crud/service
 import { FindRecordsService } from 'src/engine/core-modules/record-crud/services/find-records.service';
 import { UpdateManyRecordsService } from 'src/engine/core-modules/record-crud/services/update-many-records.service';
 import { UpdateRecordService } from 'src/engine/core-modules/record-crud/services/update-record.service';
-import { type ToolCategory } from 'src/engine/core-modules/tool-provider/enums/tool-category.enum';
+import { type ToolCategory } from 'twenty-shared/ai';
 import {
   type ToolDescriptor,
   type ToolIndexEntry,
@@ -28,7 +30,6 @@ import {
 import { type ToolInput } from 'src/engine/core-modules/tool/types/tool-input.type';
 import { stripLoadingMessage } from 'src/engine/core-modules/tool/utils/wrap-tool-for-execution.util';
 import { UserEntity } from 'src/engine/core-modules/user/user.entity';
-import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 
 // Handler for individually registered static tools (e.g., action tools)
@@ -230,7 +231,7 @@ export class ToolExecutorService {
       );
     }
 
-    // The tool's execute expects (args, ToolCallOptions). Pass args with
+    // The tool's execute expects (args, ToolExecutionOptions). Pass args with
     // a dummy loadingMessage since the tool's internal strip is harmless.
     return tool.execute(
       { loadingMessage: '', ...args },
@@ -303,9 +304,9 @@ export class ToolExecutorService {
     }
 
     return buildUserAuthContext({
-      workspace: { id: context.workspaceId } as WorkspaceEntity,
+      workspace: { id: context.workspaceId } as FlatWorkspace,
       userWorkspaceId: context.userWorkspaceId,
-      user,
+      user: fromUserEntityToFlat(user),
       workspaceMemberId,
       workspaceMember,
     });

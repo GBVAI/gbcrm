@@ -1,20 +1,29 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import { CODE_INTERPRETER_DRIVER } from './code-interpreter.constants';
-
+import { CodeInterpreterDriverFactory } from 'src/engine/core-modules/code-interpreter/code-interpreter-driver.factory';
+import { CodeInterpreterDriverType } from 'src/engine/core-modules/code-interpreter/code-interpreter.interface';
 import {
   type CodeExecutionResult,
   type CodeInterpreterDriver,
   type ExecutionContext,
   type InputFile,
   type StreamCallbacks,
-} from './drivers/interfaces/code-interpreter-driver.interface';
+} from 'src/engine/core-modules/code-interpreter/drivers/interfaces/code-interpreter-driver.interface';
+import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 
 @Injectable()
 export class CodeInterpreterService implements CodeInterpreterDriver {
   constructor(
-    @Inject(CODE_INTERPRETER_DRIVER) private driver: CodeInterpreterDriver,
+    private readonly codeInterpreterDriverFactory: CodeInterpreterDriverFactory,
+    private readonly twentyConfigService: TwentyConfigService,
   ) {}
+
+  isEnabled(): boolean {
+    return (
+      this.twentyConfigService.get('CODE_INTERPRETER_TYPE') !==
+      CodeInterpreterDriverType.DISABLED
+    );
+  }
 
   execute(
     code: string,
@@ -22,6 +31,8 @@ export class CodeInterpreterService implements CodeInterpreterDriver {
     context?: ExecutionContext,
     callbacks?: StreamCallbacks,
   ): Promise<CodeExecutionResult> {
-    return this.driver.execute(code, files, context, callbacks);
+    const driver = this.codeInterpreterDriverFactory.getCurrentDriver();
+
+    return driver.execute(code, files, context, callbacks);
   }
 }

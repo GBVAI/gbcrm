@@ -31,12 +31,11 @@ export class CreateManyResolverFactory
   ): Resolver<CreateManyResolverArgs> {
     const internalContext = context;
 
-    return async (_source, args, requestContext, info) => {
+    return async (_source, args, _requestContext, info) => {
       const selectedFields = graphqlFields(info);
 
       const resolverContext = createQueryRunnerContext({
         workspaceSchemaBuilderContext: internalContext,
-        request: requestContext.req,
       });
 
       try {

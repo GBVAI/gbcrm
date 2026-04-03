@@ -1,26 +1,32 @@
-import { type ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
 import { type ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
-import { type UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
-import { type UserEntity } from 'src/engine/core-modules/user/user.entity';
 import { type AuthProviderEnum } from 'src/engine/core-modules/workspace/types/workspace.type';
-import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
+import { type FlatApiKey } from 'src/engine/core-modules/api-key/types/flat-api-key.type';
+import { type FlatAuthContextUser } from 'src/engine/core-modules/auth/types/flat-auth-context-user.type';
+import { type FlatUserWorkspace } from 'src/engine/core-modules/user-workspace/types/flat-user-workspace.type';
+import { type FlatWorkspace } from 'src/engine/core-modules/workspace/types/flat-workspace.type';
 import { type WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
 
-export type AuthContext = {
-  user?: UserEntity | null | undefined;
-  apiKey?: ApiKeyEntity | null | undefined;
+export { AUTH_CONTEXT_USER_SELECT_FIELDS } from 'src/engine/core-modules/auth/constants/auth-context-user-select-fields.constants';
+export { type FlatAuthContextUser as AuthContextUser } from 'src/engine/core-modules/auth/types/flat-auth-context-user.type';
+
+export type RawAuthContext = {
+  user?: FlatAuthContextUser | null | undefined;
+  apiKey?: FlatApiKey | null | undefined;
   workspaceMemberId?: string;
   workspaceMember?: WorkspaceMemberWorkspaceEntity;
-  workspace?: WorkspaceEntity;
+  workspace?: FlatWorkspace;
   application?: ApplicationEntity | null | undefined;
   userWorkspaceId?: string;
-  userWorkspace?: UserWorkspaceEntity;
+  userWorkspace?: FlatUserWorkspace;
   authProvider?: AuthProviderEnum;
   impersonationContext?: {
     impersonatorUserWorkspaceId?: string;
     impersonatedUserWorkspaceId?: string;
   };
 };
+
+// @deprecated Use WorkspaceAuthContext instead
+export type AuthContext = RawAuthContext;
 
 export type SerializableAuthContext = {
   userId?: string;

@@ -1,26 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { PageLayoutTabLayoutMode } from 'twenty-shared/types';
 import { computeDiffBetweenObjects, isDefined } from 'twenty-shared/utils';
 import { v4 } from 'uuid';
 
-import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import { WorkspaceManyOrAllFlatEntityMapsCacheService } from 'src/engine/metadata-modules/flat-entity/services/workspace-many-or-all-flat-entity-maps-cache.service';
 import { AllFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/all-flat-entity-maps.type';
 import { addFlatEntityToFlatEntityMapsOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/add-flat-entity-to-flat-entity-maps-or-throw.util';
 import { findFlatEntityByIdInFlatEntityMapsOrThrow } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps-or-throw.util';
 import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
-import { resolveEntityRelationUniversalIdentifiers } from 'src/engine/metadata-modules/flat-entity/utils/resolve-entity-relation-universal-identifiers.util';
 import { FLAT_PAGE_LAYOUT_TAB_EDITABLE_PROPERTIES } from 'src/engine/metadata-modules/flat-page-layout-tab/constants/flat-page-layout-tab-editable-properties.constant';
 import { type FlatPageLayoutTabMaps } from 'src/engine/metadata-modules/flat-page-layout-tab/types/flat-page-layout-tab-maps.type';
 import { type FlatPageLayoutTab } from 'src/engine/metadata-modules/flat-page-layout-tab/types/flat-page-layout-tab.type';
 import { FLAT_PAGE_LAYOUT_WIDGET_EDITABLE_PROPERTIES } from 'src/engine/metadata-modules/flat-page-layout-widget/constants/flat-page-layout-widget-editable-properties.constant';
 import { type FlatPageLayoutWidget } from 'src/engine/metadata-modules/flat-page-layout-widget/types/flat-page-layout-widget.type';
+import { buildFlatPageLayoutWidgetCommonProperties } from 'src/engine/metadata-modules/flat-page-layout-widget/utils/build-flat-page-layout-widget-common-properties.util';
 import { fromPageLayoutWidgetConfigurationToUniversalConfiguration } from 'src/engine/metadata-modules/flat-page-layout-widget/utils/from-page-layout-widget-configuration-to-universal-configuration.util';
 import { type FlatPageLayout } from 'src/engine/metadata-modules/flat-page-layout/types/flat-page-layout.type';
 import { reconstructFlatPageLayoutWithTabsAndWidgets } from 'src/engine/metadata-modules/flat-page-layout/utils/reconstruct-flat-page-layout-with-tabs-and-widgets.util';
 import { UpdatePageLayoutTabWithWidgetsInput } from 'src/engine/metadata-modules/page-layout-tab/dtos/inputs/update-page-layout-tab-with-widgets.input';
 import { UpdatePageLayoutWidgetWithIdInput } from 'src/engine/metadata-modules/page-layout-widget/dtos/inputs/update-page-layout-widget-with-id.input';
+import { WidgetConfigurationType } from 'src/engine/metadata-modules/page-layout-widget/enums/widget-configuration-type.type';
+import { validateChartConfigurationFieldReferencesOrThrow } from 'src/engine/metadata-modules/page-layout-widget/utils/validate-chart-configuration-field-references.util';
 import { UpdatePageLayoutWithTabsInput } from 'src/engine/metadata-modules/page-layout/dtos/inputs/update-page-layout-with-tabs.input';
 import { PageLayoutDTO } from 'src/engine/metadata-modules/page-layout/dtos/page-layout.dto';
 import {
@@ -30,6 +32,7 @@ import {
   generatePageLayoutExceptionMessage,
 } from 'src/engine/metadata-modules/page-layout/exceptions/page-layout.exception';
 import { fromFlatPageLayoutWithTabsAndWidgetsToPageLayoutDto } from 'src/engine/metadata-modules/page-layout/utils/from-flat-page-layout-with-tabs-and-widgets-to-page-layout-dto.util';
+import { ViewService } from 'src/engine/metadata-modules/view/services/view.service';
 import { WorkspaceMigrationBuilderException } from 'src/engine/workspace-manager/workspace-migration/exceptions/workspace-migration-builder-exception';
 import { WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
 import { DashboardSyncService } from 'src/modules/dashboard-sync/services/dashboard-sync.service';
@@ -42,11 +45,14 @@ type UpdatePageLayoutWithTabsParams = {
 
 @Injectable()
 export class PageLayoutUpdateService {
+  private readonly logger = new Logger(PageLayoutUpdateService.name);
+
   constructor(
     private readonly workspaceMigrationValidateBuildAndRunService: WorkspaceMigrationValidateBuildAndRunService,
     private readonly workspaceManyOrAllFlatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
     private readonly applicationService: ApplicationService,
     private readonly dashboardSyncService: DashboardSyncService,
+    private readonly viewService: ViewService,
   ) {}
 
   async updatePageLayoutWithTabs({
@@ -119,6 +125,7 @@ export class PageLayoutUpdateService {
     const {
       flatObjectMetadataMaps,
       flatFieldMetadataMaps,
+      flatFrontComponentMaps,
       flatViewFieldGroupMaps,
       flatViewMaps,
     } =
@@ -128,6 +135,7 @@ export class PageLayoutUpdateService {
           flatMapsKeys: [
             'flatObjectMetadataMaps',
             'flatFieldMetadataMaps',
+            'flatFrontComponentMaps',
             'flatViewFieldGroupMaps',
             'flatViewMaps',
           ],
@@ -154,9 +162,16 @@ export class PageLayoutUpdateService {
         workspaceCustomApplicationUniversalIdentifier:
           workspaceCustomFlatApplication.universalIdentifier,
         flatFieldMetadataMaps,
+        flatFrontComponentMaps,
         flatViewFieldGroupMaps,
         flatViewMaps,
       });
+
+    const orphanedViewIds = this.collectOrphanedViewIdsFromDeletedWidgets({
+      widgetsToUpdate,
+      tabsToUpdate,
+      flatPageLayoutWidgetMaps,
+    });
 
     const validateAndBuildResult =
       await this.workspaceMigrationValidateBuildAndRunService.validateBuildAndRunWorkspaceMigration(
@@ -219,6 +234,11 @@ export class PageLayoutUpdateService {
         updatedAt: new Date(flatLayout.updatedAt),
       },
     );
+
+    await this.destroyOrphanedFieldsWidgetViews({
+      viewIds: orphanedViewIds,
+      workspaceId,
+    });
 
     return fromFlatPageLayoutWithTabsAndWidgetsToPageLayoutDto(
       reconstructFlatPageLayoutWithTabsAndWidgets({
@@ -291,7 +311,8 @@ export class PageLayoutUpdateService {
           widgetIds: [],
           widgetUniversalIdentifiers: [],
           icon: null,
-          layoutMode: PageLayoutTabLayoutMode.GRID,
+          layoutMode: tabInput.layoutMode ?? PageLayoutTabLayoutMode.GRID,
+          overrides: null,
         };
       },
     );
@@ -307,6 +328,7 @@ export class PageLayoutUpdateService {
           ...existingTab,
           title: tabInput.title,
           position: tabInput.position,
+          layoutMode: tabInput.layoutMode ?? existingTab.layoutMode,
           updatedAt: now.toISOString(),
         };
       },
@@ -323,6 +345,7 @@ export class PageLayoutUpdateService {
           ...existingTab,
           title: tabInput.title,
           position: tabInput.position,
+          layoutMode: tabInput.layoutMode ?? existingTab.layoutMode,
           deletedAt: null,
           updatedAt: now.toISOString(),
         };
@@ -367,6 +390,7 @@ export class PageLayoutUpdateService {
     workspaceCustomApplicationId,
     workspaceCustomApplicationUniversalIdentifier,
     flatFieldMetadataMaps,
+    flatFrontComponentMaps,
     flatViewFieldGroupMaps,
     flatViewMaps,
   }: {
@@ -378,6 +402,7 @@ export class PageLayoutUpdateService {
     AllFlatEntityMaps,
     | 'flatObjectMetadataMaps'
     | 'flatFieldMetadataMaps'
+    | 'flatFrontComponentMaps'
     | 'flatViewFieldGroupMaps'
     | 'flatViewMaps'
     | 'flatPageLayoutTabMaps'
@@ -402,6 +427,7 @@ export class PageLayoutUpdateService {
           workspaceCustomApplicationId,
           workspaceCustomApplicationUniversalIdentifier,
           flatFieldMetadataMaps,
+          flatFrontComponentMaps,
           flatViewFieldGroupMaps,
           flatViewMaps,
         });
@@ -427,6 +453,7 @@ export class PageLayoutUpdateService {
     workspaceCustomApplicationId,
     workspaceCustomApplicationUniversalIdentifier,
     flatFieldMetadataMaps,
+    flatFrontComponentMaps,
     flatViewFieldGroupMaps,
     flatViewMaps,
   }: {
@@ -439,6 +466,7 @@ export class PageLayoutUpdateService {
     AllFlatEntityMaps,
     | 'flatObjectMetadataMaps'
     | 'flatFieldMetadataMaps'
+    | 'flatFrontComponentMaps'
     | 'flatViewFieldGroupMaps'
     | 'flatViewMaps'
     | 'flatPageLayoutTabMaps'
@@ -447,6 +475,14 @@ export class PageLayoutUpdateService {
     widgetsToCreate: FlatPageLayoutWidget[];
     widgetsToUpdate: FlatPageLayoutWidget[];
   } {
+    for (const widgetInput of widgets) {
+      this.validateChartFieldReferences({
+        widgetInput,
+        flatFieldMetadataMaps,
+        flatObjectMetadataMaps,
+      });
+    }
+
     const existingWidgets = Object.values(
       flatPageLayoutWidgetMaps.byUniversalIdentifier,
     )
@@ -468,32 +504,18 @@ export class PageLayoutUpdateService {
     });
 
     const now = new Date();
+
     const widgetsToCreate: FlatPageLayoutWidget[] = entitiesToCreate.map(
       (widgetInput) => {
         const widgetId = widgetInput.id ?? v4();
 
-        const {
-          pageLayoutTabUniversalIdentifier,
-          objectMetadataUniversalIdentifier,
-        } = resolveEntityRelationUniversalIdentifiers({
-          metadataName: 'pageLayoutWidget',
-          foreignKeyValues: {
-            pageLayoutTabId: widgetInput.pageLayoutTabId,
-            objectMetadataId: widgetInput.objectMetadataId,
-          },
-          flatEntityMaps: { flatPageLayoutTabMaps, flatObjectMetadataMaps },
-        });
-
         return {
           id: widgetId,
-          pageLayoutTabId: widgetInput.pageLayoutTabId,
-          pageLayoutTabUniversalIdentifier,
-          title: widgetInput.title,
-          type: widgetInput.type,
-          objectMetadataId: widgetInput.objectMetadataId ?? null,
-          objectMetadataUniversalIdentifier,
-          gridPosition: widgetInput.gridPosition,
-          position: widgetInput.position ?? null,
+          ...buildFlatPageLayoutWidgetCommonProperties({
+            widgetInput,
+            flatPageLayoutTabMaps,
+            flatObjectMetadataMaps,
+          }),
           configuration: widgetInput.configuration,
           workspaceId,
           createdAt: now.toISOString(),
@@ -504,11 +526,14 @@ export class PageLayoutUpdateService {
           applicationUniversalIdentifier:
             workspaceCustomApplicationUniversalIdentifier,
           conditionalDisplay: null,
+          overrides: null,
           universalConfiguration:
             fromPageLayoutWidgetConfigurationToUniversalConfiguration({
               configuration: widgetInput.configuration,
               fieldMetadataUniversalIdentifierById:
                 flatFieldMetadataMaps.universalIdentifierById,
+              frontComponentUniversalIdentifierById:
+                flatFrontComponentMaps.universalIdentifierById,
               viewFieldGroupUniversalIdentifierById:
                 flatViewFieldGroupMaps.universalIdentifierById,
               viewUniversalIdentifierById: flatViewMaps.universalIdentifierById,
@@ -526,28 +551,13 @@ export class PageLayoutUpdateService {
 
         const updatedConfiguration = widgetInput.configuration ?? null;
 
-        const {
-          pageLayoutTabUniversalIdentifier,
-          objectMetadataUniversalIdentifier,
-        } = resolveEntityRelationUniversalIdentifiers({
-          metadataName: 'pageLayoutWidget',
-          foreignKeyValues: {
-            pageLayoutTabId: widgetInput.pageLayoutTabId,
-            objectMetadataId: widgetInput.objectMetadataId,
-          },
-          flatEntityMaps: { flatPageLayoutTabMaps, flatObjectMetadataMaps },
-        });
-
         return {
           ...existingWidget,
-          pageLayoutTabId: widgetInput.pageLayoutTabId,
-          pageLayoutTabUniversalIdentifier,
-          title: widgetInput.title,
-          type: widgetInput.type,
-          objectMetadataId: widgetInput.objectMetadataId ?? null,
-          objectMetadataUniversalIdentifier,
-          gridPosition: widgetInput.gridPosition,
-          position: widgetInput.position ?? null,
+          ...buildFlatPageLayoutWidgetCommonProperties({
+            widgetInput,
+            flatPageLayoutTabMaps,
+            flatObjectMetadataMaps,
+          }),
           configuration: updatedConfiguration,
           updatedAt: now.toISOString(),
           ...(isDefined(updatedConfiguration) && {
@@ -556,6 +566,8 @@ export class PageLayoutUpdateService {
                 configuration: updatedConfiguration,
                 fieldMetadataUniversalIdentifierById:
                   flatFieldMetadataMaps.universalIdentifierById,
+                frontComponentUniversalIdentifierById:
+                  flatFrontComponentMaps.universalIdentifierById,
                 viewFieldGroupUniversalIdentifierById:
                   flatViewFieldGroupMaps.universalIdentifierById,
                 viewUniversalIdentifierById:
@@ -575,28 +587,13 @@ export class PageLayoutUpdateService {
 
         const restoredConfiguration = widgetInput.configuration ?? null;
 
-        const {
-          pageLayoutTabUniversalIdentifier,
-          objectMetadataUniversalIdentifier,
-        } = resolveEntityRelationUniversalIdentifiers({
-          metadataName: 'pageLayoutWidget',
-          foreignKeyValues: {
-            pageLayoutTabId: widgetInput.pageLayoutTabId,
-            objectMetadataId: widgetInput.objectMetadataId,
-          },
-          flatEntityMaps: { flatPageLayoutTabMaps, flatObjectMetadataMaps },
-        });
-
         return {
           ...existingWidget,
-          pageLayoutTabId: widgetInput.pageLayoutTabId,
-          pageLayoutTabUniversalIdentifier,
-          title: widgetInput.title,
-          type: widgetInput.type,
-          objectMetadataId: widgetInput.objectMetadataId ?? null,
-          objectMetadataUniversalIdentifier,
-          gridPosition: widgetInput.gridPosition,
-          position: widgetInput.position ?? null,
+          ...buildFlatPageLayoutWidgetCommonProperties({
+            widgetInput,
+            flatPageLayoutTabMaps,
+            flatObjectMetadataMaps,
+          }),
           configuration: restoredConfiguration,
           deletedAt: null,
           updatedAt: now.toISOString(),
@@ -606,6 +603,8 @@ export class PageLayoutUpdateService {
                 configuration: restoredConfiguration,
                 fieldMetadataUniversalIdentifierById:
                   flatFieldMetadataMaps.universalIdentifierById,
+                frontComponentUniversalIdentifierById:
+                  flatFrontComponentMaps.universalIdentifierById,
                 viewFieldGroupUniversalIdentifierById:
                   flatViewFieldGroupMaps.universalIdentifierById,
                 viewUniversalIdentifierById:
@@ -642,5 +641,128 @@ export class PageLayoutUpdateService {
         ...widgetsToDelete,
       ],
     };
+  }
+
+  private validateChartFieldReferences({
+    widgetInput,
+    flatFieldMetadataMaps,
+    flatObjectMetadataMaps,
+  }: {
+    widgetInput: UpdatePageLayoutWidgetWithIdInput;
+    flatFieldMetadataMaps: AllFlatEntityMaps['flatFieldMetadataMaps'];
+    flatObjectMetadataMaps: AllFlatEntityMaps['flatObjectMetadataMaps'];
+  }): void {
+    if (!isDefined(widgetInput.configuration)) {
+      return;
+    }
+
+    validateChartConfigurationFieldReferencesOrThrow({
+      widgetConfiguration: widgetInput.configuration,
+      widgetObjectMetadataId: widgetInput.objectMetadataId,
+      widgetTitle: widgetInput.title,
+      flatFieldMetadataMaps,
+      flatObjectMetadataMaps,
+    });
+  }
+
+  private collectOrphanedViewIdsFromDeletedWidgets({
+    widgetsToUpdate,
+    tabsToUpdate,
+    flatPageLayoutWidgetMaps,
+  }: {
+    widgetsToUpdate: FlatPageLayoutWidget[];
+    tabsToUpdate: FlatPageLayoutTab[];
+    flatPageLayoutWidgetMaps: Pick<
+      AllFlatEntityMaps,
+      'flatPageLayoutWidgetMaps'
+    >['flatPageLayoutWidgetMaps'];
+  }): string[] {
+    const viewIdsToDelete = new Set<string>();
+    const directlyDeletedWidgetIds = new Set<string>();
+
+    for (const widget of widgetsToUpdate) {
+      if (isDefined(widget.deletedAt)) {
+        directlyDeletedWidgetIds.add(widget.id);
+        const viewId = this.getViewIdFromFieldsWidget(widget);
+
+        if (isDefined(viewId)) {
+          viewIdsToDelete.add(viewId);
+        }
+      }
+    }
+
+    const deletedTabIds = new Set(
+      tabsToUpdate
+        .filter((tab) => isDefined(tab.deletedAt))
+        .map((tab) => tab.id),
+    );
+
+    const allExistingWidgets = Object.values(
+      flatPageLayoutWidgetMaps.byUniversalIdentifier,
+    ).filter(isDefined);
+
+    for (const widget of allExistingWidgets) {
+      if (
+        !isDefined(widget.deletedAt) &&
+        deletedTabIds.has(widget.pageLayoutTabId)
+      ) {
+        const viewId = this.getViewIdFromFieldsWidget(widget);
+
+        if (isDefined(viewId)) {
+          viewIdsToDelete.add(viewId);
+        }
+      }
+    }
+
+    for (const widget of allExistingWidgets) {
+      if (
+        !isDefined(widget.deletedAt) &&
+        !directlyDeletedWidgetIds.has(widget.id) &&
+        !deletedTabIds.has(widget.pageLayoutTabId)
+      ) {
+        const viewId = this.getViewIdFromFieldsWidget(widget);
+
+        if (isDefined(viewId)) {
+          viewIdsToDelete.delete(viewId);
+        }
+      }
+    }
+
+    return [...viewIdsToDelete];
+  }
+
+  private getViewIdFromFieldsWidget(
+    widget: FlatPageLayoutWidget,
+  ): string | undefined {
+    if (
+      widget.configuration.configurationType !== WidgetConfigurationType.FIELDS
+    ) {
+      return undefined;
+    }
+
+    const viewId = (widget.configuration as { viewId?: string | null }).viewId;
+
+    return typeof viewId === 'string' ? viewId : undefined;
+  }
+
+  private async destroyOrphanedFieldsWidgetViews({
+    viewIds,
+    workspaceId,
+  }: {
+    viewIds: string[];
+    workspaceId: string;
+  }): Promise<void> {
+    for (const viewId of viewIds) {
+      try {
+        await this.viewService.destroyOne({
+          destroyViewInput: { id: viewId },
+          workspaceId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Failed to destroy view ${viewId} after Fields widget deletion: ${error}`,
+        );
+      }
+    }
   }
 }

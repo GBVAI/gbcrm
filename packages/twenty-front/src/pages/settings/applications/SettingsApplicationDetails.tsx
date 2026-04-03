@@ -3,51 +3,58 @@ import { t } from '@lingui/core/macro';
 import { getSettingsPath, isDefined } from 'twenty-shared/utils';
 import { SubMenuTopBarContainer } from '@/ui/layout/page/components/SubMenuTopBarContainer';
 import { useParams } from 'react-router-dom';
-import { useFindOneApplicationQuery } from '~/generated-metadata/graphql';
+import { useQuery } from '@apollo/client/react';
+import { FindOneApplicationDocument } from '~/generated-metadata/graphql';
 import { SettingsPageContainer } from '@/settings/components/SettingsPageContainer';
 import {
+  IconApps,
   IconBox,
   IconInfoCircle,
   IconLock,
   IconSettings,
 } from 'twenty-ui/display';
 import { SettingsApplicationDetailSkeletonLoader } from '~/pages/settings/applications/components/SettingsApplicationDetailSkeletonLoader';
+import { SettingsApplicationDetailTitle } from '~/pages/settings/applications/components/SettingsApplicationDetailTitle';
 import { TabList } from '@/ui/layout/tab-list/components/TabList';
 import { activeTabIdComponentState } from '@/ui/layout/tab-list/states/activeTabIdComponentState';
-import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
 import { SettingsApplicationDetailContentTab } from '~/pages/settings/applications/tabs/SettingsApplicationDetailContentTab';
 import { SettingsApplicationDetailAboutTab } from '~/pages/settings/applications/tabs/SettingsApplicationDetailAboutTab';
 import { SettingsApplicationDetailSettingsTab } from '~/pages/settings/applications/tabs/SettingsApplicationDetailSettingsTab';
 import { SettingsApplicationPermissionsTab } from '~/pages/settings/applications/tabs/SettingsApplicationPermissionsTab';
+import { SettingsApplicationCustomTab } from '~/pages/settings/applications/tabs/SettingsApplicationCustomTab';
 
 const APPLICATION_DETAIL_ID = 'application-detail-id';
 
 export const SettingsApplicationDetails = () => {
   const { applicationId = '' } = useParams<{ applicationId: string }>();
 
-  const activeTabId = useRecoilComponentValueV2(
+  const activeTabId = useAtomComponentStateValue(
     activeTabIdComponentState,
     APPLICATION_DETAIL_ID,
   );
 
-  const { data } = useFindOneApplicationQuery({
+  const { data } = useQuery(FindOneApplicationDocument, {
     variables: { id: applicationId },
     skip: !applicationId,
   });
 
   const application = data?.findOneApplication;
 
-  const applicationName = application?.name;
+  const applicationName = application?.name ?? t`Application details`;
+  const applicationDescription = application?.description ?? undefined;
 
-  const title = !isDefined(application)
-    ? t`Application details`
-    : applicationName;
+  const settingsCustomTabFrontComponentId =
+    application?.settingsCustomTabFrontComponentId;
 
   const tabs = [
     { id: 'about', title: t`About`, Icon: IconInfoCircle },
     { id: 'content', title: t`Content`, Icon: IconBox },
     { id: 'permissions', title: t`Permissions`, Icon: IconLock },
     { id: 'settings', title: t`Settings`, Icon: IconSettings },
+    ...(isDefined(settingsCustomTabFrontComponentId)
+      ? [{ id: 'custom', title: t`Custom`, Icon: IconApps }]
+      : []),
   ];
 
   const renderActiveTabContent = () => {
@@ -68,6 +75,16 @@ export const SettingsApplicationDetails = () => {
         return (
           <SettingsApplicationDetailSettingsTab application={application} />
         );
+      case 'custom':
+        return isDefined(settingsCustomTabFrontComponentId) ? (
+          <SettingsApplicationCustomTab
+            settingsCustomTabFrontComponentId={
+              settingsCustomTabFrontComponentId
+            }
+          />
+        ) : (
+          <></>
+        );
       default:
         return <></>;
     }
@@ -75,7 +92,12 @@ export const SettingsApplicationDetails = () => {
 
   return (
     <SubMenuTopBarContainer
-      title={title}
+      title={
+        <SettingsApplicationDetailTitle
+          displayName={applicationName}
+          description={applicationDescription}
+        />
+      }
       links={[
         {
           children: t`Workspace`,
@@ -85,7 +107,7 @@ export const SettingsApplicationDetails = () => {
           children: t`Applications`,
           href: getSettingsPath(SettingsPath.Applications),
         },
-        { children: `${title}` },
+        { children: applicationName },
       ]}
     >
       <SettingsPageContainer>

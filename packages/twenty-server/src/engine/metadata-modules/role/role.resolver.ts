@@ -8,19 +8,19 @@ import { Args, Mutation, Parent, Query, ResolveField } from '@nestjs/graphql';
 
 import { msg } from '@lingui/core/macro';
 import { PermissionFlagType } from 'twenty-shared/constants';
+import { FeatureFlagKey } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
 
+import { MetadataResolver } from 'src/engine/api/graphql/graphql-config/decorators/metadata-resolver.decorator';
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
 import { ApiKeyRoleService } from 'src/engine/core-modules/api-key/services/api-key-role.service';
-import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
+import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import { PreventNestToAutoLogGraphqlErrorsFilter } from 'src/engine/core-modules/graphql/filters/prevent-nest-to-auto-log-graphql-errors.filter';
 import { ResolverValidationPipe } from 'src/engine/core-modules/graphql/pipes/resolver-validation.pipe';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
 import { WorkspaceMemberDTO } from 'src/engine/core-modules/user/dtos/workspace-member.dto';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { AuthWorkspaceMemberId } from 'src/engine/decorators/auth/auth-workspace-member-id.decorator';
-import { MetadataResolver } from 'src/engine/api/graphql/graphql-config/decorators/metadata-resolver.decorator';
 import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorator';
 import { RequireFeatureFlag } from 'src/engine/guards/feature-flag.guard';
 import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.guard';
@@ -39,21 +39,24 @@ import { UpsertFieldPermissionsInput } from 'src/engine/metadata-modules/object-
 import { UpsertObjectPermissionsInput } from 'src/engine/metadata-modules/object-permission/dtos/upsert-object-permissions.input';
 import { FieldPermissionService } from 'src/engine/metadata-modules/object-permission/field-permission/field-permission.service';
 import { ObjectPermissionService } from 'src/engine/metadata-modules/object-permission/object-permission.service';
+import { fromFlatFieldPermissionToFieldPermissionDto } from 'src/engine/metadata-modules/object-permission/utils/from-flat-field-permission-to-field-permission-dto.util';
+import { fromFlatObjectPermissionToObjectPermissionDto } from 'src/engine/metadata-modules/object-permission/utils/from-flat-object-permission-to-object-permission-dto.util';
 import { PermissionFlagDTO } from 'src/engine/metadata-modules/permission-flag/dtos/permission-flag.dto';
 import { UpsertPermissionFlagsInput } from 'src/engine/metadata-modules/permission-flag/dtos/upsert-permission-flag-input';
 import { PermissionFlagService } from 'src/engine/metadata-modules/permission-flag/permission-flag.service';
+import { fromFlatPermissionFlagToPermissionFlagDto } from 'src/engine/metadata-modules/permission-flag/utils/from-flat-permission-flag-to-permission-flag-dto.util';
 import {
   PermissionsException,
   PermissionsExceptionCode,
   PermissionsExceptionMessage,
 } from 'src/engine/metadata-modules/permissions/permissions.exception';
 import { PermissionsGraphqlApiExceptionFilter } from 'src/engine/metadata-modules/permissions/utils/permissions-graphql-api-exception.filter';
-import { CreateRoleInput } from 'src/engine/metadata-modules/role/dtos/create-role-input.dto';
+import { CreateRoleInput } from 'src/engine/metadata-modules/role/dtos/create-role.input';
 import {
   ApiKeyForRoleDTO,
   RoleDTO,
 } from 'src/engine/metadata-modules/role/dtos/role.dto';
-import { UpdateRoleInput } from 'src/engine/metadata-modules/role/dtos/update-role-input.dto';
+import { UpdateRoleInput } from 'src/engine/metadata-modules/role/dtos/update-role.input';
 import { RoleService } from 'src/engine/metadata-modules/role/role.service';
 import { fromRoleEntitiesToRoleDtos } from 'src/engine/metadata-modules/role/utils/fromRoleEntityToRoleDto.util';
 import { UpsertRowLevelPermissionPredicatesInput } from 'src/engine/metadata-modules/row-level-permission-predicate/dtos/inputs/upsert-row-level-permission-predicates.input';
@@ -210,10 +213,14 @@ export class RoleResolver {
     @Args('upsertObjectPermissionsInput')
     upsertObjectPermissionsInput: UpsertObjectPermissionsInput,
   ): Promise<ObjectPermissionDTO[]> {
-    return this.objectPermissionService.upsertObjectPermissions({
-      workspaceId: workspace.id,
-      input: upsertObjectPermissionsInput,
-    });
+    const flatObjectPermissions =
+      await this.objectPermissionService.upsertObjectPermissions({
+        workspaceId: workspace.id,
+        input: upsertObjectPermissionsInput,
+      });
+    return flatObjectPermissions.map(
+      fromFlatObjectPermissionToObjectPermissionDto,
+    );
   }
 
   @Mutation(() => [PermissionFlagDTO])
@@ -222,10 +229,12 @@ export class RoleResolver {
     @Args('upsertPermissionFlagsInput')
     upsertPermissionFlagsInput: UpsertPermissionFlagsInput,
   ): Promise<PermissionFlagDTO[]> {
-    return this.settingPermissionService.upsertPermissionFlags({
-      workspaceId: workspace.id,
-      input: upsertPermissionFlagsInput,
-    });
+    const flatPermissionFlags =
+      await this.settingPermissionService.upsertPermissionFlags({
+        workspaceId: workspace.id,
+        input: upsertPermissionFlagsInput,
+      });
+    return flatPermissionFlags.map(fromFlatPermissionFlagToPermissionFlagDto);
   }
 
   @Mutation(() => [FieldPermissionDTO])
@@ -234,10 +243,14 @@ export class RoleResolver {
     @Args('upsertFieldPermissionsInput')
     upsertFieldPermissionsInput: UpsertFieldPermissionsInput,
   ): Promise<FieldPermissionDTO[]> {
-    return this.fieldPermissionService.upsertFieldPermissions({
-      workspaceId: workspace.id,
-      input: upsertFieldPermissionsInput,
-    });
+    const flatFieldPermissions =
+      await this.fieldPermissionService.upsertFieldPermissions({
+        workspaceId: workspace.id,
+        input: upsertFieldPermissionsInput,
+      });
+    return flatFieldPermissions.map(
+      fromFlatFieldPermissionToFieldPermissionDto,
+    );
   }
 
   @Mutation(() => UpsertRowLevelPermissionPredicatesResultDTO)

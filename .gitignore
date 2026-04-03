@@ -2,6 +2,7 @@
 .env.local
 .DS_Store
 /.idea
+.claude/settings.json
 **/**/node_modules/
 .cache
 
@@ -29,7 +30,7 @@ coverage
 dist
 storybook-static
 *.tsbuildinfo
-.eslintcache
+.oxlintcache
 .nyc_output
 test-results/
 dump.rdb

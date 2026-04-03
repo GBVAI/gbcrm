@@ -91,19 +91,22 @@ export type ViewConfiguration = {
   configurationType: 'VIEW';
 };
 
-export type FieldConfiguration = {
-  configurationType: 'FIELD';
+export type RecordTableConfiguration = {
+  configurationType: 'RECORD_TABLE';
+  viewId?: string;
 };
 
-type NewFieldDefaultConfiguration = {
-  isVisible: boolean;
-  viewFieldGroupId: string | null;
+export type FieldConfiguration = {
+  configurationType: 'FIELD';
+  fieldMetadataId: string;
+  fieldDisplayMode: 'CARD' | 'FIELD' | 'VIEW';
 };
 
 export type FieldsConfiguration = {
   configurationType: 'FIELDS';
   viewId?: string | null;
-  newFieldDefaultConfiguration?: NewFieldDefaultConfiguration | null;
+  newFieldDefaultVisibility?: boolean | null;
+  shouldAllowUserToSeeHiddenFields?: boolean;
 };
 
 export type FieldRichTextConfiguration = {
@@ -125,7 +128,7 @@ export type IframeConfiguration = {
 
 export type FrontComponentConfiguration = {
   configurationType: 'FRONT_COMPONENT';
-  frontComponentId: string;
+  frontComponentId: SerializedRelation;
 };
 
 export type TimelineConfiguration = {
@@ -171,6 +174,7 @@ export type PageLayoutWidgetConfiguration =
   | BarChartConfiguration
   | LineChartConfiguration
   | ViewConfiguration
+  | RecordTableConfiguration
   | FieldConfiguration
   | FieldsConfiguration
   | FieldRichTextConfiguration

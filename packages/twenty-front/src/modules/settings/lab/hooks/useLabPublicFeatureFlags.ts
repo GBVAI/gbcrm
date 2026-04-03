@@ -1,44 +1,48 @@
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
-import { labPublicFeatureFlagsStateV2 } from '@/client-config/states/labPublicFeatureFlagsStateV2';
-import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
+import { labPublicFeatureFlagsState } from '@/client-config/states/labPublicFeatureFlagsState';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { t } from '@lingui/core/macro';
 import { useState } from 'react';
-import { useRecoilState } from 'recoil';
+import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { isDefined } from 'twenty-shared/utils';
+import { useMutation } from '@apollo/client/react';
 import {
   type FeatureFlagKey,
-  useUpdateLabPublicFeatureFlagMutation,
+  UpdateLabPublicFeatureFlagDocument,
 } from '~/generated-metadata/graphql';
 
 export const useLabPublicFeatureFlags = () => {
   const [error, setError] = useState<string | null>(null);
-  const [currentWorkspace, setCurrentWorkspace] = useRecoilState(
+  const [currentWorkspace, setCurrentWorkspace] = useAtomState(
     currentWorkspaceState,
   );
-  const labPublicFeatureFlags = useRecoilValueV2(labPublicFeatureFlagsStateV2);
+  const labPublicFeatureFlags = useAtomStateValue(labPublicFeatureFlagsState);
 
-  const [updateLabPublicFeatureFlag] = useUpdateLabPublicFeatureFlagMutation({
-    onCompleted: (data) => {
-      if (isDefined(currentWorkspace)) {
-        const updatedFlag = data.updateLabPublicFeatureFlag;
+  const [updateLabPublicFeatureFlag] = useMutation(
+    UpdateLabPublicFeatureFlagDocument,
+    {
+      onCompleted: (data) => {
+        if (isDefined(currentWorkspace)) {
+          const updatedFlag = data.updateLabPublicFeatureFlag;
 
-        setCurrentWorkspace({
-          ...currentWorkspace,
-          featureFlags: [
-            ...(currentWorkspace.featureFlags?.filter(
-              (flag) => flag.key !== updatedFlag.key,
-            ) ?? []),
-            {
-              ...updatedFlag,
-            },
-          ],
-        });
-      }
+          setCurrentWorkspace({
+            ...currentWorkspace,
+            featureFlags: [
+              ...(currentWorkspace.featureFlags?.filter(
+                (flag) => flag.key !== updatedFlag.key,
+              ) ?? []),
+              {
+                ...updatedFlag,
+              },
+            ],
+          });
+        }
+      },
+      onError: (error) => {
+        setError(error.message);
+      },
     },
-    onError: (error) => {
-      setError(error.message);
-    },
-  });
+  );
 
   const handleLabPublicFeatureFlagUpdate = async (
     publicFeatureFlag: FeatureFlagKey,

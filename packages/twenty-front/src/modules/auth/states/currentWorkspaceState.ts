@@ -1,4 +1,4 @@
-import { createState } from '@/ui/utilities/state/utils/createState';
+import { createAtomState } from '@/ui/utilities/state/jotai/utils/createAtomState';
 import {
   type Application,
   type Role,
@@ -27,6 +27,8 @@ export type CurrentWorkspace = Pick<
   | 'isPasswordAuthBypassEnabled'
   | 'isCustomDomainEnabled'
   | 'hasValidEnterpriseKey'
+  | 'hasValidSignedEnterpriseKey'
+  | 'hasValidEnterpriseValidityToken'
   | 'subdomain'
   | 'customDomain'
   | 'workspaceUrls'
@@ -38,12 +40,14 @@ export type CurrentWorkspace = Pick<
   | 'smartModel'
   | 'aiAdditionalInstructions'
   | 'editableProfileFields'
+  | 'enabledAiModelIds'
+  | 'useRecommendedModels'
 > & {
   defaultRole?: Omit<Role, 'workspaceMembers' | 'agents' | 'apiKeys'> | null;
   workspaceCustomApplication: Pick<Application, 'id'> | null;
 };
 
-export const currentWorkspaceState = createState<CurrentWorkspace | null>({
+export const currentWorkspaceState = createAtomState<CurrentWorkspace | null>({
   key: 'currentWorkspaceState',
   defaultValue: null,
 });

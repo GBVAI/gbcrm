@@ -59,7 +59,7 @@ const isFilterableFieldType = (
     FieldMetadataType.SELECT,
     FieldMetadataType.MULTI_SELECT,
     FieldMetadataType.RAW_JSON,
-    FieldMetadataType.RICH_TEXT_V2,
+    FieldMetadataType.RICH_TEXT,
     FieldMetadataType.ARRAY,
     FieldMetadataType.UUID,
     FieldMetadataType.RELATION,
@@ -116,7 +116,8 @@ export const WorkflowStepFilterValueInput = ({
   const isDisabled = !stepFilter.operand;
 
   const operandHasNoInput =
-    (stepFilter && !configurableViewFilterOperands.has(stepFilter.operand)) ??
+    (isDefined(stepFilter) &&
+      !configurableViewFilterOperands.has(stepFilter.operand)) ??
     true;
 
   const {

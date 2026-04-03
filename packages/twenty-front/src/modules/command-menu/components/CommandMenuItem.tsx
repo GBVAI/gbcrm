@@ -5,7 +5,9 @@ import { MenuItem } from 'twenty-ui/navigation';
 
 import { useCommandMenuOnItemClick } from '@/command-menu/hooks/useCommandMenuOnItemClick';
 import { isSelectedItemIdComponentFamilyState } from '@/ui/layout/selectable-list/states/isSelectedItemIdComponentFamilyState';
-import { useRecoilComponentFamilyValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentFamilyValueV2';
+import { useAtomComponentFamilyStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentFamilyStateValue';
+import { type Nullable } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
 
 export type CommandMenuItemProps = {
   label: string;
@@ -14,7 +16,7 @@ export type CommandMenuItemProps = {
   id: string;
   onClick?: () => void;
   Icon?: IconComponent;
-  hotKeys?: string[];
+  hotKeys?: Nullable<string[]>;
   LeftComponent?: ReactNode;
   RightComponent?: ReactNode;
   contextualTextPosition?: 'left' | 'right';
@@ -44,15 +46,15 @@ export const CommandMenuItem = ({
     Icon = IconArrowUpRight;
   }
 
-  const isSelectedItemId = useRecoilComponentFamilyValueV2(
+  const isSelectedItemId = useAtomComponentFamilyStateValue(
     isSelectedItemIdComponentFamilyState,
     id,
   );
 
   return (
     <MenuItem
-      withIconContainer={!LeftComponent}
-      LeftIcon={LeftComponent ? undefined : Icon}
+      withIconContainer={!isDefined(LeftComponent)}
+      LeftIcon={isDefined(LeftComponent) ? undefined : Icon}
       LeftComponent={LeftComponent}
       text={label}
       contextualText={description}
@@ -67,7 +69,7 @@ export const CommandMenuItem = ({
               })
           : undefined
       }
-      focused={isSelectedItemId}
+      focused={!disabled && isSelectedItemId}
       RightComponent={RightComponent}
       hasSubMenu={hasSubMenu}
       isSubMenuOpened={isSubMenuOpened}

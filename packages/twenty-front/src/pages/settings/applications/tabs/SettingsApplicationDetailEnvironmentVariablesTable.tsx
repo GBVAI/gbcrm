@@ -5,12 +5,13 @@ import { Section } from 'twenty-ui/layout';
 import { TextInput } from '@/ui/input/components/TextInput';
 import { useDebouncedCallback } from 'use-debounce';
 import { useState } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(4)};
+  gap: ${themeCssVariables.spacing[4]};
 `;
 
 export const SettingsApplicationDetailEnvironmentVariablesTable = ({
@@ -28,12 +29,13 @@ export const SettingsApplicationDetailEnvironmentVariablesTable = ({
     },
     250,
   );
+  const description =
+    editedEnvVariables.length > 0
+      ? t`Set your application configuration variables`
+      : t`No variables to set for this application`;
   return (
     <Section>
-      <H2Title
-        title={t`Configuration`}
-        description={t`Set your application configuration variables`}
-      />
+      <H2Title title={t`Configuration`} description={description} />
       <StyledContainer>
         {editedEnvVariables.map((editedEnvVariable) => (
           <TextInput

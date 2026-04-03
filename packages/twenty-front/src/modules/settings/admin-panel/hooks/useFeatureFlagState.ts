@@ -1,11 +1,15 @@
-import { userLookupResultStateV2 } from '@/settings/admin-panel/states/userLookupResultStateV2';
-import { useRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilStateV2';
-import { type FeatureFlagKey } from '~/generated-metadata/graphql';
+import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
+import { userLookupResultState } from '@/settings/admin-panel/states/userLookupResultState';
+import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { isDefined } from 'twenty-shared/utils';
+import { type FeatureFlagKey } from '~/generated-metadata/graphql';
 
 export const useFeatureFlagState = () => {
-  const [userLookupResult, setUserLookupResult] = useRecoilStateV2(
-    userLookupResultStateV2,
+  const [userLookupResult, setUserLookupResult] = useAtomState(
+    userLookupResultState,
+  );
+  const [currentWorkspace, setCurrentWorkspace] = useAtomState(
+    currentWorkspaceState,
   );
 
   const updateFeatureFlagState = (
@@ -28,6 +32,15 @@ export const useFeatureFlagState = () => {
           : workspace,
       ),
     });
+
+    if (isDefined(currentWorkspace) && currentWorkspace.id === workspaceId) {
+      setCurrentWorkspace({
+        ...currentWorkspace,
+        featureFlags: currentWorkspace.featureFlags?.map((flag) =>
+          flag.key === featureFlag ? { ...flag, value } : flag,
+        ),
+      });
+    }
   };
 
   return {

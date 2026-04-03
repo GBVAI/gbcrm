@@ -1,184 +1,133 @@
+import { UPSERT_FIELDS_WIDGET } from '@/page-layout/graphql/mutations/upsertFieldsWidget';
+import { useHasFieldsWidgetChanges } from '@/page-layout/hooks/useHasFieldsWidgetChanges';
+import { fieldsWidgetEditorModeDraftComponentState } from '@/page-layout/states/fieldsWidgetEditorModeDraftComponentState';
+import { fieldsWidgetEditorModePersistedComponentState } from '@/page-layout/states/fieldsWidgetEditorModePersistedComponentState';
 import { fieldsWidgetGroupsDraftComponentState } from '@/page-layout/states/fieldsWidgetGroupsDraftComponentState';
 import { fieldsWidgetGroupsPersistedComponentState } from '@/page-layout/states/fieldsWidgetGroupsPersistedComponentState';
-import { pageLayoutPersistedComponentState } from '@/page-layout/states/pageLayoutPersistedComponentState';
-import { computeFieldsWidgetFieldDiff } from '@/page-layout/utils/computeFieldsWidgetFieldDiff';
-import { computeFieldsWidgetGroupDiff } from '@/page-layout/utils/computeFieldsWidgetGroupDiff';
-import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
-import { usePerformViewFieldAPIPersist } from '@/views/hooks/internal/usePerformViewFieldAPIPersist';
-import { usePerformViewFieldGroupAPIPersist } from '@/views/hooks/internal/usePerformViewFieldGroupAPIPersist';
-import { useRefreshAllCoreViews } from '@/views/hooks/useRefreshAllCoreViews';
-import { useRecoilCallback } from 'recoil';
+import { fieldsWidgetUngroupedFieldsDraftComponentState } from '@/page-layout/states/fieldsWidgetUngroupedFieldsDraftComponentState';
+import { fieldsWidgetUngroupedFieldsPersistedComponentState } from '@/page-layout/states/fieldsWidgetUngroupedFieldsPersistedComponentState';
+import { useMutation } from '@apollo/client/react';
+import { useStore } from 'jotai';
+import { useCallback } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import {
-  type FieldsConfiguration,
-  WidgetConfigurationType,
+  type UpsertFieldsWidgetInput,
+  type ViewFragmentFragment,
 } from '~/generated-metadata/graphql';
 
-type UseSaveFieldsWidgetGroupsParams = {
-  pageLayoutId: string;
-};
+export const useSaveFieldsWidgetGroups = () => {
+  const [upsertFieldsWidgetMutation] = useMutation<
+    { upsertFieldsWidget: ViewFragmentFragment },
+    { input: UpsertFieldsWidgetInput }
+  >(UPSERT_FIELDS_WIDGET);
 
-export const useSaveFieldsWidgetGroups = ({
-  pageLayoutId,
-}: UseSaveFieldsWidgetGroupsParams) => {
-  const fieldsWidgetGroupsDraftState = useRecoilComponentCallbackState(
-    fieldsWidgetGroupsDraftComponentState,
-    pageLayoutId,
-  );
+  const { hasFieldsWidgetChanges } = useHasFieldsWidgetChanges();
 
-  const fieldsWidgetGroupsPersistedState = useRecoilComponentCallbackState(
-    fieldsWidgetGroupsPersistedComponentState,
-    pageLayoutId,
-  );
+  const store = useStore();
 
-  const pageLayoutPersistedState = useRecoilComponentCallbackState(
-    pageLayoutPersistedComponentState,
-    pageLayoutId,
-  );
+  const saveFieldsWidgetGroups = useCallback(
+    async (pageLayoutId: string) => {
+      if (!hasFieldsWidgetChanges(pageLayoutId)) {
+        return;
+      }
 
-  const {
-    performViewFieldGroupAPICreate,
-    performViewFieldGroupAPIUpdate,
-    performViewFieldGroupAPIDelete,
-  } = usePerformViewFieldGroupAPIPersist();
+      const allDraftGroups = store.get(
+        fieldsWidgetGroupsDraftComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+      );
+      const allPersistedGroups = store.get(
+        fieldsWidgetGroupsPersistedComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+      );
+      const allUngroupedFieldsDraft = store.get(
+        fieldsWidgetUngroupedFieldsDraftComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+      );
+      const allEditorModes = store.get(
+        fieldsWidgetEditorModeDraftComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+      );
 
-  const { performViewFieldAPIUpdate } = usePerformViewFieldAPIPersist();
+      const widgetIds = new Set([
+        ...Object.keys(allDraftGroups),
+        ...Object.keys(allPersistedGroups),
+        ...Object.keys(allUngroupedFieldsDraft),
+      ]);
 
-  const { refreshAllCoreViews } = useRefreshAllCoreViews();
+      for (const widgetId of widgetIds) {
+        const editorMode = allEditorModes[widgetId] ?? 'ungrouped';
 
-  const getViewIdForWidget = useRecoilCallback(
-    ({ snapshot }) =>
-      (widgetId: string): string | null => {
-        const pageLayoutPersisted = snapshot
-          .getLoadable(pageLayoutPersistedState)
-          .getValue();
-
-        if (!isDefined(pageLayoutPersisted)) {
-          return null;
-        }
-
-        for (const tab of pageLayoutPersisted.tabs) {
-          for (const widget of tab.widgets) {
-            if (
-              widget.id === widgetId &&
-              isDefined(widget.configuration) &&
-              widget.configuration.configurationType ===
-                WidgetConfigurationType.FIELDS
-            ) {
-              return (
-                (widget.configuration as FieldsConfiguration).viewId ?? null
-              );
-            }
-          }
-        }
-
-        return null;
-      },
-    [pageLayoutPersistedState],
-  );
-
-  const saveFieldsWidgetGroups = useRecoilCallback(
-    ({ set, snapshot }) =>
-      async () => {
-        const allDraftGroups = snapshot
-          .getLoadable(fieldsWidgetGroupsDraftState)
-          .getValue();
-        const allPersistedGroups = snapshot
-          .getLoadable(fieldsWidgetGroupsPersistedState)
-          .getValue();
-
-        const widgetIds = new Set([
-          ...Object.keys(allDraftGroups),
-          ...Object.keys(allPersistedGroups),
-        ]);
-
-        for (const widgetId of widgetIds) {
+        if (editorMode === 'grouped') {
           const draftGroups = allDraftGroups[widgetId] ?? [];
-          const persistedGroups = allPersistedGroups[widgetId] ?? [];
 
-          if (draftGroups.length === 0 && persistedGroups.length === 0) {
-            continue;
-          }
-
-          const viewId = getViewIdForWidget(widgetId);
-
-          if (!isDefined(viewId)) {
-            continue;
-          }
-
-          const { createdGroups, deletedGroups, updatedGroups } =
-            computeFieldsWidgetGroupDiff(persistedGroups, draftGroups);
-
-          if (createdGroups.length > 0) {
-            await performViewFieldGroupAPICreate({
-              inputs: createdGroups.map((group) => ({
-                id: group.id,
-                name: group.name,
-                position: group.position,
-                isVisible: group.isVisible,
-                viewId,
-              })),
-            });
-          }
-
-          if (deletedGroups.length > 0) {
-            for (const group of deletedGroups) {
-              await performViewFieldGroupAPIDelete([
-                { input: { id: group.id } },
-              ]);
-            }
-          }
-
-          if (updatedGroups.length > 0) {
-            const updates = updatedGroups.map((group) => ({
+          await upsertFieldsWidgetMutation({
+            variables: {
               input: {
-                id: group.id,
-                update: {
+                widgetId,
+                groups: draftGroups.map((group) => ({
+                  id: group.id,
                   name: group.name,
                   position: group.position,
                   isVisible: group.isVisible,
-                },
+                  fields: group.fields.map((field) => ({
+                    ...(isDefined(field.viewFieldId)
+                      ? { viewFieldId: field.viewFieldId }
+                      : {
+                          fieldMetadataId: field.fieldMetadataItem.id,
+                        }),
+                    isVisible: field.isVisible,
+                    position: field.position,
+                  })),
+                })),
               },
-            }));
+            },
+          });
+        } else {
+          const ungroupedFields = allUngroupedFieldsDraft[widgetId] ?? [];
 
-            await performViewFieldGroupAPIUpdate(updates);
-          }
-
-          const fieldUpdates = computeFieldsWidgetFieldDiff(
-            persistedGroups,
-            draftGroups,
-          );
-
-          if (fieldUpdates.length > 0) {
-            const viewFieldUpdateInputs = fieldUpdates.map(
-              ({ viewFieldId, ...updates }) => ({
-                input: {
-                  id: viewFieldId,
-                  update: updates,
-                },
-              }),
-            );
-
-            await performViewFieldAPIUpdate(viewFieldUpdateInputs);
-          }
+          await upsertFieldsWidgetMutation({
+            variables: {
+              input: {
+                widgetId,
+                fields: ungroupedFields.map((field) => ({
+                  ...(isDefined(field.viewFieldId)
+                    ? { viewFieldId: field.viewFieldId }
+                    : {
+                        fieldMetadataId: field.fieldMetadataItem.id,
+                      }),
+                  isVisible: field.isVisible,
+                  position: field.position,
+                })),
+              },
+            },
+          });
         }
+      }
 
-        set(fieldsWidgetGroupsPersistedState, allDraftGroups);
-
-        await refreshAllCoreViews();
-
-        return { status: 'successful' as const };
-      },
-    [
-      fieldsWidgetGroupsDraftState,
-      fieldsWidgetGroupsPersistedState,
-      getViewIdForWidget,
-      performViewFieldGroupAPICreate,
-      performViewFieldGroupAPIDelete,
-      performViewFieldGroupAPIUpdate,
-      performViewFieldAPIUpdate,
-      refreshAllCoreViews,
-    ],
+      store.set(
+        fieldsWidgetGroupsPersistedComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+        allDraftGroups,
+      );
+      store.set(
+        fieldsWidgetUngroupedFieldsPersistedComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+        allUngroupedFieldsDraft,
+      );
+      store.set(
+        fieldsWidgetEditorModePersistedComponentState.atomFamily({
+          instanceId: pageLayoutId,
+        }),
+        allEditorModes,
+      );
+    },
+    [hasFieldsWidgetChanges, store, upsertFieldsWidgetMutation],
   );
 
   return { saveFieldsWidgetGroups };

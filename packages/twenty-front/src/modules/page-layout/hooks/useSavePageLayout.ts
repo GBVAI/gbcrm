@@ -9,10 +9,12 @@ import { convertPageLayoutToTabLayouts } from '@/page-layout/utils/convertPageLa
 import { reInjectDynamicRelationWidgetsFromDraft } from '@/page-layout/utils/reInjectDynamicRelationWidgetsFromDraft';
 import { transformPageLayout } from '@/page-layout/utils/transformPageLayout';
 import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
-import { useRecoilComponentCallbackState } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentCallbackState';
-import { useRecoilCallback } from 'recoil';
+import { useAtomComponentStateCallbackState } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateCallbackState';
+import { useFeatureFlagsMap } from '@/workspace/hooks/useFeatureFlagsMap';
+import { useStore } from 'jotai';
+import { useCallback } from 'react';
 import { isDefined } from 'twenty-shared/utils';
-import { PageLayoutType } from '~/generated-metadata/graphql';
+import { FeatureFlagKey, PageLayoutType } from '~/generated-metadata/graphql';
 
 export const useSavePageLayout = (pageLayoutIdFromProps: string) => {
   const pageLayoutId = useAvailableComponentInstanceIdOrThrow(
@@ -20,17 +22,18 @@ export const useSavePageLayout = (pageLayoutIdFromProps: string) => {
     pageLayoutIdFromProps,
   );
 
-  const pageLayoutPersistedCallbackState = useRecoilComponentCallbackState(
+  const pageLayoutPersistedCallbackState = useAtomComponentStateCallbackState(
     pageLayoutPersistedComponentState,
     pageLayoutId,
   );
 
-  const pageLayoutCurrentLayoutsCallbackState = useRecoilComponentCallbackState(
-    pageLayoutCurrentLayoutsComponentState,
-    pageLayoutId,
-  );
+  const pageLayoutCurrentLayoutsCallbackState =
+    useAtomComponentStateCallbackState(
+      pageLayoutCurrentLayoutsComponentState,
+      pageLayoutId,
+    );
 
-  const pageLayoutDraftCallbackState = useRecoilComponentCallbackState(
+  const pageLayoutDraftCallbackState = useAtomComponentStateCallbackState(
     pageLayoutDraftComponentState,
     pageLayoutId,
   );
@@ -38,54 +41,57 @@ export const useSavePageLayout = (pageLayoutIdFromProps: string) => {
   const { updatePageLayoutWithTabsAndWidgets } =
     useUpdatePageLayoutWithTabsAndWidgets();
 
-  const savePageLayout = useRecoilCallback(
-    ({ set, snapshot }) =>
-      async () => {
-        const pageLayoutDraft = snapshot
-          .getLoadable(pageLayoutDraftCallbackState)
-          .getValue();
-        const updateInput =
-          convertPageLayoutDraftToUpdateInput(pageLayoutDraft);
+  const featureFlags = useFeatureFlagsMap();
+  const isRecordPageLayoutEditingEnabled =
+    featureFlags[FeatureFlagKey.IS_RECORD_PAGE_LAYOUT_EDITING_ENABLED];
+  const store = useStore();
 
-        const result = await updatePageLayoutWithTabsAndWidgets(
-          pageLayoutId,
-          updateInput,
-        );
+  const savePageLayout = useCallback(async () => {
+    const pageLayoutDraft = store.get(pageLayoutDraftCallbackState);
+    const updateInput = convertPageLayoutDraftToUpdateInput(pageLayoutDraft, {
+      shouldFilterDynamicRelationWidgets: !isRecordPageLayoutEditingEnabled,
+    });
 
-        if (result.status === 'successful') {
-          const updatedPageLayout =
-            result.response.data?.updatePageLayoutWithTabsAndWidgets;
-
-          if (isDefined(updatedPageLayout)) {
-            const serverLayout: PageLayout =
-              transformPageLayout(updatedPageLayout);
-
-            const pageLayoutToPersist =
-              serverLayout.type === PageLayoutType.RECORD_PAGE
-                ? reInjectDynamicRelationWidgetsFromDraft(
-                    serverLayout,
-                    pageLayoutDraft,
-                  )
-                : serverLayout;
-
-            set(pageLayoutPersistedCallbackState, pageLayoutToPersist);
-            set(
-              pageLayoutCurrentLayoutsCallbackState,
-              convertPageLayoutToTabLayouts(pageLayoutToPersist),
-            );
-          }
-        }
-
-        return result;
-      },
-    [
-      pageLayoutCurrentLayoutsCallbackState,
-      pageLayoutDraftCallbackState,
+    const result = await updatePageLayoutWithTabsAndWidgets(
       pageLayoutId,
-      pageLayoutPersistedCallbackState,
-      updatePageLayoutWithTabsAndWidgets,
-    ],
-  );
+      updateInput,
+    );
+
+    if (result.status === 'successful') {
+      const updatedPageLayout =
+        result.response.data?.updatePageLayoutWithTabsAndWidgets;
+
+      if (isDefined(updatedPageLayout)) {
+        const persistedLayout: PageLayout =
+          transformPageLayout(updatedPageLayout);
+
+        const pageLayoutToPersist =
+          !isRecordPageLayoutEditingEnabled &&
+          persistedLayout.type === PageLayoutType.RECORD_PAGE
+            ? reInjectDynamicRelationWidgetsFromDraft(
+                persistedLayout,
+                pageLayoutDraft,
+              )
+            : persistedLayout;
+
+        store.set(pageLayoutPersistedCallbackState, pageLayoutToPersist);
+        store.set(
+          pageLayoutCurrentLayoutsCallbackState,
+          convertPageLayoutToTabLayouts(pageLayoutToPersist),
+        );
+      }
+    }
+
+    return result;
+  }, [
+    isRecordPageLayoutEditingEnabled,
+    pageLayoutCurrentLayoutsCallbackState,
+    pageLayoutDraftCallbackState,
+    pageLayoutId,
+    pageLayoutPersistedCallbackState,
+    updatePageLayoutWithTabsAndWidgets,
+    store,
+  ]);
 
   return { savePageLayout };
 };

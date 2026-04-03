@@ -4,11 +4,11 @@ import { isDeveloperDefaultSignInPrefilledState } from '@/client-config/states/i
 import { supportChatState } from '@/client-config/states/supportChatState';
 
 import { workspaceAuthProvidersState } from '@/workspace/states/workspaceAuthProvidersState';
-import { useApolloClient } from '@apollo/client';
-import { MockedProvider } from '@apollo/client/testing';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import { useApolloClient } from '@apollo/client/react';
+import { MockedProvider } from '@apollo/client/testing/react';
 import { type ReactNode, act } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { RecoilRoot, useRecoilValue } from 'recoil';
 
 import {
   email,
@@ -27,12 +27,6 @@ const redirectSpy = jest.fn();
 jest.mock('@/domain-manager/hooks/useRedirect', () => ({
   useRedirect: jest.fn().mockImplementation(() => ({
     redirect: redirectSpy,
-  })),
-}));
-
-jest.mock('@/object-metadata/hooks/useRefreshObjectMetadataItems', () => ({
-  useRefreshObjectMetadataItems: jest.fn().mockImplementation(() => ({
-    refreshObjectMetadataItems: jest.fn(),
   })),
 }));
 
@@ -73,16 +67,14 @@ jest.mock('@/domain-manager/hooks/useLastAuthenticatedWorkspaceDomain', () => ({
 }));
 
 const Wrapper = ({ children }: { children: ReactNode }) => (
-  <MockedProvider mocks={Object.values(mocks)} addTypename={false}>
-    <RecoilRoot>
-      <MemoryRouter>
-        <SnackBarComponentInstanceContext.Provider
-          value={{ instanceId: 'test-instance-id' }}
-        >
-          {children}
-        </SnackBarComponentInstanceContext.Provider>
-      </MemoryRouter>
-    </RecoilRoot>
+  <MockedProvider mocks={Object.values(mocks)}>
+    <MemoryRouter>
+      <SnackBarComponentInstanceContext.Provider
+        value={{ instanceId: 'test-instance-id' }}
+      >
+        {children}
+      </SnackBarComponentInstanceContext.Provider>
+    </MemoryRouter>
   </MockedProvider>
 );
 
@@ -158,15 +150,15 @@ describe('useAuth', () => {
     const { result } = renderHook(
       () => {
         const client = useApolloClient();
-        const workspaceAuthProviders = useRecoilValue(
+        const workspaceAuthProviders = useAtomStateValue(
           workspaceAuthProvidersState,
         );
-        const billing = useRecoilValue(billingState);
-        const isDeveloperDefaultSignInPrefilled = useRecoilValue(
+        const billing = useAtomStateValue(billingState);
+        const isDeveloperDefaultSignInPrefilled = useAtomStateValue(
           isDeveloperDefaultSignInPrefilledState,
         );
-        const supportChat = useRecoilValue(supportChatState);
-        const isMultiWorkspaceEnabled = useRecoilValue(
+        const supportChat = useAtomStateValue(supportChatState);
+        const isMultiWorkspaceEnabled = useAtomStateValue(
           isMultiWorkspaceEnabledState,
         );
         return {

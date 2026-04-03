@@ -1,5 +1,5 @@
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { type RecordGqlOperationOrderBy } from 'twenty-shared/types';
 import { turnSortsIntoOrderBy } from '@/object-record/object-sort-dropdown/utils/turnSortsIntoOrderBy';
 import { type RecordSort } from '@/object-record/record-sort/types/RecordSort';
@@ -16,13 +16,15 @@ const fields = [
     updatedAt: '2021-01-01',
     createdAt: '2021-01-01',
     id: '20202020-18b3-4099-86e3-c46b2d5d42f2',
+    universalIdentifier: '20202020-18b3-4099-86e3-c46b2d5d42f2',
     type: FieldMetadataType.POSITION,
     label: 'label',
   },
 ];
 
-const objectMetadataItemWithPositionField: ObjectMetadataItem = {
+const objectMetadataItemWithPositionField: EnrichedObjectMetadataItem = {
   id: 'object1',
+  universalIdentifier: 'object1',
   fields,
   readableFields: fields,
   updatableFields: fields,
@@ -50,6 +52,7 @@ const getMockFieldMetadataItem = (
   overrides: PartialFieldMetadaItemWithRequiredId,
 ): FieldMetadataItem => ({
   name: 'name',
+  universalIdentifier: overrides.id,
   updatedAt: '2021-01-01',
   createdAt: '2021-01-01',
   type: FieldMetadataType.TEXT,
@@ -61,7 +64,9 @@ type TurnSortsIntoOrderTestContext = EachTestingContext<{
   fields: PartialFieldMetadaItemWithRequiredId[];
   expected: RecordGqlOperationOrderBy;
   sort: RecordSort[];
-  objectMetadataItemOverrides?: Partial<Omit<ObjectMetadataItem, 'fields'>>;
+  objectMetadataItemOverrides?: Partial<
+    Omit<EnrichedObjectMetadataItem, 'fields'>
+  >;
 }>;
 
 const turnSortsIntoOrderByTestUseCases: TurnSortsIntoOrderTestContext[] = [
@@ -168,11 +173,13 @@ describe('turnSortsIntoOrderBy', () => {
   );
 
   describe('relation field sorting', () => {
-    const companyObjectMetadataItem: ObjectMetadataItem = {
+    const companyObjectMetadataItem: EnrichedObjectMetadataItem = {
       id: 'company-object-id',
+      universalIdentifier: 'company-object-id',
       fields: [
         {
           id: 'company-name-field-id',
+          universalIdentifier: 'company-name-field-id',
           name: 'name',
           type: FieldMetadataType.TEXT,
           label: 'Name',
@@ -201,11 +208,13 @@ describe('turnSortsIntoOrderBy', () => {
       isLabelSyncedWithName: true,
     };
 
-    const personObjectMetadataItem: ObjectMetadataItem = {
+    const personObjectMetadataItem: EnrichedObjectMetadataItem = {
       id: 'person-object-id',
+      universalIdentifier: 'person-object-id',
       fields: [
         {
           id: 'company-relation-field-id',
+          universalIdentifier: 'company-relation-field-id',
           name: 'company',
           type: FieldMetadataType.RELATION,
           label: 'Company',
@@ -221,6 +230,7 @@ describe('turnSortsIntoOrderBy', () => {
         } as unknown as FieldMetadataItem,
         {
           id: 'position-field-id',
+          universalIdentifier: 'position-field-id',
           name: 'position',
           type: FieldMetadataType.POSITION,
           label: 'Position',

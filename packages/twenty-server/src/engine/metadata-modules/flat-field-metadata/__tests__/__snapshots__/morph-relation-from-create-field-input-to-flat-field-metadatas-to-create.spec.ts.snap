@@ -121,6 +121,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "createdAt": Any<String>,
         "defaultValue": null,
         "description": "new field description",
+        "fieldPermissionUniversalIdentifiers": [],
         "icon": "IconRelationOneToMany",
         "isActive": true,
         "isCustom": true,
@@ -147,6 +148,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "updatedAt": Any<String>,
         "viewFieldUniversalIdentifiers": [],
         "viewFilterUniversalIdentifiers": [],
+        "viewSortUniversalIdentifiers": [],
       },
       {
         "applicationUniversalIdentifier": Any<String>,
@@ -154,6 +156,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "createdAt": Any<String>,
         "defaultValue": null,
         "description": "new field description",
+        "fieldPermissionUniversalIdentifiers": [],
         "icon": "IconPet",
         "isActive": true,
         "isCustom": true,
@@ -182,6 +185,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "updatedAt": Any<String>,
         "viewFieldUniversalIdentifiers": [],
         "viewFilterUniversalIdentifiers": [],
+        "viewSortUniversalIdentifiers": [],
       },
       {
         "applicationUniversalIdentifier": Any<String>,
@@ -189,6 +193,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "createdAt": Any<String>,
         "defaultValue": null,
         "description": "new field description",
+        "fieldPermissionUniversalIdentifiers": [],
         "icon": "IconRelationOneToMany",
         "isActive": true,
         "isCustom": true,
@@ -215,6 +220,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "updatedAt": Any<String>,
         "viewFieldUniversalIdentifiers": [],
         "viewFilterUniversalIdentifiers": [],
+        "viewSortUniversalIdentifiers": [],
       },
       {
         "applicationUniversalIdentifier": Any<String>,
@@ -222,6 +228,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "createdAt": Any<String>,
         "defaultValue": null,
         "description": "new field description",
+        "fieldPermissionUniversalIdentifiers": [],
         "icon": "IconBuilding",
         "isActive": true,
         "isCustom": true,
@@ -250,6 +257,7 @@ exports[`fromCreateFieldInputToFlatFieldMetadatasToCreate MORPH_RELATION test su
         "updatedAt": Any<String>,
         "viewFieldUniversalIdentifiers": [],
         "viewFilterUniversalIdentifiers": [],
+        "viewSortUniversalIdentifiers": [],
       },
     ],
     "indexMetadatas": [

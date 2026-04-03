@@ -2,7 +2,11 @@ import { type DraftPageLayout } from '@/page-layout/types/DraftPageLayout';
 import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
 import { convertPageLayoutDraftToUpdateInput } from '@/page-layout/utils/convertPageLayoutDraftToUpdateInput';
 import { DYNAMIC_RELATION_WIDGET_ID_PREFIX } from '@/page-layout/utils/isDynamicRelationWidget';
-import { PageLayoutType, WidgetType } from '~/generated-metadata/graphql';
+import {
+  PageLayoutTabLayoutMode,
+  PageLayoutType,
+  WidgetType,
+} from '~/generated-metadata/graphql';
 
 const makeWidget = (
   overrides: Partial<PageLayoutWidget> & { id: string },
@@ -29,6 +33,7 @@ const makeDraft = (tabs: DraftPageLayout['tabs']): DraftPageLayout =>
 const makeTab = (
   id: string,
   widgets: PageLayoutWidget[],
+  layoutMode?: PageLayoutTabLayoutMode,
 ): DraftPageLayout['tabs'][number] =>
   ({
     id,
@@ -36,6 +41,7 @@ const makeTab = (
     position: 0,
     pageLayoutId: 'layout-1',
     applicationId: 'app-1',
+    layoutMode,
     widgets,
   }) as DraftPageLayout['tabs'][number];
 
@@ -54,19 +60,19 @@ describe('convertPageLayoutDraftToUpdateInput', () => {
     expect(result.tabs[0].widgets[0].id).toBe('w1');
   });
 
-  it('should filter out dynamic relation widgets', () => {
-    const regularWidget = makeWidget({ id: 'w1' });
-    const dynamicWidget = makeWidget({
-      id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}relation-1`,
-      type: WidgetType.VIEW,
+  it('should handle multiple widget types', () => {
+    const fieldsWidget = makeWidget({ id: 'w1', type: WidgetType.FIELDS });
+    const timelineWidget = makeWidget({
+      id: 'w2',
+      type: WidgetType.TIMELINE,
     });
 
-    const draft = makeDraft([makeTab('tab-1', [regularWidget, dynamicWidget])]);
+    const draft = makeDraft([makeTab('tab-1', [fieldsWidget, timelineWidget])]);
 
     const result = convertPageLayoutDraftToUpdateInput(draft);
 
-    expect(result.tabs[0].widgets).toHaveLength(1);
-    expect(result.tabs[0].widgets[0].id).toBe('w1');
+    expect(result.tabs[0].widgets).toHaveLength(2);
+    expect(result.tabs[0].widgets.map((w) => w.id)).toEqual(['w1', 'w2']);
   });
 
   it('should map gridPosition correctly', () => {
@@ -79,6 +85,13 @@ describe('convertPageLayoutDraftToUpdateInput', () => {
     const result = convertPageLayoutDraftToUpdateInput(draft);
 
     expect(result.tabs[0].widgets[0].gridPosition).toEqual({
+      row: 2,
+      column: 3,
+      rowSpan: 4,
+      columnSpan: 5,
+    });
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: 'GRID',
       row: 2,
       column: 3,
       rowSpan: 4,
@@ -108,23 +121,287 @@ describe('convertPageLayoutDraftToUpdateInput', () => {
     expect(result.tabs[1].id).toBe('tab-2');
   });
 
-  it('should keep all non-dynamic widgets when multiple widget types exist', () => {
+  it('should keep all widgets when multiple widget types exist', () => {
     const fieldsWidget = makeWidget({ id: 'w1', type: WidgetType.FIELDS });
     const timelineWidget = makeWidget({
       id: 'w2',
       type: WidgetType.TIMELINE,
     });
-    const dynamicWidget = makeWidget({
-      id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}rel`,
+    const fieldWidget = makeWidget({
+      id: 'w3',
+      type: WidgetType.FIELD,
     });
 
     const draft = makeDraft([
-      makeTab('tab-1', [fieldsWidget, dynamicWidget, timelineWidget]),
+      makeTab('tab-1', [fieldsWidget, fieldWidget, timelineWidget]),
     ]);
 
     const result = convertPageLayoutDraftToUpdateInput(draft);
 
-    expect(result.tabs[0].widgets).toHaveLength(2);
-    expect(result.tabs[0].widgets.map((w) => w.id)).toEqual(['w1', 'w2']);
+    expect(result.tabs[0].widgets).toHaveLength(3);
+    expect(result.tabs[0].widgets.map((w) => w.id)).toEqual(['w1', 'w3', 'w2']);
+  });
+
+  it('should produce VERTICAL_LIST position with index from widget.position when tab is VERTICAL_LIST', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      position: {
+        __typename: 'PageLayoutWidgetVerticalListPosition',
+        layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+        index: 3,
+      },
+    });
+    const draft = makeDraft([
+      makeTab('tab-1', [widget], PageLayoutTabLayoutMode.VERTICAL_LIST),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+      index: 3,
+    });
+  });
+
+  it('should fall back to array index for VERTICAL_LIST when widget position typename does not match', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      position: {
+        __typename: 'PageLayoutWidgetCanvasPosition',
+        layoutMode: PageLayoutTabLayoutMode.CANVAS,
+      } as PageLayoutWidget['position'],
+    });
+    const draft = makeDraft([
+      makeTab(
+        'tab-1',
+        [makeWidget({ id: 'w0' }), widget],
+        PageLayoutTabLayoutMode.VERTICAL_LIST,
+      ),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[1].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+      index: 1,
+    });
+  });
+
+  it('should produce CANVAS position when tab is CANVAS', () => {
+    const widget = makeWidget({
+      id: 'w1',
+    });
+    const draft = makeDraft([
+      makeTab('tab-1', [widget], PageLayoutTabLayoutMode.CANVAS),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.CANVAS,
+    });
+  });
+
+  it('should produce CANVAS position regardless of widget position data', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      position: {
+        __typename: 'PageLayoutWidgetVerticalListPosition',
+        layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+        index: 5,
+      },
+    });
+    const draft = makeDraft([
+      makeTab('tab-1', [widget], PageLayoutTabLayoutMode.CANVAS),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.CANVAS,
+    });
+  });
+
+  it('should produce GRID position from gridPosition when tab layoutMode is undefined', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      position: null,
+      gridPosition: { row: 1, column: 2, rowSpan: 3, columnSpan: 4 },
+    });
+    const draft = makeDraft([makeTab('tab-1', [widget])]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.GRID,
+      row: 1,
+      column: 2,
+      rowSpan: 3,
+      columnSpan: 4,
+    });
+  });
+
+  it('should produce GRID position when tab layoutMode is explicitly GRID', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      gridPosition: { row: 5, column: 6, rowSpan: 7, columnSpan: 8 },
+    });
+    const draft = makeDraft([
+      makeTab('tab-1', [widget], PageLayoutTabLayoutMode.GRID),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.GRID,
+      row: 5,
+      column: 6,
+      rowSpan: 7,
+      columnSpan: 8,
+    });
+  });
+
+  it('should use tab layoutMode over widget position layoutMode when they differ', () => {
+    const widget = makeWidget({
+      id: 'w1',
+      position: {
+        __typename: 'PageLayoutWidgetCanvasPosition',
+        layoutMode: PageLayoutTabLayoutMode.CANVAS,
+      },
+      gridPosition: { row: 1, column: 2, rowSpan: 3, columnSpan: 4 },
+    });
+    const draft = makeDraft([
+      makeTab('tab-1', [widget], PageLayoutTabLayoutMode.GRID),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.GRID,
+      row: 1,
+      column: 2,
+      rowSpan: 3,
+      columnSpan: 4,
+    });
+  });
+
+  it('should handle mixed tab layout modes in the same draft', () => {
+    const verticalWidget = makeWidget({
+      id: 'w1',
+      position: {
+        __typename: 'PageLayoutWidgetVerticalListPosition',
+        layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+        index: 0,
+      },
+    });
+    const canvasWidget = makeWidget({ id: 'w2' });
+    const gridWidget = makeWidget({
+      id: 'w3',
+      gridPosition: { row: 1, column: 0, rowSpan: 2, columnSpan: 6 },
+    });
+
+    const draft = makeDraft([
+      makeTab(
+        'tab-vl',
+        [verticalWidget],
+        PageLayoutTabLayoutMode.VERTICAL_LIST,
+      ),
+      makeTab('tab-canvas', [canvasWidget], PageLayoutTabLayoutMode.CANVAS),
+      makeTab('tab-grid', [gridWidget], PageLayoutTabLayoutMode.GRID),
+    ]);
+
+    const result = convertPageLayoutDraftToUpdateInput(draft);
+
+    expect(result.tabs[0].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.VERTICAL_LIST,
+      index: 0,
+    });
+    expect(result.tabs[1].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.CANVAS,
+    });
+    expect(result.tabs[2].widgets[0].position).toEqual({
+      layoutMode: PageLayoutTabLayoutMode.GRID,
+      row: 1,
+      column: 0,
+      rowSpan: 2,
+      columnSpan: 6,
+    });
+  });
+
+  describe('shouldFilterDynamicRelationWidgets', () => {
+    it('should filter out dynamic relation widgets when shouldFilterDynamicRelationWidgets is true', () => {
+      const regularWidget = makeWidget({ id: 'w1' });
+      const dynamicWidget = makeWidget({
+        id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}relation-1`,
+        type: WidgetType.VIEW,
+      });
+
+      const draft = makeDraft([
+        makeTab('tab-1', [regularWidget, dynamicWidget]),
+      ]);
+
+      const result = convertPageLayoutDraftToUpdateInput(draft, {
+        shouldFilterDynamicRelationWidgets: true,
+      });
+
+      expect(result.tabs[0].widgets).toHaveLength(1);
+      expect(result.tabs[0].widgets[0].id).toBe('w1');
+    });
+
+    it('should keep all non-dynamic widgets when shouldFilterDynamicRelationWidgets is true and multiple widget types exist', () => {
+      const fieldsWidget = makeWidget({ id: 'w1', type: WidgetType.FIELDS });
+      const timelineWidget = makeWidget({
+        id: 'w2',
+        type: WidgetType.TIMELINE,
+      });
+      const dynamicWidget = makeWidget({
+        id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}rel`,
+      });
+
+      const draft = makeDraft([
+        makeTab('tab-1', [fieldsWidget, dynamicWidget, timelineWidget]),
+      ]);
+
+      const result = convertPageLayoutDraftToUpdateInput(draft, {
+        shouldFilterDynamicRelationWidgets: true,
+      });
+
+      expect(result.tabs[0].widgets).toHaveLength(2);
+      expect(result.tabs[0].widgets.map((w) => w.id)).toEqual(['w1', 'w2']);
+    });
+
+    it('should not filter dynamic relation widgets when shouldFilterDynamicRelationWidgets is false', () => {
+      const regularWidget = makeWidget({ id: 'w1' });
+      const dynamicWidget = makeWidget({
+        id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}relation-1`,
+        type: WidgetType.VIEW,
+      });
+
+      const draft = makeDraft([
+        makeTab('tab-1', [regularWidget, dynamicWidget]),
+      ]);
+
+      const result = convertPageLayoutDraftToUpdateInput(draft, {
+        shouldFilterDynamicRelationWidgets: false,
+      });
+
+      expect(result.tabs[0].widgets).toHaveLength(2);
+    });
+
+    it('should not filter dynamic relation widgets by default', () => {
+      const regularWidget = makeWidget({ id: 'w1' });
+      const dynamicWidget = makeWidget({
+        id: `${DYNAMIC_RELATION_WIDGET_ID_PREFIX}relation-1`,
+        type: WidgetType.VIEW,
+      });
+
+      const draft = makeDraft([
+        makeTab('tab-1', [regularWidget, dynamicWidget]),
+      ]);
+
+      const result = convertPageLayoutDraftToUpdateInput(draft);
+
+      expect(result.tabs[0].widgets).toHaveLength(2);
+    });
   });
 });

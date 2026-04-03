@@ -5,6 +5,7 @@ export const ALL_METADATA_NAME = {
   viewField: 'viewField',
   viewFieldGroup: 'viewFieldGroup',
   viewGroup: 'viewGroup',
+  viewSort: 'viewSort',
   rowLevelPermissionPredicate: 'rowLevelPermissionPredicate',
   rowLevelPermissionPredicateGroup: 'rowLevelPermissionPredicateGroup',
   viewFilterGroup: 'viewFilterGroup',
@@ -20,6 +21,9 @@ export const ALL_METADATA_NAME = {
   pageLayoutTab: 'pageLayoutTab',
   commandMenuItem: 'commandMenuItem',
   navigationMenuItem: 'navigationMenuItem',
+  permissionFlag: 'permissionFlag',
+  objectPermission: 'objectPermission',
+  fieldPermission: 'fieldPermission',
   frontComponent: 'frontComponent',
   webhook: 'webhook',
 } as const;

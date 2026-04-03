@@ -1,17 +1,17 @@
+import { useMutation } from '@apollo/client/react';
 import {
   type ResendWorkspaceInvitationMutationVariables,
-  useResendWorkspaceInvitationMutation,
+  ResendWorkspaceInvitationDocument,
 } from '~/generated-metadata/graphql';
 import { workspaceInvitationsState } from '@/workspace-invitation/states/workspaceInvitationsStates';
-import { useSetRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilStateV2';
+import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
 
 export const useResendWorkspaceInvitation = () => {
-  const [resendWorkspaceInvitationMutation] =
-    useResendWorkspaceInvitationMutation();
-
-  const setWorkspaceInvitations = useSetRecoilStateV2(
-    workspaceInvitationsState,
+  const [resendWorkspaceInvitationMutation] = useMutation(
+    ResendWorkspaceInvitationDocument,
   );
+
+  const setWorkspaceInvitations = useSetAtomState(workspaceInvitationsState);
 
   const resendInvitation = async ({
     appTokenId,

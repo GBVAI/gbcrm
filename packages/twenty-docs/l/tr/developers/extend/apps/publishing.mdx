@@ -1,0 +1,191 @@
+---
+title: Yayımlama
+description: Twenty uygulamanızı pazaryerine sunun ya da dahili olarak dağıtın.
+---
+
+<Warning>
+  Uygulamalar şu anda alfa aşamasında. Özellik işlevsel ancak hâlâ gelişmekte.
+</Warning>
+
+## Genel Bakış
+
+Uygulamanız [yerelde derlenip test edildikten sonra](/l/tr/developers/extend/apps/building), dağıtım için iki yolunuz vardır:
+
+* **Bir tar arşivi dağıtın** — uygulamanızı dahili veya özel kullanım için doğrudan belirli bir Twenty sunucusuna yükleyin.
+* **npm’ye yayımlama** — uygulamanızı Twenty pazaryerinde listeleyin; böylece herhangi bir çalışma alanı keşfedip yükleyebilir.
+
+Her iki yol da aynı **build** adımından başlar.
+
+## Uygulamanızı derleme
+
+Uygulamanızı derlemek ve dağıtıma hazır bir `manifest.json` oluşturmak için build komutunu çalıştırın:
+
+```bash filename="Terminal"
+yarn twenty build
+```
+
+Bu işlem TypeScript kaynaklarını derler, mantık işlevlerini ve ön uç bileşenlerini transpile eder ve her şeyi `.twenty/output/` konumuna yazar. El ile dağıtım veya deploy komutu için bir `.tgz` paketini de üretmek amacıyla `--tarball` ekleyin.
+
+## Sunucuya dağıtım (tarball)
+
+Genel kullanıma açık olmasını istemediğiniz uygulamalar — sahipli araçlar, yalnızca kurumsal entegrasyonlar veya deneysel derlemeler — için bir tarball’ı doğrudan bir Twenty sunucusuna dağıtabilirsiniz.
+
+### Ön Gereksinimler
+
+Dağıtmadan önce, hedef sunucuyu işaret eden yapılandırılmış bir remote’a ihtiyacınız vardır. Remote’lar sunucu URL’sini ve kimlik doğrulama bilgilerini yerel olarak `~/.twenty/config.json` içinde saklar.
+
+Bir remote ekleyin:
+
+```bash filename="Terminal"
+yarn twenty remote add --api-url https://your-twenty-server.com --as production
+```
+
+### Dağıtım
+
+Uygulamanızı tek adımda derleyip sunucuya yükleyin:
+
+```bash filename="Terminal"
+yarn twenty deploy
+# To deploy to a specific remote:
+# yarn twenty deploy --remote production
+```
+
+### Dağıtılmış bir uygulamayı paylaşma
+
+Tarball uygulamaları genel pazar yerinde listelenmez; bu nedenle aynı sunucudaki diğer çalışma alanları gezinerek onları keşfedemez. Dağıtılmış bir uygulamayı paylaşmak için:
+
+1. **Ayarlar > Uygulamalar > Kayıtlar** bölümüne gidin ve uygulamanızı açın
+2. **Dağıtım** sekmesinde, **Paylaşım bağlantısını kopyala**’ya tıklayın
+3. Bu bağlantıyı diğer çalışma alanlarındaki kullanıcılarla paylaşın — onları doğrudan uygulamanın yükleme sayfasına götürür
+
+Paylaşım bağlantısı, sunucunun temel URL’sini (herhangi bir çalışma alanı alt alan adı olmadan) kullanır; böylece sunucudaki herhangi bir çalışma alanı için çalışır.
+
+<Warning>
+Özel uygulamaları paylaşma bir Kurumsal özelliktir. [Ayarlar > Yönetim Paneli > Kurumsal](/settings/admin-panel#enterprise) bölümüne giderek etkinleştirin.
+</Warning>
+
+### Sürüm yönetimi
+
+Bir güncelleme yayımlamak için:
+
+1. `package.json` içindeki `version` alanını artırın
+2. `yarn twenty deploy` (veya `yarn twenty deploy --remote production`) komutunu çalıştırın
+3. Uygulamayı kurmuş olan çalışma alanları, ayarlarında mevcut güncellemeyi görecektir
+
+{/* TODO: add screenshot of the Upgrade button */}
+
+## npm’ye yayımlama
+
+npm’ye yayımlamak, uygulamanızın Twenty pazaryerinde keşfedilebilir olmasını sağlar. Herhangi bir Twenty çalışma alanı, pazaryeri uygulamalarına doğrudan arayüzden göz atabilir, yükleyebilir ve güncelleyebilir.
+
+### Gereksinimler
+
+* Bir [npm](https://www.npmjs.com) hesabı
+* `package.json` içindeki `keywords` dizinizdeki `twenty-app` anahtar sözcüğü (`create-twenty-app` ile iskelet oluşturduğunuzda zaten eklenir)
+
+```json filename="package.json"
+{
+  "name": "twenty-app-postcard-sender",
+  "version": "1.0.0",
+  "keywords": ["twenty-app"]
+}
+```
+
+### Pazaryeri meta verileri
+
+`defineApplication()` yapılandırması, uygulamanızın pazar yerinde nasıl görüneceğini kontrol eden isteğe bağlı alanları destekler. `public/` klasöründeki görsellere başvurmak için `logoUrl` ve `screenshots` kullanın:
+
+```ts src/application-config.ts
+export default defineApplication({
+  universalIdentifier: '...',
+  displayName: 'My App',
+  description: 'A great app',
+  defaultRoleUniversalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
+  logoUrl: 'public/logo.png',
+  screenshots: [
+    'public/screenshot-1.png',
+    'public/screenshot-2.png',
+  ],
+});
+```
+
+Pazar yeri alanlarının tam listesi için Uygulama Oluşturma sayfasındaki [defineApplication akordeonu](/l/tr/developers/extend/apps/building#defineentity-functions)'na bakın (`author`, `category`, `aboutDescription`, `websiteUrl`, `termsUrl`, vb.).
+
+### Yayımla
+
+```bash filename="Terminal"
+yarn twenty publish
+```
+
+Belirli bir dist-tag altında yayımlamak için (ör. `beta` veya `next`):
+
+```bash filename="Terminal"
+yarn twenty publish --tag beta
+```
+
+### Pazar yerinde keşif nasıl çalışır
+
+Twenty sunucusu pazar yeri kataloğunu npm kayıt defterinden **her saat** eşitler.
+
+Beklemek yerine eşitlemeyi hemen tetikleyebilirsiniz:
+
+```bash filename="Terminal"
+yarn twenty catalog-sync
+# To target a specific remote:
+# yarn twenty catalog-sync --remote production
+```
+
+Pazar yerinde gösterilen meta veriler, `defineApplication()` yapılandırmanızdan gelir — `displayName`, `description`, `author`, `category`, `logoUrl`, `screenshots`, `aboutDescription`, `websiteUrl` ve `termsUrl` gibi alanlar.
+
+<Note>
+Uygulamanız `defineApplication()` içinde bir `aboutDescription` tanımlamıyorsa, pazaryeri, hakkında sayfasının içeriği olarak paketinizin npm'deki `README.md` dosyasını otomatik olarak kullanır. Bu, hem npm hem de Twenty pazaryeri için tek bir README dosyası kullanabileceğiniz anlamına gelir. Pazaryerinde farklı bir açıklama istiyorsanız, `aboutDescription` değerini açıkça ayarlayın.
+</Note>
+
+### CI üzerinden yayımlama
+
+Her sürümde otomatik olarak yayımlamak için bu GitHub Actions iş akışını kullanın ([OIDC](https://docs.npmjs.com/trusted-publishers) kullanır):
+
+```yaml filename=".github/workflows/publish.yml"
+name: Publish
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - run: yarn install --immutable
+      - run: npx twenty build
+      - run: npm publish --provenance --access public
+        working-directory: .twenty/output
+```
+
+Diğer CI sistemleri (GitLab CI, CircleCI, vb.) için de aynı üç komut geçerlidir: `yarn install`, `yarn twenty build` ve ardından `.twenty/output` dizininden `npm publish`.
+
+<Note>
+**npm provenance** isteğe bağlıdır ancak önerilir. `--provenance` ile yayımlamak, npm listenize bir güven rozeti ekler ve kullanıcıların paketin herkese açık bir CI ardışık düzenindeki belirli bir commit’ten oluşturulduğunu doğrulamasını sağlar. Kurulum talimatları için [npm provenance belgelerine](https://docs.npmjs.com/generating-provenance-statements) bakın.
+</Note>
+
+## Uygulamaları yükleme
+
+Bir uygulama yayımlandığında (npm) veya dağıtıldığında (tarball), çalışma alanları onu kullanıcı arayüzü (UI) üzerinden yükleyebilir.
+
+Twenty içinde **Ayarlar > Uygulamalar** sayfasına gidin; burada hem pazar yerindeki hem de tarball ile dağıtılmış uygulamalar görüntülenip yüklenebilir.
+
+{/* TODO: add screenshot of the UI when the app is registered */}
+
+Uygulamaları komut satırından da yükleyebilirsiniz:
+
+```bash filename="Terminal"
+yarn twenty install
+```

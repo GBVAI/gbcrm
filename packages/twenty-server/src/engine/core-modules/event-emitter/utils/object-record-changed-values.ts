@@ -56,7 +56,8 @@ export const objectRecordChangedValues = (
       if (
         key === 'updatedAt' ||
         key === 'searchVector' ||
-        field?.type === FieldMetadataType.RELATION
+        field?.type === FieldMetadataType.RELATION ||
+        field?.type === FieldMetadataType.POSITION
       ) {
         return acc;
       }
@@ -74,7 +75,7 @@ export const objectRecordChangedValues = (
       return acc;
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // oxlint-disable-next-line @typescripttypescript/no-explicit-any
     {} as Record<string, { before: any; after: any }>,
   );
 };

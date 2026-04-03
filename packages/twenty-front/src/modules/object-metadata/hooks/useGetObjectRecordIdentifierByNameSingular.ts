@@ -1,13 +1,12 @@
-import { useRecoilValue } from 'recoil';
-
-import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { getObjectRecordIdentifier } from '@/object-metadata/utils/getObjectRecordIdentifier';
 import { type ObjectRecordIdentifier } from '@/object-record/types/ObjectRecordIdentifier';
 
 export const useGetObjectRecordIdentifierByNameSingular = (
   allowRequestsToTwentyIcons: boolean,
 ) => {
-  const objectMetadataItems = useRecoilValue(objectMetadataItemsState);
+  const objectMetadataItems = useAtomStateValue(objectMetadataItemsSelector);
 
   return (record: any, objectNameSingular: string): ObjectRecordIdentifier => {
     const objectMetadataItem = objectMetadataItems.find(
@@ -16,7 +15,7 @@ export const useGetObjectRecordIdentifierByNameSingular = (
 
     if (!objectMetadataItem) {
       throw new Error(
-        `ObjectMetadataItem not found for objectNameSingular: ${objectNameSingular}`,
+        `Object metadata not found for objectNameSingular: ${objectNameSingular}`,
       );
     }
 

@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { isDefined } from 'twenty-shared/utils';
 import { ILike, IsNull, Repository } from 'typeorm';
 
-import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import { type CreateAgentInput } from 'src/engine/metadata-modules/ai/ai-agent/dtos/create-agent.input';
 import { type UpdateAgentInput } from 'src/engine/metadata-modules/ai/ai-agent/dtos/update-agent.input';
 import { fromCreateAgentInputToFlatAgent } from 'src/engine/metadata-modules/ai/ai-agent/utils/from-create-agent-input-to-flat-agent.util';
@@ -251,7 +251,7 @@ export class AgentService {
 
     const {
       flatAgentMaps: recomputedFlatAgentMaps,
-      flatRoleTargetByAgentIdMaps: recmputedFlatRoleTargetByAgentIdMaps,
+      flatRoleTargetByAgentIdMaps: recomputedFlatRoleTargetByAgentIdMaps,
     } = await this.workspaceCacheService.getOrRecompute(workspaceId, [
       'flatAgentMaps',
       'flatRoleTargetByAgentIdMaps',
@@ -263,7 +263,7 @@ export class AgentService {
     });
 
     const existingRoleTarget =
-      recmputedFlatRoleTargetByAgentIdMaps[flatAgentToUpdate.id];
+      recomputedFlatRoleTargetByAgentIdMaps[flatAgentToUpdate.id];
 
     return {
       ...updatedAgent,

@@ -1,27 +1,25 @@
-import { type MessageChannel } from '@/accounts/types/MessageChannel';
 import { type MessageFolder } from '@/accounts/types/MessageFolder';
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
-import { useGenerateDepthRecordGqlFieldsFromObject } from '@/object-record/graphql/record-gql-fields/hooks/useGenerateDepthRecordGqlFieldsFromObject';
-import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { SettingsMessageFoldersEmptyStateCard } from '@/settings/accounts/components/message-folders/SettingsMessageFoldersEmptyStateCard';
 import { SettingsMessageFoldersSkeletonLoader } from '@/settings/accounts/components/message-folders/SettingsMessageFoldersSkeletonLoader';
 import { SettingsMessageFoldersTreeItem } from '@/settings/accounts/components/message-folders/SettingsMessageFoldersTreeItem';
 import { computeFolderIdsForSyncToggle } from '@/settings/accounts/components/message-folders/utils/computeFolderIdsForSyncToggle';
 import { computeMessageFolderTree } from '@/settings/accounts/components/message-folders/utils/computeMessageFolderTree';
+import { useMyMessageFolders } from '@/settings/accounts/hooks/useMyMessageFolders';
 import { useUpdateMessageFoldersSyncStatus } from '@/settings/accounts/hooks/useUpdateMessageFoldersSyncStatus';
-import { settingsAccountsSelectedMessageChannelStateV2 } from '@/settings/accounts/states/settingsAccountsSelectedMessageChannelStateV2';
+import { settingsAccountsSelectedMessageChannelState } from '@/settings/accounts/states/settingsAccountsSelectedMessageChannelState';
 import { useSnackBar } from '@/ui/feedback/snack-bar-manager/hooks/useSnackBar';
 import { SettingsTextInput } from '@/ui/input/components/SettingsTextInput';
 import { Table } from '@/ui/layout/table/components/Table';
 import { TableCell } from '@/ui/layout/table/components/TableCell';
-import { ApolloError } from '@apollo/client';
-import styled from '@emotion/styled';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
+import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
-import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useMemo, useState } from 'react';
 import { Label } from 'twenty-ui/display';
 import { Checkbox, CheckboxSize } from 'twenty-ui/input';
 import { Section } from 'twenty-ui/layout';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledTreeList = styled.ul`
   list-style: none;
@@ -32,38 +30,33 @@ const StyledTreeList = styled.ul`
 const StyledFoldersContainer = styled.div`
   max-height: 400px;
   overflow-y: auto;
-  padding-bottom: ${({ theme }) => theme.spacing(2)};
-  padding-top: ${({ theme }) => theme.spacing(2)};
+  padding-bottom: ${themeCssVariables.spacing[2]};
+  padding-top: ${themeCssVariables.spacing[2]};
 `;
 
-const StyledSearchInput = styled(SettingsTextInput)`
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+const StyledSearchInputContainer = styled.div`
+  margin-bottom: ${themeCssVariables.spacing[2]};
   width: 100%;
-`;
-
-const StyledCheckboxCell = styled(TableCell)`
-  align-items: center;
-  display: flex;
-  padding-right: ${({ theme }) => theme.spacing(1)};
-  justify-content: flex-end;
 `;
 
 const StyledSectionHeader = styled.div`
   align-items: center;
-  background-color: ${({ theme }) => theme.background.transparent.lighter};
-  border-bottom: 1px solid ${({ theme }) => theme.border.color.light};
+  background-color: ${themeCssVariables.background.transparent.lighter};
+  border-bottom: 1px solid ${themeCssVariables.border.color.light};
   cursor: pointer;
   display: flex;
-  height: ${({ theme }) => theme.spacing(6)};
+  height: ${themeCssVariables.spacing[6]};
   justify-content: space-between;
-  padding-left: ${({ theme }) => theme.spacing(1)};
+  padding-left: ${themeCssVariables.spacing[1]};
   text-align: left;
 `;
 
-const StyledLabel = styled(Label)`
-  color: ${({ theme }) => theme.font.color.tertiary};
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
-  margin-top: ${({ theme }) => theme.spacing(2)};
+const StyledLabelContainer = styled.span`
+  align-items: center;
+  color: ${themeCssVariables.font.color.tertiary};
+  display: flex;
+  margin-bottom: ${themeCssVariables.spacing[2]};
+  margin-top: ${themeCssVariables.spacing[2]};
 `;
 
 export const SettingsAccountsMessageFoldersCard = () => {
@@ -72,26 +65,16 @@ export const SettingsAccountsMessageFoldersCard = () => {
 
   const { enqueueErrorSnackBar } = useSnackBar();
 
-  const settingsAccountsSelectedMessageChannel = useRecoilValueV2(
-    settingsAccountsSelectedMessageChannelStateV2,
+  const settingsAccountsSelectedMessageChannel = useAtomStateValue(
+    settingsAccountsSelectedMessageChannelState,
   );
 
   const { updateMessageFoldersSyncStatus } =
     useUpdateMessageFoldersSyncStatus();
 
-  const { recordGqlFields } = useGenerateDepthRecordGqlFieldsFromObject({
-    objectNameSingular: CoreObjectNameSingular.MessageChannel,
-    depth: 1,
-    shouldOnlyLoadRelationIdentifiers: false,
-  });
-
-  const { record: messageChannel, loading } = useFindOneRecord<MessageChannel>({
-    objectNameSingular: CoreObjectNameSingular.MessageChannel,
-    objectRecordId: settingsAccountsSelectedMessageChannel?.id,
-    recordGqlFields,
-  });
-
-  const { messageFolders = [] } = messageChannel ?? {};
+  const { messageFolders, loading } = useMyMessageFolders(
+    settingsAccountsSelectedMessageChannel?.id,
+  );
 
   const filteredMessageFolders = useMemo(() => {
     return messageFolders.filter((folder) =>
@@ -122,7 +105,7 @@ export const SettingsAccountsMessageFoldersCard = () => {
       });
     } catch (error) {
       enqueueErrorSnackBar({
-        ...(error instanceof ApolloError ? { apolloError: error } : {}),
+        ...(CombinedGraphQLErrors.is(error) ? { apolloError: error } : {}),
       });
     }
   };
@@ -142,7 +125,7 @@ export const SettingsAccountsMessageFoldersCard = () => {
       });
     } catch (error) {
       enqueueErrorSnackBar({
-        ...(error instanceof ApolloError ? { apolloError: error } : {}),
+        ...(CombinedGraphQLErrors.is(error) ? { apolloError: error } : {}),
       });
     }
   };
@@ -157,30 +140,37 @@ export const SettingsAccountsMessageFoldersCard = () => {
     );
   }
 
-  if (!messageFolders || messageFolders.length === 0) {
+  if (messageFolders.length === 0) {
     return <SettingsMessageFoldersEmptyStateCard />;
   }
 
   return (
     <Section>
       <Table>
-        <StyledSearchInput
-          placeholder={t`Search folders...`}
-          value={search}
-          onChange={setSearch}
-          instanceId={'message-folders-search'}
-        />
-        <StyledLabel>{t`Folders`}</StyledLabel>
+        <StyledSearchInputContainer>
+          <SettingsTextInput
+            placeholder={t`Search folders...`}
+            value={search}
+            onChange={setSearch}
+            instanceId={'message-folders-search'}
+          />
+        </StyledSearchInputContainer>
+        <StyledLabelContainer>
+          <Label>{t`Folders`}</Label>
+        </StyledLabelContainer>
 
         <StyledSectionHeader>
           <Label>{t`Toggle all folders`}</Label>
-          <StyledCheckboxCell>
+          <TableCell
+            align="right"
+            padding={`0 ${themeCssVariables.spacing[1]} 0 ${themeCssVariables.spacing[2]}`}
+          >
             <Checkbox
               checked={allFoldersToggled}
               onChange={() => handleToggleAllFolders(messageFolders)}
               size={CheckboxSize.Small}
             />
-          </StyledCheckboxCell>
+          </TableCell>
         </StyledSectionHeader>
 
         <StyledFoldersContainer>

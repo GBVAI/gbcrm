@@ -151,7 +151,9 @@ export const buildDefaultFlatFieldMetadatasForCustomObject = ({
           kanbanAggregateOperationViewUniversalIdentifiers: [],
           calendarViewUniversalIdentifiers: [],
           mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+          fieldPermissionUniversalIdentifiers: [],
           universalSettings: null,
+          viewSortUniversalIdentifiers: [],
         };
 
   const searchVectorUniversalSettings: UniversalFlatFieldMetadata<FieldMetadataType.TS_VECTOR>['universalSettings'] =

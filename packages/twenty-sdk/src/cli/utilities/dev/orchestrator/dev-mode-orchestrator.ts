@@ -4,22 +4,23 @@ import { ConfigService } from '@/cli/utilities/config/config-service';
 import { type OrchestratorState } from '@/cli/utilities/dev/orchestrator/dev-mode-orchestrator-state';
 import { BuildManifestOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/build-manifest-orchestrator-step';
 import { CheckServerOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/check-server-orchestrator-step';
-import { EnsureValidTokensOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/ensure-valid-tokens-orchestrator-step';
 import { GenerateApiClientOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/generate-api-client-orchestrator-step';
-import { ResolveApplicationOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/resolve-application-orchestrator-step';
+import { RegisterAppOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/register-app-orchestrator-step';
 import {
   StartWatchersOrchestratorStep,
   type FileBuiltEvent,
 } from '@/cli/utilities/dev/orchestrator/steps/start-watchers-orchestrator-step';
 import { SyncApplicationOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/sync-application-orchestrator-step';
 import { UploadFilesOrchestratorStep } from '@/cli/utilities/dev/orchestrator/steps/upload-files-orchestrator-step';
-import * as fs from 'fs-extra';
+import { serializeError } from '@/cli/utilities/error/serialize-error';
+import { emptyDir, ensureDir } from '@/cli/utilities/file/fs-utils';
 import path from 'path';
 import { OUTPUT_DIR, type Manifest } from 'twenty-shared/application';
 
 export type DevModeOrchestratorOptions = {
   state: OrchestratorState;
   debounceMs?: number;
+  verbose?: boolean;
 };
 
 export class DevModeOrchestrator {
@@ -28,10 +29,13 @@ export class DevModeOrchestrator {
   private syncTimer: NodeJS.Timeout | null = null;
   private serverCheckInterval: NodeJS.Timeout | null = null;
 
+  private apiService: ApiService;
+  private clientService: ClientService;
+  private verbose: boolean;
+  private skipTypecheck = true;
   private checkServerStep: CheckServerOrchestratorStep;
-  private ensureValidTokensStep: EnsureValidTokensOrchestratorStep;
   private buildManifestStep: BuildManifestOrchestratorStep;
-  private resolveApplicationStep: ResolveApplicationOrchestratorStep;
+  private registerAppStep: RegisterAppOrchestratorStep;
   private uploadFilesStep: UploadFilesOrchestratorStep;
   private generateApiClientStep: GenerateApiClientOrchestratorStep;
   private syncApplicationStep: SyncApplicationOrchestratorStep;
@@ -40,48 +44,60 @@ export class DevModeOrchestrator {
   constructor(options: DevModeOrchestratorOptions) {
     this.debounceMs = options.debounceMs ?? 200;
     this.state = options.state;
+    this.verbose = options.verbose ?? false;
 
-    const apiService = new ApiService({ disableInterceptors: true });
+    this.apiService = new ApiService({ disableInterceptors: true });
+    const apiService = this.apiService;
     const configService = new ConfigService();
-    const clientService = new ClientService();
+    this.clientService = new ClientService();
     const stepDeps = { state: this.state, notify: () => this.state.notify() };
 
     this.checkServerStep = new CheckServerOrchestratorStep({
       ...stepDeps,
       apiService,
     });
-    this.ensureValidTokensStep = new EnsureValidTokensOrchestratorStep({
+    this.buildManifestStep = new BuildManifestOrchestratorStep(stepDeps);
+    this.registerAppStep = new RegisterAppOrchestratorStep({
       ...stepDeps,
       apiService,
       configService,
     });
-    this.buildManifestStep = new BuildManifestOrchestratorStep(stepDeps);
-    this.resolveApplicationStep = new ResolveApplicationOrchestratorStep({
+    this.uploadFilesStep = new UploadFilesOrchestratorStep({
       ...stepDeps,
-      apiService,
+      verbose: this.verbose,
     });
-    this.uploadFilesStep = new UploadFilesOrchestratorStep(stepDeps);
     this.generateApiClientStep = new GenerateApiClientOrchestratorStep({
       ...stepDeps,
-      clientService,
+      clientService: this.clientService,
       configService,
     });
     this.syncApplicationStep = new SyncApplicationOrchestratorStep({
       ...stepDeps,
       apiService,
+      verbose: this.verbose,
     });
     this.startWatchersStep = new StartWatchersOrchestratorStep({
       ...stepDeps,
       scheduleSync: this.scheduleSync.bind(this),
       onFileBuilt: this.handleFileBuilt.bind(this),
+      shouldSkipTypecheck: () => this.skipTypecheck,
+      verbose: this.verbose,
     });
   }
 
   async start(): Promise<void> {
     const outputDir = path.join(this.state.appPath, OUTPUT_DIR);
 
-    await fs.ensureDir(outputDir);
-    await fs.emptyDir(outputDir);
+    await ensureDir(outputDir);
+    await emptyDir(outputDir);
+
+    if (!this.verbose) {
+      this.state.addEvent({
+        message: 'Add --verbose to see fully detailed logs',
+        status: 'info',
+      });
+      this.state.notify();
+    }
 
     await this.startWatchersStep.start();
 
@@ -143,10 +159,11 @@ export class DevModeOrchestrator {
       await this.runSyncPipeline();
     } catch (error) {
       this.state.addEvent({
-        message: `Sync failed with error ${JSON.stringify(error, null, 2)}`,
+        message: `Sync failed with error: ${serializeError(error)}`,
         status: 'error',
       });
       this.state.updatePipeline({ status: 'error' });
+      this.state.updateAllEntitiesStatus('error');
     } finally {
       this.state.updatePipeline({ isSyncing: false });
     }
@@ -159,9 +176,7 @@ export class DevModeOrchestrator {
       return;
     }
 
-    await this.ensureValidTokensStep.execute({
-      applicationId: this.state.steps.resolveApplication.output.applicationId,
-    });
+    this.state.steps.ensureValidTokens.status = 'done';
 
     const buildResult = await this.buildManifestStep.execute({
       appPath: this.state.appPath,
@@ -193,29 +208,49 @@ export class DevModeOrchestrator {
       appPath: this.state.appPath,
     });
 
+    if (this.state.steps.syncApplication.status === 'error') {
+      return;
+    }
+
     if (objectsOrFieldsChanged) {
       await this.generateApiClientStep.execute({
         appPath: this.state.appPath,
       });
 
-      await this.uploadFilesStep.copyAndUploadApiClientFiles(
-        this.state.appPath,
-      );
+      this.skipTypecheck = false;
     }
   }
 
   private async initializePipeline(manifest: Manifest): Promise<boolean> {
-    const resolveResult = await this.resolveApplicationStep.execute({
-      manifest,
+    await this.registerAppStep.execute({ manifest });
+
+    const createResult = await this.apiService.createDevelopmentApplication({
+      universalIdentifier: manifest.application.universalIdentifier,
+      name: manifest.application.displayName,
     });
 
-    if (!resolveResult.applicationId) {
+    if (!createResult.success || !createResult.data) {
+      this.state.applyStepEvents([
+        {
+          message: 'Failed to create development application',
+          status: 'error',
+        },
+        { message: JSON.stringify(createResult, null, 2), status: 'error' },
+      ]);
+      this.state.updatePipeline({ status: 'error' });
+
       return false;
     }
 
-    await this.ensureValidTokensStep.exchangeTokens({
-      applicationId: resolveResult.applicationId,
-    });
+    this.state.steps.resolveApplication.output = {
+      applicationId: createResult.data.id,
+      universalIdentifier: createResult.data.universalIdentifier,
+    };
+    this.state.steps.resolveApplication.status = 'done';
+
+    this.state.applyStepEvents([
+      { message: 'Application created', status: 'success' },
+    ]);
 
     this.uploadFilesStep.initialize({
       appPath: this.state.appPath,

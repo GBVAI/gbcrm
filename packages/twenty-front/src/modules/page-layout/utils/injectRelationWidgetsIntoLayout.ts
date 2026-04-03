@@ -4,6 +4,8 @@ import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
 import { DYNAMIC_RELATION_WIDGET_ID_PREFIX } from '@/page-layout/utils/isDynamicRelationWidget';
 import { isDefined } from 'twenty-shared/utils';
 import {
+  FieldDisplayMode,
+  PageLayoutTabLayoutMode,
   WidgetConfigurationType,
   WidgetType,
 } from '~/generated-metadata/graphql';
@@ -25,12 +27,21 @@ const getRelationFieldWidgetToInsert = (
     rowSpan: 1,
     columnSpan: 12,
   },
+  position: {
+    __typename: 'PageLayoutWidgetGridPosition' as const,
+    layoutMode: PageLayoutTabLayoutMode.GRID,
+    row: 0,
+    column: 0,
+    rowSpan: 1,
+    columnSpan: 12,
+  },
   configuration: {
     __typename: 'FieldConfiguration' as const,
     configurationType: WidgetConfigurationType.FIELD,
     fieldMetadataId: field.id,
-    layout: 'CARD' as const,
+    fieldDisplayMode: FieldDisplayMode.CARD,
   },
+  isOverridden: false,
   createdAt: '2024-01-01T00:00:00.000Z',
   updatedAt: '2024-01-01T00:00:00.000Z',
   deletedAt: null,

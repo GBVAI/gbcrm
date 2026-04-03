@@ -1,4 +1,4 @@
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import {
   type WorkflowAction,
   type WorkflowTrigger,
@@ -14,17 +14,17 @@ import { isDefined } from 'twenty-shared/utils';
 import { DatabaseEventAction } from '~/generated-metadata/graphql';
 
 const PERSISTED_OUTPUT_SCHEMA_TYPES = [
+  'AI_AGENT',
   'CODE',
   'HTTP_REQUEST',
-  'AI_AGENT',
   'WEBHOOK',
   'ITERATOR',
 ];
 
 const findObjectMetadataItemByName = (
-  objectMetadataItems: ObjectMetadataItem[],
+  objectMetadataItems: EnrichedObjectMetadataItem[],
   objectName: string,
-): ObjectMetadataItem | undefined => {
+): EnrichedObjectMetadataItem | undefined => {
   return objectMetadataItems.find((item) => item.nameSingular === objectName);
 };
 
@@ -58,7 +58,7 @@ export const computeStepOutputSchema = ({
   objectMetadataItems,
 }: {
   step: WorkflowTrigger | WorkflowAction;
-  objectMetadataItems: ObjectMetadataItem[];
+  objectMetadataItems: EnrichedObjectMetadataItem[];
 }): OutputSchemaV2 | undefined => {
   const stepType = step.type;
 

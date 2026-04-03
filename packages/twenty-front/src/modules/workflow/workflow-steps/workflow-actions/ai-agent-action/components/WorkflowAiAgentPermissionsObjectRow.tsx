@@ -1,12 +1,5 @@
-import { useTheme } from '@emotion/react';
 import { useIcons } from 'twenty-ui/display';
-import {
-  StyledIconChevronRight,
-  StyledIconContainer,
-  StyledRow,
-  StyledRowLeftContent,
-  StyledText,
-} from './WorkflowAiAgentPermissionsStyles';
+import { MenuItem } from 'twenty-ui/navigation';
 
 type WorkflowAiAgentPermissionsObjectRowProps = {
   objectMetadata: {
@@ -23,22 +16,16 @@ export const WorkflowAiAgentPermissionsObjectRow = ({
   onClick,
   readonly,
 }: WorkflowAiAgentPermissionsObjectRowProps) => {
-  const theme = useTheme();
   const { getIcon } = useIcons();
   const IconComponent = getIcon(objectMetadata.icon);
 
   return (
-    <StyledRow
-      key={objectMetadata.id}
+    <MenuItem
+      LeftIcon={IconComponent}
+      withIconContainer
+      text={objectMetadata.labelPlural}
+      hasSubMenu={!readonly}
       onClick={!readonly ? onClick : undefined}
-    >
-      <StyledRowLeftContent>
-        <StyledIconContainer>
-          <IconComponent size={theme.icon.size.sm} />
-        </StyledIconContainer>
-        <StyledText>{objectMetadata.labelPlural}</StyledText>
-      </StyledRowLeftContent>
-      <StyledIconChevronRight size={theme.icon.size.sm} />
-    </StyledRow>
+    />
   );
 };

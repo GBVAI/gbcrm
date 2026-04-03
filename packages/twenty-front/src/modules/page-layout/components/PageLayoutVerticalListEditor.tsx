@@ -5,36 +5,41 @@ import { type PageLayoutWidget } from '@/page-layout/types/PageLayoutWidget';
 import { WidgetRenderer } from '@/page-layout/widgets/components/WidgetRenderer';
 import { useIsInPinnedTab } from '@/page-layout/widgets/hooks/useIsInPinnedTab';
 import { useLayoutRenderingContext } from '@/ui/layout/contexts/LayoutRenderingContext';
-import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
-import styled from '@emotion/styled';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import {
   DragDropContext,
   Draggable,
   Droppable,
   type DropResult,
 } from '@hello-pangea/dnd';
-import { useId } from 'react';
+import { styled } from '@linaria/react';
+import { type ReactNode, useId } from 'react';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 import { useIsMobile } from 'twenty-ui/utilities';
 
 const StyledVerticalListContainer = styled.div<{
   variant: PageLayoutVerticalListViewerVariant;
   shouldUseWhiteBackground: boolean;
 }>`
-  background: ${({ theme, shouldUseWhiteBackground }) =>
+  background: ${({ shouldUseWhiteBackground }) =>
     shouldUseWhiteBackground
-      ? theme.background.primary
-      : theme.background.secondary};
+      ? themeCssVariables.background.primary
+      : themeCssVariables.background.secondary};
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(4)};
-  padding: ${({ theme, variant }) =>
-    variant === 'side-column' ? theme.spacing(1) : theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[4]};
+  padding: ${({ variant }) =>
+    variant === 'side-column'
+      ? themeCssVariables.spacing[1]
+      : themeCssVariables.spacing[2]};
 `;
 
 const StyledDraggableWrapper = styled.div<{ isDragging: boolean }>`
-  background: ${({ theme, isDragging }) =>
-    isDragging ? theme.background.transparent.light : 'transparent'};
-  border-radius: ${({ theme }) => theme.border.radius.sm};
+  background: ${({ isDragging }) =>
+    isDragging
+      ? themeCssVariables.background.transparent.light
+      : 'transparent'};
+  border-radius: ${themeCssVariables.border.radius.sm};
   transition: background 0.1s ease;
 `;
 
@@ -42,36 +47,38 @@ type PageLayoutVerticalListEditorProps = {
   widgets: PageLayoutWidget[];
   onReorder: (result: DropResult) => void;
   isReorderEnabled?: boolean;
+  trailingElement?: ReactNode;
 };
 
 export const PageLayoutVerticalListEditor = ({
   widgets,
   onReorder,
   isReorderEnabled = true,
+  trailingElement,
 }: PageLayoutVerticalListEditorProps) => {
   const droppableId = `page-layout-vertical-list-${useId()}`;
 
-  const { isInRightDrawer } = useLayoutRenderingContext();
+  const { isInSidePanel } = useLayoutRenderingContext();
   const isMobile = useIsMobile();
   const { isInPinnedTab } = useIsInPinnedTab();
 
   const variant = getPageLayoutVerticalListViewerVariant({
     isInPinnedTab,
     isMobile,
-    isInRightDrawer,
+    isInSidePanel,
   });
 
-  const setDraggingWidgetId = useSetRecoilComponentState(
+  const setPageLayoutDraggingWidgetId = useSetAtomComponentState(
     pageLayoutDraggingWidgetIdComponentState,
   );
 
   return (
     <DragDropContext
       onDragStart={(result) => {
-        setDraggingWidgetId(result.draggableId);
+        setPageLayoutDraggingWidgetId(result.draggableId);
       }}
       onDragEnd={(result) => {
-        setDraggingWidgetId(null);
+        setPageLayoutDraggingWidgetId(null);
         onReorder(result);
       }}
     >
@@ -80,8 +87,8 @@ export const PageLayoutVerticalListEditor = ({
           <StyledVerticalListContainer
             ref={provided.innerRef}
             variant={variant}
-            shouldUseWhiteBackground={isMobile || isInRightDrawer}
-            // eslint-disable-next-line react/jsx-props-no-spreading
+            shouldUseWhiteBackground={isMobile || isInSidePanel}
+            // oxlint-disable-next-line react/jsx-props-no-spreading
             {...provided.droppableProps}
           >
             {widgets.map((widget, index) => (
@@ -94,11 +101,11 @@ export const PageLayoutVerticalListEditor = ({
                 {(provided, snapshot) => (
                   <StyledDraggableWrapper
                     ref={provided.innerRef}
-                    // eslint-disable-next-line react/jsx-props-no-spreading
+                    // oxlint-disable-next-line react/jsx-props-no-spreading
                     {...provided.draggableProps}
                     isDragging={snapshot.isDragging}
                   >
-                    {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+                    {/* oxlint-disable-next-line react/jsx-props-no-spreading */}
                     <div {...provided.dragHandleProps}>
                       <WidgetRenderer widget={widget} />
                     </div>
@@ -107,6 +114,7 @@ export const PageLayoutVerticalListEditor = ({
               </Draggable>
             ))}
             {provided.placeholder}
+            {trailingElement}
           </StyledVerticalListContainer>
         )}
       </Droppable>

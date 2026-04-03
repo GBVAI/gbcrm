@@ -1,33 +1,20 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { type ReactNode } from 'react';
 
-import { SettingsItemTypeTag } from '@/settings/components/SettingsItemTypeTag';
 import { TableCell } from '@/ui/layout/table/components/TableCell';
 import { TableRow } from '@/ui/layout/table/components/TableRow';
-import { IconCode, OverflowingTextWithTooltip } from 'twenty-ui/display';
-
-import { type LogicFunction } from '~/generated-metadata/graphql';
-
-type ToolWithApplicationId = LogicFunction & {
-  applicationId?: string | null;
-};
+import { OverflowingTextWithTooltip } from 'twenty-ui/display';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 export type SettingsToolTableRowProps = {
-  tool: ToolWithApplicationId;
+  leftIcon: ReactNode;
+  name: string;
+  appLabel: string;
   action?: ReactNode;
   link?: string;
 };
 
-export const StyledToolTableRow = styled(TableRow)`
-  grid-template-columns: 1fr 100px 36px;
-`;
-
-const StyledNameTableCell = styled(TableCell)`
-  color: ${({ theme }) => theme.font.color.primary};
-  gap: ${({ theme }) => theme.spacing(2)};
-  min-width: 0;
-  overflow: hidden;
-`;
+export const TOOL_TABLE_ROW_GRID_TEMPLATE_COLUMNS = '1fr 100px 36px';
 
 const StyledIconContainer = styled.div`
   align-items: center;
@@ -35,30 +22,36 @@ const StyledIconContainer = styled.div`
   flex-shrink: 0;
 `;
 
-const StyledActionTableCell = styled(TableCell)`
-  justify-content: flex-end;
-  padding-right: ${({ theme }) => theme.spacing(2)};
-`;
-
 export const SettingsToolTableRow = ({
-  tool,
+  leftIcon,
+  name,
+  appLabel,
   action,
   link,
 }: SettingsToolTableRowProps) => {
   return (
-    <StyledToolTableRow to={link}>
-      <StyledNameTableCell>
-        <StyledIconContainer>
-          <IconCode size={16} />
-        </StyledIconContainer>
-        <OverflowingTextWithTooltip text={tool.name} />
-      </StyledNameTableCell>
-      <TableCell>
-        <SettingsItemTypeTag
-          item={{ isCustom: true, applicationId: tool.applicationId }}
-        />
+    <TableRow
+      gridTemplateColumns={TOOL_TABLE_ROW_GRID_TEMPLATE_COLUMNS}
+      to={link}
+    >
+      <TableCell
+        color={themeCssVariables.font.color.primary}
+        gap={themeCssVariables.spacing[2]}
+        minWidth="0"
+        overflow="hidden"
+      >
+        <StyledIconContainer>{leftIcon}</StyledIconContainer>
+        <OverflowingTextWithTooltip text={name} />
       </TableCell>
-      <StyledActionTableCell>{action}</StyledActionTableCell>
-    </StyledToolTableRow>
+      <TableCell minWidth="0" overflow="hidden">
+        <OverflowingTextWithTooltip text={appLabel} />
+      </TableCell>
+      <TableCell
+        align="right"
+        padding={`0 ${themeCssVariables.spacing[2]} 0 0`}
+      >
+        {action}
+      </TableCell>
+    </TableRow>
   );
 };

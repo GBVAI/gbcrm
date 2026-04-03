@@ -19,10 +19,13 @@ export const METADATA_EVENTS_TO_EMIT = {
   pageLayoutTab: true,
   commandMenuItem: true,
   navigationMenuItem: true,
+  permissionFlag: true,
+  objectPermission: true,
+  fieldPermission: true,
   rowLevelPermissionPredicate: true,
   rowLevelPermissionPredicateGroup: true,
   index: true,
   logicFunction: true,
-
+  viewSort: true,
   webhook: false,
 } as const satisfies { [P in AllMetadataName]: boolean };

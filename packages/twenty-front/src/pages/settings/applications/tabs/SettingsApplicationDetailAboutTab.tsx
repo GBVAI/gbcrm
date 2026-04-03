@@ -10,9 +10,10 @@ import { Trans } from '@lingui/react/macro';
 import { SettingsPath } from 'twenty-shared/types';
 import { useModal } from '@/ui/layout/modal/hooks/useModal';
 import { useState } from 'react';
+import { useMutation } from '@apollo/client/react';
 import {
   type Application,
-  useUninstallApplicationMutation,
+  UninstallApplicationDocument,
 } from '~/generated-metadata/graphql';
 import { useSnackBar } from '@/ui/feedback/snack-bar-manager/hooks/useSnackBar';
 import { useNavigateSettings } from '~/hooks/useNavigateSettings';
@@ -32,9 +33,14 @@ export const SettingsApplicationDetailAboutTab = ({
 
   const { enqueueErrorSnackBar, enqueueSuccessSnackBar } = useSnackBar();
 
-  const [uninstallApplication] = useUninstallApplicationMutation();
+  const [uninstallApplication] = useMutation(UninstallApplicationDocument);
 
   const navigate = useNavigateSettings();
+
+  const registrationId = application?.applicationRegistrationId;
+
+  const latestAvailableVersion =
+    application?.applicationRegistration?.latestAvailableVersion ?? null;
 
   if (!isDefined(application)) {
     return null;
@@ -65,32 +71,11 @@ export const SettingsApplicationDetailAboutTab = ({
   return (
     <>
       <Section>
-        <H2Title title={t`Name`} description={t`Name of the application`} />
-        <SettingsTextInput
-          instanceId={`application-name-${id}`}
-          value={name}
-          disabled
-          fullWidth
+        <SettingsApplicationVersionContainer
+          application={application}
+          latestAvailableVersion={latestAvailableVersion}
+          appRegistrationId={registrationId}
         />
-      </Section>
-      <Section>
-        <H2Title
-          title={t`Description`}
-          description={t`Description of the application`}
-        />
-        <SettingsTextInput
-          instanceId={`application-description-${id}`}
-          value={description}
-          disabled
-          fullWidth
-        />
-      </Section>
-      <Section>
-        <H2Title
-          title={t`Version`}
-          description={t`Version of the application`}
-        />
-        <SettingsApplicationVersionContainer application={application} />
       </Section>
       {application.canBeUninstalled && (
         <>
@@ -110,7 +95,7 @@ export const SettingsApplicationDetailAboutTab = ({
           <ConfirmationModal
             confirmationPlaceholder={confirmationValue}
             confirmationValue={confirmationValue}
-            modalId={UNINSTALL_APPLICATION_MODAL_ID}
+            modalInstanceId={UNINSTALL_APPLICATION_MODAL_ID}
             title={t`Uninstall Application?`}
             subtitle={
               <Trans>

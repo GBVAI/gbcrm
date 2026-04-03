@@ -9,7 +9,6 @@ import {
 } from 'src/engine/core-modules/app-token/app-token.entity';
 import { WorkspaceDomainsService } from 'src/engine/core-modules/domain/workspace-domains/services/workspace-domains.service';
 import { EmailService } from 'src/engine/core-modules/email/email.service';
-import { FileService } from 'src/engine/core-modules/file/services/file.service';
 import { I18nService } from 'src/engine/core-modules/i18n/i18n.service';
 import { OnboardingService } from 'src/engine/core-modules/onboarding/onboarding.service';
 import { ThrottlerService } from 'src/engine/core-modules/throttler/throttler.service';
@@ -18,8 +17,10 @@ import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user
 import { WorkspaceInvitationException } from 'src/engine/core-modules/workspace-invitation/workspace-invitation.exception';
 import { WorkspaceService } from 'src/engine/core-modules/workspace/services/workspace.service';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
+import { RoleValidationService } from 'src/engine/metadata-modules/role-validation/services/role-validation.service';
 import { type WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
 
+import { FileUrlService } from 'src/engine/core-modules/file/file-url/file-url.service';
 import { WorkspaceInvitationService } from './workspace-invitation.service';
 
 // To fix a circular dependency issue
@@ -59,6 +60,12 @@ describe('WorkspaceInvitationService', () => {
         {
           provide: getRepositoryToken(WorkspaceEntity),
           useClass: Repository,
+        },
+        {
+          provide: RoleValidationService,
+          useValue: {
+            validateRoleAssignableToUsersOrThrow: jest.fn(),
+          },
         },
         {
           provide: WorkspaceDomainsService,
@@ -106,9 +113,9 @@ describe('WorkspaceInvitationService', () => {
           },
         },
         {
-          provide: FileService,
+          provide: FileUrlService,
           useValue: {
-            signFileUrl: jest
+            signFileByIdUrl: jest
               .fn()
               .mockReturnValue('https://signed-url.com/logo.png'),
           },

@@ -30,13 +30,12 @@ export class FindOneResolverFactory
   ): Resolver<FindOneResolverArgs> {
     const internalContext = context;
 
-    return async (_source, args, requestContext, info) => {
+    return async (_source, args, _requestContext, info) => {
       try {
         const selectedFields = graphqlFields(info);
 
         const resolverContext = createQueryRunnerContext({
           workspaceSchemaBuilderContext: internalContext,
-          request: requestContext.req,
         });
 
         const record = await this.commonFindOneQueryRunnerService.execute(

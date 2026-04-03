@@ -6,18 +6,19 @@ import { CONFIG_VARIABLE_SOURCE_OPTIONS } from '@/settings/admin-panel/config-va
 import { configVariableGroupFilterState } from '@/settings/admin-panel/config-variables/states/configVariableGroupFilterState';
 import { configVariableSourceFilterState } from '@/settings/admin-panel/config-variables/states/configVariableSourceFilterState';
 import { showHiddenGroupVariablesState } from '@/settings/admin-panel/config-variables/states/showHiddenGroupVariablesState';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useMemo, useState } from 'react';
 import { H2Title } from 'twenty-ui/display';
 import { Section } from 'twenty-ui/layout';
+import { useQuery } from '@apollo/client/react';
 import {
   ConfigSource,
-  useGetConfigVariablesGroupedQuery,
+  GetConfigVariablesGroupedDocument,
 } from '~/generated-metadata/graphql';
 import { normalizeSearchText } from '~/utils/normalizeSearchText';
 import { ConfigVariableSearchInput } from './ConfigVariableSearchInput';
-import { useRecoilStateV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilStateV2';
+import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 
 const StyledControlsContainer = styled.div`
   display: flex;
@@ -30,18 +31,21 @@ const StyledTableContainer = styled.div`
 `;
 
 export const SettingsAdminConfigVariables = () => {
-  const { data: configVariables, loading: configVariablesLoading } =
-    useGetConfigVariablesGroupedQuery({
+  const { data: configVariables, loading: configVariablesLoading } = useQuery(
+    GetConfigVariablesGroupedDocument,
+    {
       fetchPolicy: 'network-only',
-    });
+    },
+  );
 
   const [search, setSearch] = useState('');
-  const [showHiddenGroupVariables, setShowHiddenGroupVariables] =
-    useRecoilStateV2(showHiddenGroupVariablesState);
+  const [showHiddenGroupVariables, setShowHiddenGroupVariables] = useAtomState(
+    showHiddenGroupVariablesState,
+  );
   const [configVariableSourceFilter, setConfigVariableSourceFilter] =
-    useRecoilStateV2(configVariableSourceFilterState);
+    useAtomState(configVariableSourceFilterState);
   const [configVariableGroupFilter, setConfigVariableGroupFilter] =
-    useRecoilStateV2(configVariableGroupFilterState);
+    useAtomState(configVariableGroupFilterState);
 
   const allGroups = useMemo(
     () => configVariables?.getConfigVariablesGrouped.groups ?? [],

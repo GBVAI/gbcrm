@@ -1,19 +1,23 @@
-import { useTheme } from '@emotion/react';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { useState } from 'react';
 import { isDefined } from 'twenty-shared/utils';
 import { HorizontalSeparator } from 'twenty-ui/display';
 import { ProgressBar } from 'twenty-ui/feedback';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 import { ContextUsageProgressRing } from '@/ai/components/internal/ContextUsageProgressRing';
-import { SettingsBillingLabelValueItem } from '@/billing/components/internal/SettingsBillingLabelValueItem';
+import { agentChatHasMessageComponentSelector } from '@/ai/states/agentChatHasMessageComponentSelector';
 import {
-  agentChatUsageStateV2,
+  agentChatUsageState,
   type AgentChatLastMessageUsage,
-} from '@/ai/states/agentChatUsageStateV2';
-import { useRecoilValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilValueV2';
+} from '@/ai/states/agentChatUsageState';
+import { SettingsBillingLabelValueItem } from '@/settings/billing/components/internal/SettingsBillingLabelValueItem';
+import { billingState } from '@/client-config/states/billingState';
+import { useAtomComponentSelectorValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentSelectorValue';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import { formatNumber } from '~/utils/format/formatNumber';
 
 const StyledContainer = styled.div`
   position: relative;
@@ -26,31 +30,34 @@ const StyledTrigger = styled.div<{ hasUsage: boolean }>`
   height: 24px;
   justify-content: center;
   min-width: 24px;
-  transition: background ${({ theme }) => theme.animation.duration.fast}s ease;
+  transition: background calc(${themeCssVariables.animation.duration.fast} * 1s)
+    ease;
 
   &:hover {
-    background: ${({ theme, hasUsage }) =>
-      hasUsage ? theme.background.transparent.light : 'transparent'};
+    background: ${({ hasUsage }) =>
+      hasUsage
+        ? themeCssVariables.background.transparent.light
+        : 'transparent'};
   }
 `;
 
 const StyledHoverCard = styled.div`
-  background: ${({ theme }) => theme.background.primary};
-  border: 1px solid ${({ theme }) => theme.border.color.medium};
-  border-radius: ${({ theme }) => theme.border.radius.md};
-  box-shadow: ${({ theme }) => theme.boxShadow.strong};
+  background: ${themeCssVariables.background.primary};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  border-radius: ${themeCssVariables.border.radius.md};
+  bottom: calc(100% + 8px);
+  box-shadow: ${themeCssVariables.boxShadow.strong};
+  left: 0;
   min-width: 280px;
   position: absolute;
-  left: 0;
-  bottom: calc(100% + 8px);
-  z-index: ${({ theme }) => theme.lastLayerZIndex};
+  z-index: ${themeCssVariables.lastLayerZIndex};
 `;
 
 const StyledSection = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(2)};
-  padding: ${({ theme }) => theme.spacing(3)};
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[3]};
 `;
 
 const StyledRow = styled.div`
@@ -60,43 +67,17 @@ const StyledRow = styled.div`
 `;
 
 const StyledContextWindowValue = styled.span`
-  color: ${({ theme }) => theme.font.color.secondary};
-  font-size: ${({ theme }) => theme.font.size.sm};
-  font-weight: ${({ theme }) => theme.font.weight.medium};
+  color: ${themeCssVariables.font.color.secondary};
+  font-size: ${themeCssVariables.font.size.sm};
+  font-weight: ${themeCssVariables.font.weight.medium};
 `;
 
 const StyledSectionTitle = styled.span`
-  color: ${({ theme }) => theme.font.color.primary};
-  font-size: ${({ theme }) => theme.font.size.xs};
-  font-weight: ${({ theme }) => theme.font.weight.semiBold};
-  padding-bottom: ${({ theme }) => theme.spacing(2)};
+  color: ${themeCssVariables.font.color.primary};
+  font-size: ${themeCssVariables.font.size.xs};
+  font-weight: ${themeCssVariables.font.weight.semiBold};
+  padding-bottom: ${themeCssVariables.spacing[2]};
 `;
-
-const formatTokenCount = (count: number): string => {
-  if (count >= 1_000_000_000) {
-    return `${(count / 1_000_000_000).toFixed(1)}B`;
-  }
-  if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(1)}M`;
-  }
-  if (count >= 1_000) {
-    return `${(count / 1_000).toFixed(1)}K`;
-  }
-  return count.toString();
-};
-
-const formatCredits = (credits: number): string => {
-  // Credits are already in display units from the API (internal / 1000)
-  // Show up to 1 decimal for fractional values, none for whole numbers
-  if (Number.isInteger(credits)) {
-    return credits.toLocaleString();
-  }
-
-  return credits.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
-};
 
 const getCachedLabel = (lastMessage: AgentChatLastMessageUsage): string => {
   if (lastMessage.cachedInputTokens <= 0 || lastMessage.inputTokens <= 0) {
@@ -112,9 +93,29 @@ const getCachedLabel = (lastMessage: AgentChatLastMessageUsage): string => {
 
 export const AIChatContextUsageButton = () => {
   const { t } = useLingui();
-  const theme = useTheme();
   const [isHovered, setIsHovered] = useState(false);
-  const agentChatUsage = useRecoilValueV2(agentChatUsageStateV2);
+  const agentChatUsage = useAtomStateValue(agentChatUsageState);
+  const billing = useAtomStateValue(billingState);
+  const isBillingEnabled = billing?.isBillingEnabled ?? false;
+
+  // Values from the streaming API arrive as display credits (micro-credits / 1000).
+  // 1000 display credits = $1. Convert accordingly.
+  const formatChatCost = (displayCredits: number): string => {
+    if (isBillingEnabled) {
+      return `${formatNumber(displayCredits, { decimals: 1 })} credits`;
+    }
+    const dollars = displayCredits / 1000;
+
+    return `$${formatNumber(dollars, { decimals: 2 })}`;
+  };
+
+  const hasMessages = useAtomComponentSelectorValue(
+    agentChatHasMessageComponentSelector,
+  );
+
+  if (!hasMessages) {
+    return null;
+  }
 
   if (!agentChatUsage) {
     return (
@@ -154,8 +155,15 @@ export const AIChatContextUsageButton = () => {
                 {formattedPercentage}%
               </StyledContextWindowValue>
               <StyledContextWindowValue>
-                {formatTokenCount(agentChatUsage.conversationSize)} /{' '}
-                {formatTokenCount(agentChatUsage.contextWindowTokens)}{' '}
+                {formatNumber(agentChatUsage.conversationSize, {
+                  abbreviate: true,
+                  decimals: 1,
+                })}{' '}
+                /{' '}
+                {formatNumber(agentChatUsage.contextWindowTokens, {
+                  abbreviate: true,
+                  decimals: 1,
+                })}{' '}
                 {t`tokens`}
               </StyledContextWindowValue>
             </StyledRow>
@@ -163,51 +171,71 @@ export const AIChatContextUsageButton = () => {
               value={percentage}
               barColor={
                 percentage > 80
-                  ? theme.color.red
+                  ? themeCssVariables.color.red
                   : percentage > 60
-                    ? theme.color.orange
-                    : theme.color.blue
+                    ? themeCssVariables.color.orange
+                    : themeCssVariables.color.blue
               }
-              backgroundColor={theme.background.tertiary}
+              backgroundColor={themeCssVariables.background.tertiary}
               withBorderRadius
             />
           </StyledSection>
 
           {isDefined(lastMessage) && (
             <>
-              <HorizontalSeparator noMargin color={theme.background.tertiary} />
+              <HorizontalSeparator
+                noMargin
+                color={themeCssVariables.background.tertiary}
+              />
               <StyledSection>
                 <StyledSectionTitle>{t`Last message`}</StyledSectionTitle>
                 <SettingsBillingLabelValueItem
                   label={t`Input tokens`}
-                  value={`${formatTokenCount(lastMessage.inputTokens)}${getCachedLabel(lastMessage)}`}
+                  value={`${formatNumber(lastMessage.inputTokens, {
+                    abbreviate: true,
+                    decimals: 1,
+                  })}${getCachedLabel(lastMessage)}`}
                 />
                 <SettingsBillingLabelValueItem
                   label={t`Output tokens`}
-                  value={formatTokenCount(lastMessage.outputTokens)}
+                  value={formatNumber(lastMessage.outputTokens, {
+                    abbreviate: true,
+                    decimals: 1,
+                  })}
                 />
                 <SettingsBillingLabelValueItem
                   label={t`Cost`}
-                  value={`${formatCredits(lastMessage.inputCredits + lastMessage.outputCredits)} ${t`credits`}`}
+                  value={formatChatCost(
+                    lastMessage.inputCredits + lastMessage.outputCredits,
+                  )}
                 />
               </StyledSection>
             </>
           )}
 
-          <HorizontalSeparator noMargin color={theme.background.tertiary} />
+          <HorizontalSeparator
+            noMargin
+            color={themeCssVariables.background.tertiary}
+          />
           <StyledSection>
             <StyledSectionTitle>{t`Conversation`}</StyledSectionTitle>
             <SettingsBillingLabelValueItem
               label={t`Input tokens`}
-              value={formatTokenCount(agentChatUsage.inputTokens)}
+              value={formatNumber(agentChatUsage.inputTokens, {
+                abbreviate: true,
+                decimals: 1,
+              })}
             />
             <SettingsBillingLabelValueItem
               label={t`Output tokens`}
-              value={formatTokenCount(agentChatUsage.outputTokens)}
+              value={formatNumber(agentChatUsage.outputTokens, {
+                abbreviate: true,
+                decimals: 1,
+              })}
             />
             <SettingsBillingLabelValueItem
               label={t`Total cost`}
-              value={`${formatCredits(totalCredits)} ${t`credits`}`}
+              value={formatChatCost(totalCredits)}
             />
           </StyledSection>
         </StyledHoverCard>

@@ -53,6 +53,10 @@ const deriveAllMetadataEventsFromDeleteAction = ({
     case 'commandMenuItem':
     case 'frontComponent':
     case 'navigationMenuItem':
+    case 'permissionFlag':
+    case 'objectPermission':
+    case 'fieldPermission':
+    case 'viewSort':
     case 'webhook': {
       const flatEntityToDelete = findFlatEntityByIdInFlatEntityMapsOrThrow<
         MetadataFlatEntity<typeof flatAction.metadataName>

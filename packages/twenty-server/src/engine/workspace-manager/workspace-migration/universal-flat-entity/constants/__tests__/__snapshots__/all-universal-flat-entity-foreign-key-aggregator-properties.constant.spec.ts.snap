@@ -5,12 +5,15 @@ exports[`ALL_UNIVERSAL_FLAT_ENTITY_FOREIGN_KEY_AGGREGATOR_PROPERTIES should matc
   "agent": [],
   "commandMenuItem": [],
   "fieldMetadata": [
+    "viewSortUniversalIdentifiers",
+    "fieldPermissionUniversalIdentifiers",
     "viewFieldUniversalIdentifiers",
     "viewFilterUniversalIdentifiers",
     "kanbanAggregateOperationViewUniversalIdentifiers",
     "calendarViewUniversalIdentifiers",
     "mainGroupByFieldMetadataViewUniversalIdentifiers",
   ],
+  "fieldPermission": [],
   "frontComponent": [],
   "index": [],
   "logicFunction": [],
@@ -18,8 +21,11 @@ exports[`ALL_UNIVERSAL_FLAT_ENTITY_FOREIGN_KEY_AGGREGATOR_PROPERTIES should matc
   "objectMetadata": [
     "fieldUniversalIdentifiers",
     "indexMetadataUniversalIdentifiers",
+    "objectPermissionUniversalIdentifiers",
+    "fieldPermissionUniversalIdentifiers",
     "viewUniversalIdentifiers",
   ],
+  "objectPermission": [],
   "pageLayout": [
     "tabUniversalIdentifiers",
   ],
@@ -27,8 +33,12 @@ exports[`ALL_UNIVERSAL_FLAT_ENTITY_FOREIGN_KEY_AGGREGATOR_PROPERTIES should matc
     "widgetUniversalIdentifiers",
   ],
   "pageLayoutWidget": [],
+  "permissionFlag": [],
   "role": [
     "roleTargetUniversalIdentifiers",
+    "objectPermissionUniversalIdentifiers",
+    "permissionFlagUniversalIdentifiers",
+    "fieldPermissionUniversalIdentifiers",
     "rowLevelPermissionPredicateUniversalIdentifiers",
     "rowLevelPermissionPredicateGroupUniversalIdentifiers",
   ],
@@ -56,6 +66,7 @@ exports[`ALL_UNIVERSAL_FLAT_ENTITY_FOREIGN_KEY_AGGREGATOR_PROPERTIES should matc
     "viewFilterUniversalIdentifiers",
   ],
   "viewGroup": [],
+  "viewSort": [],
   "webhook": [],
 }
 `;

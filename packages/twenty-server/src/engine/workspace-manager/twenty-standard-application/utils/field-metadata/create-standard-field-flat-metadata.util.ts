@@ -95,6 +95,7 @@ export const createStandardFieldFlatMetadata = <
     morphId: null,
     viewFieldIds: [],
     viewFilterIds: [],
+    fieldPermissionIds: [],
     kanbanAggregateOperationViewIds: [],
     calendarViewIds: [],
     mainGroupByFieldMetadataViewIds: [],
@@ -107,9 +108,12 @@ export const createStandardFieldFlatMetadata = <
     relationTargetFieldMetadataUniversalIdentifier: null,
     viewFilterUniversalIdentifiers: [],
     viewFieldUniversalIdentifiers: [],
+    fieldPermissionUniversalIdentifiers: [],
     kanbanAggregateOperationViewUniversalIdentifiers: [],
     calendarViewUniversalIdentifiers: [],
     mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+    viewSortIds: [],
+    viewSortUniversalIdentifiers: [],
     universalSettings: settings ?? null,
   };
 };

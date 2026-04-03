@@ -2,7 +2,7 @@ import { usePersistFieldFromFieldInputContext } from '@/object-record/record-fie
 import { RecordFieldComponentInstanceContext } from '@/object-record/record-field/ui/states/contexts/RecordFieldComponentInstanceContext';
 
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { formatFieldMetadataItemAsFieldDefinition } from '@/object-metadata/utils/formatFieldMetadataItemAsFieldDefinition';
 import { recordFieldListCellEditModePositionComponentState } from '@/object-record/record-field-list/states/recordFieldListCellEditModePositionComponentState';
 import {
@@ -13,7 +13,7 @@ import {
 import { useOpenFieldInputEditMode } from '@/object-record/record-field/ui/hooks/useOpenFieldInputEditMode';
 import { currentFocusIdSelector } from '@/ui/utilities/focus/states/currentFocusIdSelector';
 import { useAvailableComponentInstanceId } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceId';
-import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import { useStore } from 'jotai';
 import { useCallback } from 'react';
 
@@ -21,7 +21,7 @@ type RecordFieldListInputContextProviderProps = {
   children: React.ReactNode;
   recordId: string;
   fieldMetadataItem: FieldMetadataItem;
-  objectMetadataItem: ObjectMetadataItem;
+  objectMetadataItem: EnrichedObjectMetadataItem;
   instanceIdPrefix: string;
 };
 
@@ -39,7 +39,7 @@ export const RecordFieldListInputContextProvider = ({
 
   const { closeFieldInput } = useOpenFieldInputEditMode();
 
-  const setRecordFieldListCellEditModePosition = useSetRecoilComponentState(
+  const setRecordFieldListCellEditModePosition = useSetAtomComponentState(
     recordFieldListCellEditModePositionComponentState,
   );
 

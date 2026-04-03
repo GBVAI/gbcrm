@@ -2,9 +2,9 @@ import gql from 'graphql-tag';
 import request from 'supertest';
 import { makeMetadataAPIRequestWithFileUpload } from 'test/integration/metadata/suites/utils/make-metadata-api-request-with-file-upload.util';
 import { makeMetadataAPIRequest } from 'test/integration/metadata/suites/utils/make-metadata-api-request.util';
+import { FeatureFlagKey } from 'twenty-shared/types';
 
 import { BillingPlanKey } from 'src/engine/core-modules/billing/enums/billing-plan-key.enum';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
 import { ErrorCode } from 'src/engine/core-modules/graphql/utils/graphql-errors.util';
 import { PermissionsExceptionMessage } from 'src/engine/metadata-modules/permissions/permissions.exception';
 
@@ -212,6 +212,87 @@ describe('workspace permissions', () => {
               ErrorCode.FORBIDDEN,
             );
           });
+      });
+
+      it('should return a validation error when subdomain is empty string', async () => {
+        const queryData = {
+          query: `
+        mutation updateWorkspace {
+          updateWorkspace(data: { subdomain: "" }) {
+            id
+            subdomain
+          }
+        }
+      `,
+        };
+
+        const response = await client
+          .post('/metadata')
+          .set('Authorization', `Bearer ${APPLE_JANE_ADMIN_ACCESS_TOKEN}`)
+          .send(queryData);
+
+        expect(response.body.data).toBeNull();
+        expect(response.body.errors).toBeDefined();
+        expect(response.body.errors[0].extensions.code).toBe(
+          ErrorCode.CONFLICT,
+        );
+        expect(
+          response.body.errors[0].extensions.userFriendlyMessage,
+        ).toBe('Invalid subdomain.');
+      });
+
+      it('should return a validation error when subdomain has invalid characters', async () => {
+        const queryData = {
+          query: `
+        mutation updateWorkspace {
+          updateWorkspace(data: { subdomain: "INVALID!" }) {
+            id
+            subdomain
+          }
+        }
+      `,
+        };
+
+        const response = await client
+          .post('/metadata')
+          .set('Authorization', `Bearer ${APPLE_JANE_ADMIN_ACCESS_TOKEN}`)
+          .send(queryData);
+
+        expect(response.body.data).toBeNull();
+        expect(response.body.errors).toBeDefined();
+        expect(response.body.errors[0].extensions.code).toBe(
+          ErrorCode.CONFLICT,
+        );
+        expect(
+          response.body.errors[0].extensions.userFriendlyMessage,
+        ).toBe('Invalid subdomain.');
+      });
+
+      it('should return a validation error when subdomain starts with api-', async () => {
+        const queryData = {
+          query: `
+        mutation updateWorkspace {
+          updateWorkspace(data: { subdomain: "api-workspace" }) {
+            id
+            subdomain
+          }
+        }
+      `,
+        };
+
+        const response = await client
+          .post('/metadata')
+          .set('Authorization', `Bearer ${APPLE_JANE_ADMIN_ACCESS_TOKEN}`)
+          .send(queryData);
+
+        expect(response.body.data).toBeNull();
+        expect(response.body.errors).toBeDefined();
+        expect(response.body.errors[0].extensions.code).toBe(
+          ErrorCode.CONFLICT,
+        );
+        expect(
+          response.body.errors[0].extensions.userFriendlyMessage,
+        ).toBe('Invalid subdomain.');
       });
     });
 

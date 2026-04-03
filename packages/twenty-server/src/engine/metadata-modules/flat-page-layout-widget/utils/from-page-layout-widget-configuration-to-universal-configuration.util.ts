@@ -73,12 +73,15 @@ const convertChartFilterToUniversalFilter = ({
 export const fromPageLayoutWidgetConfigurationToUniversalConfiguration = ({
   configuration,
   fieldMetadataUniversalIdentifierById,
-  viewFieldGroupUniversalIdentifierById = {},
+  frontComponentUniversalIdentifierById = {},
+  viewFieldGroupUniversalIdentifierById:
+    _viewFieldGroupUniversalIdentifierById = {},
   viewUniversalIdentifierById = {},
   shouldThrowOnMissingIdentifier = false,
 }: {
   configuration: PageLayoutWidgetConfiguration;
   fieldMetadataUniversalIdentifierById: Partial<Record<string, string>>;
+  frontComponentUniversalIdentifierById?: Partial<Record<string, string>>;
   viewFieldGroupUniversalIdentifierById?: Partial<Record<string, string>>;
   viewUniversalIdentifierById?: Partial<Record<string, string>>;
   shouldThrowOnMissingIdentifier?: boolean;
@@ -271,7 +274,7 @@ export const fromPageLayoutWidgetConfigurationToUniversalConfiguration = ({
     }
 
     case WidgetConfigurationType.FIELDS: {
-      const { viewId, newFieldDefaultConfiguration, ...rest } = configuration;
+      const { viewId, newFieldDefaultVisibility, ...rest } = configuration;
 
       let viewUniversalIdentifier: string | null = null;
 
@@ -289,28 +292,28 @@ export const fromPageLayoutWidgetConfigurationToUniversalConfiguration = ({
         }
       }
 
-      if (!isDefined(newFieldDefaultConfiguration)) {
-        return {
-          ...rest,
-          newFieldDefaultConfiguration,
-          viewId: viewUniversalIdentifier,
-        };
-      }
+      return {
+        ...rest,
+        newFieldDefaultVisibility,
+        viewId: viewUniversalIdentifier,
+      };
+    }
 
-      let viewFieldGroupUniversalIdentifier: string | null = null;
+    case WidgetConfigurationType.RECORD_TABLE: {
+      const { viewId, ...rest } = configuration;
 
-      if (isDefined(newFieldDefaultConfiguration.viewFieldGroupId)) {
-        viewFieldGroupUniversalIdentifier =
-          viewFieldGroupUniversalIdentifierById[
-            newFieldDefaultConfiguration.viewFieldGroupId
-          ] ?? null;
+      let viewUniversalIdentifier: string | undefined = undefined;
+
+      if (isDefined(viewId)) {
+        viewUniversalIdentifier =
+          viewUniversalIdentifierById[viewId] ?? undefined;
 
         if (
-          !isDefined(viewFieldGroupUniversalIdentifier) &&
+          !isDefined(viewUniversalIdentifier) &&
           shouldThrowOnMissingIdentifier
         ) {
           throw new FlatEntityMapsException(
-            `View field group universal identifier not found for id: ${newFieldDefaultConfiguration.viewFieldGroupId}`,
+            `View universal identifier not found for id: ${viewId}`,
             FlatEntityMapsExceptionCode.RELATION_UNIVERSAL_IDENTIFIER_NOT_FOUND,
           );
         }
@@ -319,15 +322,50 @@ export const fromPageLayoutWidgetConfigurationToUniversalConfiguration = ({
       return {
         ...rest,
         viewId: viewUniversalIdentifier,
-        newFieldDefaultConfiguration: {
-          isVisible: newFieldDefaultConfiguration.isVisible,
-          viewFieldGroupId: viewFieldGroupUniversalIdentifier,
-        },
+      };
+    }
+
+    case WidgetConfigurationType.FRONT_COMPONENT: {
+      const { frontComponentId, configurationType } = configuration;
+
+      const frontComponentUniversalIdentifier: string | null =
+        frontComponentUniversalIdentifierById[frontComponentId] ?? null;
+
+      if (
+        !isDefined(frontComponentUniversalIdentifier) &&
+        shouldThrowOnMissingIdentifier
+      ) {
+        throw new FlatEntityMapsException(
+          `Front component universal identifier not found for id: ${frontComponentId}`,
+          FlatEntityMapsExceptionCode.RELATION_UNIVERSAL_IDENTIFIER_NOT_FOUND,
+        );
+      }
+
+      return {
+        configurationType,
+        frontComponentUniversalIdentifier,
+      };
+    }
+
+    case WidgetConfigurationType.FIELD: {
+      const { fieldMetadataId, fieldDisplayMode, configurationType } =
+        configuration;
+
+      const fieldMetadataUniversalIdentifier =
+        getFieldMetadataUniversalIdentifier({
+          fieldMetadataId,
+          fieldMetadataUniversalIdentifierById,
+          shouldThrowOnMissingIdentifier,
+        });
+
+      return {
+        configurationType,
+        fieldMetadataId: fieldMetadataUniversalIdentifier ?? fieldMetadataId,
+        fieldDisplayMode,
       };
     }
 
     case WidgetConfigurationType.VIEW:
-    case WidgetConfigurationType.FIELD:
     case WidgetConfigurationType.TIMELINE:
     case WidgetConfigurationType.TASKS:
     case WidgetConfigurationType.NOTES:
@@ -338,7 +376,6 @@ export const fromPageLayoutWidgetConfigurationToUniversalConfiguration = ({
     case WidgetConfigurationType.WORKFLOW:
     case WidgetConfigurationType.WORKFLOW_VERSION:
     case WidgetConfigurationType.WORKFLOW_RUN:
-    case WidgetConfigurationType.FRONT_COMPONENT:
     case WidgetConfigurationType.IFRAME:
     case WidgetConfigurationType.STANDALONE_RICH_TEXT:
       return configuration;

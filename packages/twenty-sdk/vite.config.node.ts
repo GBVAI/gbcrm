@@ -23,7 +23,13 @@ export default defineConfig(() => {
       emptyOutDir: false,
       outDir: 'dist',
       lib: {
-        entry: ['src/sdk/index.ts', 'src/cli/cli.ts'],
+        entry: {
+          index: 'src/sdk/index.ts',
+          cli: 'src/cli/cli.ts',
+          operations: 'src/cli/operations/index.ts',
+          'front-component-renderer/build':
+            'src/front-component-renderer/build/index.ts',
+        },
         name: 'twenty-sdk',
       },
       rollupOptions: {
@@ -33,15 +39,16 @@ export default defineConfig(() => {
           }
 
           const builtins = [
-            'path',
+            'child_process',
+            'crypto',
             'fs',
             'fs/promises',
-            'url',
-            'crypto',
-            'stream',
-            'util',
-            'os',
             'module',
+            'os',
+            'path',
+            'stream',
+            'url',
+            'util',
           ];
 
           if (builtins.includes(id)) {

@@ -37,6 +37,8 @@ export const getRelationTargetFlatFieldMetadataMock = ({
     viewFilterIds: [],
     viewFieldIds: [],
     kanbanAggregateOperationViewIds: [],
+    fieldPermissionIds: [],
+    fieldPermissionUniversalIdentifiers: [],
     createdAt,
     updatedAt: createdAt,
     description: 'default flat field metadata description',
@@ -73,6 +75,8 @@ export const getRelationTargetFlatFieldMetadataMock = ({
     kanbanAggregateOperationViewUniversalIdentifiers: [],
     calendarViewUniversalIdentifiers: [],
     mainGroupByFieldMetadataViewUniversalIdentifiers: [],
+    viewSortIds: [],
+    viewSortUniversalIdentifiers: [],
     universalSettings: settings,
   };
 };

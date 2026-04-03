@@ -15,8 +15,7 @@ import { type FeatureFlagMap } from 'src/engine/core-modules/feature-flag/interf
 import { type WorkspaceInternalContext } from 'src/engine/twenty-orm/interfaces/workspace-internal-context.interface';
 
 import { DatabaseEventAction } from 'src/engine/api/graphql/graphql-query-runner/enums/database-event-action';
-import { type AuthContext } from 'src/engine/core-modules/auth/types/auth-context.type';
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
+import { type WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { type QueryDeepPartialEntityWithNestedRelationFields } from 'src/engine/twenty-orm/entity-manager/types/query-deep-partial-entity-with-nested-relation-fields.type';
 import { type RelationConnectQueryConfig } from 'src/engine/twenty-orm/entity-manager/types/relation-connect-query-config.type';
 import { type RelationDisconnectQueryFieldsByEntityIndex } from 'src/engine/twenty-orm/entity-manager/types/relation-nested-query-fields-by-entity-index.type';
@@ -48,7 +47,7 @@ export class WorkspaceUpdateQueryBuilder<
   private objectRecordsPermissions: ObjectsPermissions;
   private shouldBypassPermissionChecks: boolean;
   private internalContext: WorkspaceInternalContext;
-  private authContext: AuthContext;
+  private authContext: WorkspaceAuthContext;
   private featureFlagMap: FeatureFlagMap;
   private relationNestedConfig:
     | [RelationConnectQueryConfig[], RelationDisconnectQueryFieldsByEntityIndex]
@@ -76,7 +75,7 @@ export class WorkspaceUpdateQueryBuilder<
     objectRecordsPermissions: ObjectsPermissions,
     internalContext: WorkspaceInternalContext,
     shouldBypassPermissionChecks: boolean,
-    authContext: AuthContext,
+    authContext: WorkspaceAuthContext,
     featureFlagMap: FeatureFlagMap,
   ) {
     super(queryBuilder);
@@ -137,7 +136,9 @@ export class WorkspaceUpdateQueryBuilder<
         objectMetadata.isCustom,
       );
 
-      const before = await eventSelectQueryBuilder.getMany();
+      const before = await eventSelectQueryBuilder.getMany({
+        noFormatting: true,
+      });
 
       if (before.length > QUERY_MAX_RECORDS) {
         throw new TwentyORMException(
@@ -237,7 +238,9 @@ export class WorkspaceUpdateQueryBuilder<
         await this.filesFieldSync.updateFileEntityRecords(filesFieldFileIds);
       }
 
-      const after = await eventSelectQueryBuilder.getMany();
+      const after = await eventSelectQueryBuilder.getMany({
+        noFormatting: true,
+      });
 
       const formattedAfter = formatResult<T[]>(
         after,
@@ -339,7 +342,9 @@ export class WorkspaceUpdateQueryBuilder<
         this.manyInputs.map((input) => input.criteria),
       );
 
-      const beforeRecords = await eventSelectQueryBuilder.getMany();
+      const beforeRecords = await eventSelectQueryBuilder.getMany({
+        noFormatting: true,
+      });
 
       const formattedBefore = formatResult<T[]>(
         beforeRecords,
@@ -448,7 +453,9 @@ export class WorkspaceUpdateQueryBuilder<
         await this.filesFieldSync.updateFileEntityRecords(filesFieldFileIds);
       }
 
-      const afterRecords = await eventSelectQueryBuilder.getMany();
+      const afterRecords = await eventSelectQueryBuilder.getMany({
+        noFormatting: true,
+      });
 
       const formattedAfter = formatResult<T[]>(
         afterRecords,
@@ -616,14 +623,6 @@ export class WorkspaceUpdateQueryBuilder<
   }
 
   private applyRowLevelPermissionPredicates(): void {
-    if (
-      this.featureFlagMap[
-        FeatureFlagKey.IS_ROW_LEVEL_PERMISSION_PREDICATES_ENABLED
-      ] !== true
-    ) {
-      return;
-    }
-
     if (this.shouldBypassPermissionChecks) {
       return;
     }
@@ -649,14 +648,6 @@ export class WorkspaceUpdateQueryBuilder<
   }: {
     updatedRecords: T[];
   }): void {
-    if (
-      this.featureFlagMap[
-        FeatureFlagKey.IS_ROW_LEVEL_PERMISSION_PREDICATES_ENABLED
-      ] !== true
-    ) {
-      return;
-    }
-
     const mainAliasTarget = this.getMainAliasTarget();
     const objectMetadata = getObjectMetadataFromEntityTarget(
       mainAliasTarget,

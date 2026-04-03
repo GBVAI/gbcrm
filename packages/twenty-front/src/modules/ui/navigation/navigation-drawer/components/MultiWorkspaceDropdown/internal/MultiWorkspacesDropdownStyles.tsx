@@ -1,39 +1,66 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { IconChevronDown } from 'twenty-ui/display';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 export const StyledContainer = styled.div<{
   isNavigationDrawerExpanded: boolean;
-}>`
-  align-items: center;
-  cursor: pointer;
-  color: ${({ theme }) => theme.font.color.primary};
-  border-radius: ${({ theme }) => theme.border.radius.sm};
-  border: 1px solid transparent;
-  display: flex;
-  justify-content: space-between;
-  height: ${({ theme }) => theme.spacing(5)};
-  padding: calc(${({ theme }) => theme.spacing(1)} - 1px);
-  width: ${({ isNavigationDrawerExpanded }) =>
-    isNavigationDrawerExpanded ? '100%' : 'auto'};
-  gap: ${({ theme, isNavigationDrawerExpanded }) =>
-    isNavigationDrawerExpanded ? theme.spacing(1) : '0'};
-  &:hover {
-    background-color: ${({ theme }) => theme.background.transparent.lighter};
-    border: 1px solid ${({ theme }) => theme.border.color.medium};
-  }
-`;
-
-export const StyledLabel = styled.div`
-  align-items: center;
-  display: flex;
-  font-weight: ${({ theme }) => theme.font.weight.medium};
-`;
-
-export const StyledIconChevronDown = styled(IconChevronDown)<{
   disabled?: boolean;
 }>`
   align-items: center;
-  color: ${({ disabled, theme }) =>
-    disabled ? theme.font.color.extraLight : theme.font.color.tertiary};
+  border: 1px solid transparent;
+  border-radius: ${themeCssVariables.border.radius.sm};
+  box-sizing: border-box;
+  color: ${themeCssVariables.font.color.primary};
+  cursor: ${({ disabled }) => (disabled ? 'default' : 'pointer')};
+  display: flex;
+  gap: ${({ isNavigationDrawerExpanded }) =>
+    isNavigationDrawerExpanded ? themeCssVariables.spacing[2] : '0'};
+  max-width: 100%;
+  min-width: 0;
+  opacity: ${({ disabled }) => (disabled ? 0.5 : 1)};
+  padding: calc(${themeCssVariables.spacing[1]} - 1px);
+  pointer-events: ${({ disabled }) => (disabled ? 'none' : 'auto')};
+  width: fit-content;
+
+  &:hover {
+    background-color: ${({ disabled }) =>
+      disabled
+        ? 'transparent'
+        : themeCssVariables.background.transparent.lighter};
+    border: 1px solid
+      ${({ disabled }) =>
+        disabled ? 'transparent' : themeCssVariables.border.color.medium};
+  }
+`;
+
+export const StyledLabelWrapper = styled.div`
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+`;
+
+export const StyledLabel = styled.div`
+  font-weight: ${themeCssVariables.font.weight.medium};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StyledIconChevronDownContainer = styled.div<{ disabled?: boolean }>`
+  align-items: center;
+  color: ${({ disabled }) =>
+    disabled
+      ? themeCssVariables.font.color.extraLight
+      : themeCssVariables.font.color.tertiary};
   display: flex;
 `;
+
+export const StyledIconChevronDown = ({
+  disabled,
+  ...props
+}: { disabled?: boolean } & React.ComponentProps<typeof IconChevronDown>) => (
+  <StyledIconChevronDownContainer disabled={disabled}>
+    {/* oxlint-disable-next-line react/jsx-props-no-spreading */}
+    <IconChevronDown {...props} />
+  </StyledIconChevronDownContainer>
+);

@@ -1,4 +1,4 @@
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { getLabelIdentifierFieldMetadataItem } from '@/object-metadata/utils/getLabelIdentifierFieldMetadataItem';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
 import { type ObjectRecordIdentifier } from '@/object-record/types/ObjectRecordIdentifier';
@@ -12,10 +12,9 @@ export const getObjectRecordIdentifier = ({
   objectMetadataItem,
   record,
   allowRequestsToTwentyIcons,
-  isFilesFieldMigrated,
 }: {
   objectMetadataItem: Pick<
-    ObjectMetadataItem,
+    EnrichedObjectMetadataItem,
     | 'fields'
     | 'labelIdentifierFieldMetadataId'
     | 'nameSingular'
@@ -23,7 +22,6 @@ export const getObjectRecordIdentifier = ({
   >;
   record: ObjectRecord;
   allowRequestsToTwentyIcons: boolean;
-  isFilesFieldMigrated?: boolean;
 }): ObjectRecordIdentifier => {
   const labelIdentifierFieldMetadataItem =
     getLabelIdentifierFieldMetadataItem(objectMetadataItem);
@@ -45,7 +43,6 @@ export const getObjectRecordIdentifier = ({
     record,
     imageIdentifierFieldMetadata,
     allowRequestsToTwentyIcons,
-    isFilesFieldMigrated,
   );
 
   const linkToShowPage = getLinkToShowPage(

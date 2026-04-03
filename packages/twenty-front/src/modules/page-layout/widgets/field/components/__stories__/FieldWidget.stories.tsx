@@ -1,19 +1,12 @@
-import {
-  type ApolloClient,
-  type NormalizedCacheObject,
-  useApolloClient,
-} from '@apollo/client';
+import { type ApolloClient } from '@apollo/client';
+import { useApolloClient } from '@apollo/client/react';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { MemoryRouter } from 'react-router-dom';
-import { type MutableSnapshot } from 'recoil';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { isMinimalMetadataReadyState } from '@/metadata-store/states/isMinimalMetadataReadyState';
 import { ApolloCoreClientContext } from '@/object-metadata/contexts/ApolloCoreClientContext';
-import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
-import { shouldAppBeLoadingState } from '@/object-metadata/states/shouldAppBeLoadingState';
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
 import { recordStoreFamilyState } from '@/object-record/record-store/states/recordStoreFamilyState';
-import { recordStoreFamilyStateV2 } from '@/object-record/record-store/states/recordStoreFamilyStateV2';
 import { type ObjectRecord } from '@/object-record/types/ObjectRecord';
 import { PageLayoutContentProvider } from '@/page-layout/contexts/PageLayoutContentContext';
 import {
@@ -28,8 +21,10 @@ import { FieldWidget } from '@/page-layout/widgets/field/components/FieldWidget'
 import { WidgetComponentInstanceContext } from '@/page-layout/widgets/states/contexts/WidgetComponentInstanceContext';
 import { LayoutRenderingProvider } from '@/ui/layout/contexts/LayoutRenderingContext';
 import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
+import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { ComponentDecorator } from 'twenty-ui/testing';
 import {
+  FieldDisplayMode,
   PageLayoutTabLayoutMode,
   PageLayoutType,
   WidgetConfigurationType,
@@ -38,9 +33,10 @@ import {
 import { ChipGeneratorsDecorator } from '~/testing/decorators/ChipGeneratorsDecorator';
 import { FileUploadDecorator } from '~/testing/decorators/FileUploadDecorator';
 import { getJestMetadataAndApolloMocksWrapper } from '~/testing/jest/getJestMetadataAndApolloMocksWrapper';
-import { generatedMockObjectMetadataItems } from '~/testing/utils/generatedMockObjectMetadataItems';
+import { getTestEnrichedObjectMetadataItemsMock } from '~/testing/utils/getTestEnrichedObjectMetadataItemsMock';
 import { getMockFieldMetadataItemOrThrow } from '~/testing/utils/getMockFieldMetadataItemOrThrow';
 import { getMockObjectMetadataItemOrThrow } from '~/testing/utils/getMockObjectMetadataItemOrThrow';
+import { setTestObjectMetadataItemsInMetadataStore } from '~/testing/utils/setTestObjectMetadataItemsInMetadataStore';
 
 const companyObjectMetadataItem = getMockObjectMetadataItemOrThrow(
   CoreObjectNameSingular.Company,
@@ -259,14 +255,9 @@ const mockCompanyRecord: ObjectRecord = {
   },
 };
 
-// Sets a record in both Recoil and Jotai stores so field display hooks can read it
-const setRecordInStores = (
-  snapshot: MutableSnapshot,
-  recordId: string,
-  record: ObjectRecord,
-) => {
-  snapshot.set(recordStoreFamilyState(recordId), record);
-  jotaiStore.set(recordStoreFamilyStateV2.atomFamily(recordId), record);
+// Sets a record in both Jotai stores so field display hooks can read it
+const setRecordInStores = (recordId: string, record: ObjectRecord) => {
+  jotaiStore.set(recordStoreFamilyState.atomFamily(recordId), record);
 };
 
 const JestMetadataAndApolloMocksWrapper = getJestMetadataAndApolloMocksWrapper({
@@ -278,7 +269,7 @@ const CoreClientProviderWrapper = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const apolloClient = useApolloClient() as ApolloClient<NormalizedCacheObject>;
+  const apolloClient = useApolloClient() as ApolloClient;
 
   return (
     <ApolloCoreClientContext.Provider value={apolloClient}>
@@ -306,6 +297,7 @@ const createPageLayoutWithWidget = (
       position: 0,
       pageLayoutId: PAGE_LAYOUT_TEST_INSTANCE_ID,
       widgets: [widget],
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
@@ -357,46 +349,45 @@ export const TextFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: nameField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -452,46 +443,45 @@ export const AddressFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: addressField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -550,46 +540,45 @@ export const NumberFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: employeesField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -645,46 +634,45 @@ export const LinkFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: linkedinField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -740,57 +728,55 @@ export const ManyToOneRelationFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: accountOwnerField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
+    // Set the related WorkspaceMember record for relation field display
+    if (
+      mockCompanyRecord.accountOwner !== null &&
+      mockCompanyRecord.accountOwner !== undefined
+    ) {
+      setRecordInStores(
+        mockCompanyRecord.accountOwner.id,
+        mockCompanyRecord.accountOwner,
       );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-      // Set the related WorkspaceMember record for relation field display
-      if (
-        mockCompanyRecord.accountOwner !== null &&
-        mockCompanyRecord.accountOwner !== undefined
-      ) {
-        setRecordInStores(
-          snapshot,
-          mockCompanyRecord.accountOwner.id,
-          mockCompanyRecord.accountOwner,
-        );
-      }
-    };
+    }
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -846,48 +832,47 @@ export const OneToManyRelationFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: companyPeopleField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-      // Set the related Person record for ONE_TO_MANY relation display
-      setRecordInStores(snapshot, TEST_PERSON_RECORD_ID, mockPersonRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
+    // Set the related Person record for ONE_TO_MANY relation display
+    setRecordInStores(TEST_PERSON_RECORD_ID, mockPersonRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -943,46 +928,45 @@ export const BooleanFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: idealCustomerProfileField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -1037,46 +1021,45 @@ export const CurrencyFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: annualRecurringRevenueField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -1131,46 +1114,45 @@ export const EmailsFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: personEmailsField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        personObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_PERSON_RECORD_ID, mockPersonRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      personObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_PERSON_RECORD_ID, mockPersonRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_PERSON_RECORD_ID,
@@ -1226,46 +1208,45 @@ export const PhonesFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: personPhonesField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        personObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_PERSON_RECORD_ID, mockPersonRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      personObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_PERSON_RECORD_ID, mockPersonRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_PERSON_RECORD_ID,
@@ -1321,50 +1302,45 @@ export const SelectFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: opportunityStageField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        opportunityObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(
-        snapshot,
-        TEST_OPPORTUNITY_RECORD_ID,
-        mockOpportunityRecord,
-      );
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      opportunityObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_OPPORTUNITY_RECORD_ID, mockOpportunityRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_OPPORTUNITY_RECORD_ID,
@@ -1421,46 +1397,45 @@ export const MultiSelectFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: companyWorkPolicyField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -1520,56 +1495,50 @@ export const TimelineActivityRelationFieldWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: timelineActivityWorkspaceMemberField.id,
-        layout: 'FIELD',
+        fieldDisplayMode: FieldDisplayMode.FIELD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        timelineActivityObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(
-        snapshot,
-        TEST_TIMELINE_ACTIVITY_RECORD_ID,
-        mockTimelineActivityRecord,
-      );
-      // Set the related WorkspaceMember record for TimelineActivity relation display
-      setRecordInStores(
-        snapshot,
-        'test-workspace-member-xyz',
-        mockWorkspaceMemberRecord,
-      );
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      timelineActivityObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(
+      TEST_TIMELINE_ACTIVITY_RECORD_ID,
+      mockTimelineActivityRecord,
+    );
+    // Set the related WorkspaceMember record for TimelineActivity relation display
+    setRecordInStores('test-workspace-member-xyz', mockWorkspaceMemberRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_TIMELINE_ACTIVITY_RECORD_ID,
@@ -1625,56 +1594,54 @@ export const ManyToOneRelationCardWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: accountOwnerField.id,
-        layout: 'CARD',
+        fieldDisplayMode: FieldDisplayMode.CARD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
+    if (
+      mockCompanyRecord.accountOwner !== null &&
+      mockCompanyRecord.accountOwner !== undefined
+    ) {
+      setRecordInStores(
+        mockCompanyRecord.accountOwner.id,
+        mockCompanyRecord.accountOwner,
       );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-      if (
-        mockCompanyRecord.accountOwner !== null &&
-        mockCompanyRecord.accountOwner !== undefined
-      ) {
-        setRecordInStores(
-          snapshot,
-          mockCompanyRecord.accountOwner.id,
-          mockCompanyRecord.accountOwner,
-        );
-      }
-    };
+    }
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -1739,47 +1706,46 @@ export const OneToManyRelationCardWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: companyPeopleField.id,
-        layout: 'CARD',
+        fieldDisplayMode: FieldDisplayMode.CARD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, mockCompanyRecord);
-      setRecordInStores(snapshot, TEST_PERSON_RECORD_ID, mockPersonRecord);
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, mockCompanyRecord);
+    setRecordInStores(TEST_PERSON_RECORD_ID, mockPersonRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,
@@ -1835,55 +1801,49 @@ export const TimelineActivityRelationCardWidget: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: timelineActivityWorkspaceMemberField.id,
-        layout: 'CARD',
+        fieldDisplayMode: FieldDisplayMode.CARD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        timelineActivityObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(
-        snapshot,
-        TEST_TIMELINE_ACTIVITY_RECORD_ID,
-        mockTimelineActivityRecord,
-      );
-      setRecordInStores(
-        snapshot,
-        'test-workspace-member-xyz',
-        mockWorkspaceMemberRecord,
-      );
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      timelineActivityObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(
+      TEST_TIMELINE_ACTIVITY_RECORD_ID,
+      mockTimelineActivityRecord,
+    );
+    setRecordInStores('test-workspace-member-xyz', mockWorkspaceMemberRecord);
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_TIMELINE_ACTIVITY_RECORD_ID,
@@ -2002,50 +1962,49 @@ export const OneToManyRelationCardWidgetWithProgressiveLoading: Story = {
         __typename: 'FieldConfiguration',
         configurationType: WidgetConfigurationType.FIELD,
         fieldMetadataId: companyPeopleField.id,
-        layout: 'CARD',
+        fieldDisplayMode: FieldDisplayMode.CARD,
       },
+      isOverridden: false,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       deletedAt: null,
     };
 
-    const initializeState = (snapshot: MutableSnapshot) => {
-      snapshot.set(objectMetadataItemsState, generatedMockObjectMetadataItems);
-      snapshot.set(shouldAppBeLoadingState, false);
-      const pageLayoutData = createPageLayoutWithWidget(
-        widget,
-        companyObjectMetadataItem.id,
-      );
-      snapshot.set(
-        pageLayoutPersistedComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      snapshot.set(
-        pageLayoutDraftComponentState.atomFamily({
-          instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
-        }),
-        pageLayoutData,
-      );
-      setRecordInStores(snapshot, TEST_RECORD_ID, companyWithManyPeople);
-      // Set each person record in the store
-      mockPeople.forEach((person) => {
-        setRecordInStores(snapshot, person.id, person);
-      });
-    };
+    setTestObjectMetadataItemsInMetadataStore(
+      jotaiStore,
+      getTestEnrichedObjectMetadataItemsMock(),
+    );
+    jotaiStore.set(isMinimalMetadataReadyState.atom, true);
+    const pageLayoutData = createPageLayoutWithWidget(
+      widget,
+      companyObjectMetadataItem.id,
+    );
+    jotaiStore.set(
+      pageLayoutPersistedComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    jotaiStore.set(
+      pageLayoutDraftComponentState.atomFamily({
+        instanceId: PAGE_LAYOUT_TEST_INSTANCE_ID,
+      }),
+      pageLayoutData,
+    );
+    setRecordInStores(TEST_RECORD_ID, companyWithManyPeople);
+    // Set each person record in the store
+    mockPeople.forEach((person) => {
+      setRecordInStores(person.id, person);
+    });
 
     return (
       <div style={{ width: '400px', padding: '20px' }}>
         <JestMetadataAndApolloMocksWrapper>
           <CoreClientProviderWrapper>
-            <PageLayoutTestWrapper
-              initializeState={initializeState}
-              store={jotaiStore}
-            >
+            <PageLayoutTestWrapper store={jotaiStore}>
               <LayoutRenderingProvider
                 value={{
-                  isInRightDrawer: false,
+                  isInSidePanel: false,
                   layoutType: PageLayoutType.RECORD_PAGE,
                   targetRecordIdentifier: {
                     id: TEST_RECORD_ID,

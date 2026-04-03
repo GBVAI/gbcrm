@@ -9,6 +9,7 @@ import { DomainServerConfigService } from 'src/engine/core-modules/domain/domain
 import { PUBLIC_FEATURE_FLAGS } from 'src/engine/core-modules/feature-flag/constants/public-feature-flag.const';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
+import { MaintenanceModeService } from 'src/engine/core-modules/admin-panel/maintenance-mode.service';
 
 describe('ClientConfigService', () => {
   let service: ClientConfigService;
@@ -34,7 +35,15 @@ describe('ClientConfigService', () => {
         {
           provide: AiModelRegistryService,
           useValue: {
-            getAvailableModels: jest.fn().mockReturnValue([]),
+            getAdminFilteredModels: jest.fn().mockReturnValue([]),
+            getRecommendedModelIds: jest.fn().mockReturnValue(new Set()),
+            getModelConfig: jest.fn().mockReturnValue(undefined),
+          },
+        },
+        {
+          provide: MaintenanceModeService,
+          useValue: {
+            getMaintenanceMode: jest.fn().mockResolvedValue(null),
           },
         },
       ],
@@ -77,7 +86,6 @@ describe('ClientConfigService', () => {
             SENTRY_FRONT_DSN: 'https://sentry.example.com',
             CAPTCHA_DRIVER: CaptchaDriverType.GOOGLE_RECAPTCHA,
             CAPTCHA_SITE_KEY: 'site-key-123',
-            CHROME_EXTENSION_ID: 'extension-123',
             MUTATION_MAXIMUM_AFFECTED_RECORDS: 1000,
             IS_ATTACHMENT_PREVIEW_ENABLED: true,
             ANALYTICS_ENABLED: true,
@@ -90,6 +98,8 @@ describe('ClientConfigService', () => {
             CALENDAR_BOOKING_PAGE_ID: 'team/twenty/talk-to-us',
             CLOUDFLARE_API_KEY: undefined,
             CLOUDFLARE_ZONE_ID: undefined,
+            ALLOW_REQUESTS_TO_TWENTY_ICONS: false,
+            CLICKHOUSE_URL: undefined,
           };
 
           return mockValues[key];
@@ -145,7 +155,6 @@ describe('ClientConfigService', () => {
           provider: 'GOOGLE_RECAPTCHA',
           siteKey: 'site-key-123',
         },
-        chromeExtensionId: 'extension-123',
         api: {
           mutationMaximumAffectedRecords: 1000,
         },
@@ -159,6 +168,7 @@ describe('ClientConfigService', () => {
         isGoogleCalendarEnabled: true,
         isConfigVariablesInDbEnabled: false,
         isImapSmtpCaldavEnabled: false,
+        allowRequestsToTwentyIcons: false,
         calendarBookingPageId: 'team/twenty/talk-to-us',
         isCloudflareIntegrationEnabled: false,
         isClickHouseConfigured: false,

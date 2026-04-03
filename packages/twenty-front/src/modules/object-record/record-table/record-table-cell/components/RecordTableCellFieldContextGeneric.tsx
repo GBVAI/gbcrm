@@ -1,4 +1,3 @@
-import { useObjectMetadataItems } from '@/object-metadata/hooks/useObjectMetadataItems';
 import { getObjectPermissionsForObject } from '@/object-metadata/utils/getObjectPermissionsForObject';
 import { isLabelIdentifierField } from '@/object-metadata/utils/isLabelIdentifierField';
 import { isRecordFieldReadOnly } from '@/object-record/read-only/utils/isRecordFieldReadOnly';
@@ -10,12 +9,13 @@ import { getJunctionConfig } from '@/object-record/record-field/ui/utils/junctio
 import { getTargetObjectMetadataIdsFromField } from '@/object-record/record-field/ui/utils/junction/getTargetObjectMetadataIdsFromField';
 import { hasJunctionConfig } from '@/object-record/record-field/ui/utils/junction/hasJunctionConfig';
 import { useRecordIndexContextOrThrow } from '@/object-record/record-index/contexts/RecordIndexContext';
-import { RecordUpdateContext } from '@/object-record/record-table/contexts/EntityUpdateMutationHookContext';
 import { useRecordTableContextOrThrow } from '@/object-record/record-table/contexts/RecordTableContext';
 import { useRecordTableRowContextOrThrow } from '@/object-record/record-table/contexts/RecordTableRowContext';
+import { RecordTableUpdateContext } from '@/object-record/record-table/contexts/RecordTableUpdateContext';
+import { isRecordTableCellsNonEditableComponentState } from '@/object-record/record-table/states/isRecordTableCellsNonEditableComponentState';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
 import { useContext, type ReactNode } from 'react';
 import { isDefined } from 'twenty-shared/utils';
-
 type RecordTableCellFieldContextGenericProps = {
   recordField: RecordField;
   children: ReactNode;
@@ -27,7 +27,11 @@ export const RecordTableCellFieldContextGeneric = ({
 }: RecordTableCellFieldContextGenericProps) => {
   const { recordId, isRecordReadOnly } = useRecordTableRowContextOrThrow();
 
-  const { objectMetadataItem, objectPermissions } =
+  const isRecordTableCellsNonEditable = useAtomComponentStateValue(
+    isRecordTableCellsNonEditableComponentState,
+  );
+
+  const { objectMetadataItem, objectMetadataItems, objectPermissions } =
     useRecordTableContextOrThrow();
 
   const {
@@ -35,12 +39,10 @@ export const RecordTableCellFieldContextGeneric = ({
     fieldDefinitionByFieldMetadataItemId,
   } = useRecordIndexContextOrThrow();
 
-  const { objectMetadataItems } = useObjectMetadataItems();
-
   const fieldDefinition =
     fieldDefinitionByFieldMetadataItemId[recordField.fieldMetadataItemId];
 
-  const updateRecord = useContext(RecordUpdateContext);
+  const updateRecord = useContext(RecordTableUpdateContext);
 
   let hasObjectReadPermissions = objectPermissions.canReadObjectRecords;
 
@@ -94,7 +96,7 @@ export const RecordTableCellFieldContextGeneric = ({
         fieldMetadataItemId: recordField.fieldMetadataItemId,
         recordId,
         fieldDefinition: fieldDefinition,
-        useUpdateRecord: () => [updateRecord, {}],
+        useUpdateRecord: updateRecord ? () => [updateRecord, {}] : undefined,
         isLabelIdentifier: isLabelIdentifierField({
           fieldMetadataItem: {
             id: fieldDefinition.fieldMetadataId,
@@ -103,14 +105,18 @@ export const RecordTableCellFieldContextGeneric = ({
           objectMetadataItem,
         }),
         displayedMaxRows: 1,
-        isRecordFieldReadOnly: isRecordFieldReadOnly({
-          isRecordReadOnly: isRecordReadOnly ?? false,
-          objectPermissions,
-          fieldMetadataItem: {
-            id: fieldDefinition.fieldMetadataId,
-            isUIReadOnly: fieldDefinition.metadata.isUIReadOnly ?? false,
-          },
-        }),
+        isRecordFieldReadOnly:
+          isRecordTableCellsNonEditable ||
+          isRecordFieldReadOnly({
+            isRecordReadOnly: isRecordReadOnly ?? false,
+            isSystemObject: objectMetadataItem.isSystem,
+            objectPermissions,
+            fieldMetadataItem: {
+              id: fieldDefinition.fieldMetadataId,
+              isUIReadOnly: fieldDefinition.metadata.isUIReadOnly ?? false,
+              isCustom: fieldDefinition.metadata.isCustom ?? false,
+            },
+          }),
         isForbidden: !hasObjectReadPermissions,
       }}
     >

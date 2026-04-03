@@ -122,6 +122,8 @@ export const fromUniversalFlatObjectMetadataToFlatObjectMetadata = ({
     fieldIds: [],
     viewIds: [],
     indexMetadataIds: [],
+    objectPermissionIds: [],
+    fieldPermissionIds: [],
     ...emptyUniversalForeignKeyAggregators,
   };
 };

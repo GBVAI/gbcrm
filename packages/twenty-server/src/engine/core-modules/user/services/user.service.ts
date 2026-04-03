@@ -26,6 +26,7 @@ import {
   UpdateWorkspaceMemberEmailJob,
   UpdateWorkspaceMemberEmailJobData,
 } from 'src/engine/core-modules/user/jobs/update-workspace-member-email.job';
+import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { UserEntity } from 'src/engine/core-modules/user/user.entity';
 import { UserExceptionCode } from 'src/engine/core-modules/user/user.exception';
 import { userValidator } from 'src/engine/core-modules/user/user.validate';
@@ -37,11 +38,12 @@ import {
   PermissionsExceptionMessage,
 } from 'src/engine/metadata-modules/permissions/permissions.exception';
 import { UserRoleService } from 'src/engine/metadata-modules/user-role/user-role.service';
+import { CoreEntityCacheService } from 'src/engine/core-entity-cache/services/core-entity-cache.service';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
 
-// eslint-disable-next-line twenty/inject-workspace-repository
+// oxlint-disable-next-line twenty/inject-workspace-repository
 export class UserService extends TypeOrmQueryService<UserEntity> {
   constructor(
     @InjectRepository(UserEntity)
@@ -54,11 +56,15 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
     private readonly userWorkspaceService: UserWorkspaceService,
     @InjectMessageQueue(MessageQueue.workspaceQueue)
     private readonly workspaceQueueService: MessageQueueService,
+    private readonly coreEntityCacheService: CoreEntityCacheService,
   ) {
     super(userRepository);
   }
 
-  async loadWorkspaceMember(user: UserEntity, workspace: WorkspaceEntity) {
+  async loadWorkspaceMember(
+    user: Pick<AuthContextUser, 'id'>,
+    workspace: Pick<WorkspaceEntity, 'id' | 'activationStatus'>,
+  ) {
     if (!isWorkspaceActiveOrSuspended(workspace)) {
       return null;
     }
@@ -84,7 +90,10 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
     );
   }
 
-  async loadWorkspaceMembers(workspace: WorkspaceEntity, withDeleted = false) {
+  async loadWorkspaceMembers(
+    workspace: Pick<WorkspaceEntity, 'id' | 'activationStatus'>,
+    withDeleted = false,
+  ) {
     if (!isWorkspaceActiveOrSuspended(workspace)) {
       return [];
     }
@@ -108,7 +117,9 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
     );
   }
 
-  async loadDeletedWorkspaceMembersOnly(workspace: WorkspaceEntity) {
+  async loadDeletedWorkspaceMembersOnly(
+    workspace: Pick<WorkspaceEntity, 'id' | 'activationStatus'>,
+  ) {
     if (!isWorkspaceActiveOrSuspended(workspace)) {
       return [];
     }
@@ -150,6 +161,7 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
     }
 
     await this.userRepository.softDelete({ id: userId });
+    await this.coreEntityCacheService.invalidate('user', userId);
 
     return await this.userRepository.findOne({
       where: {
@@ -189,6 +201,7 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
 
     if (user.userWorkspaces.length === 1) {
       await this.userRepository.softDelete(userId);
+      await this.coreEntityCacheService.invalidate('user', userId);
     }
 
     return userWorkspace;
@@ -365,7 +378,7 @@ export class UserService extends TypeOrmQueryService<UserEntity> {
     newEmail,
     verifyEmailRedirectPath,
   }: {
-    user: UserEntity;
+    user: AuthContextUser;
     workspace: WorkspaceEntity;
     newEmail: string;
     verifyEmailRedirectPath?: string;

@@ -1,19 +1,23 @@
-import { recordPageLayoutsState } from '@/page-layout/states/recordPageLayoutsState';
+import { pageLayoutsWithRelationsSelector } from '@/page-layout/states/pageLayoutsWithRelationsSelector';
 import { type PageLayout } from '@/page-layout/types/PageLayout';
-import { selectorFamily } from 'recoil';
+import { createAtomFamilySelector } from '@/ui/utilities/state/jotai/utils/createAtomFamilySelector';
+import { PageLayoutType } from '~/generated-metadata/graphql';
 
-export const recordPageLayoutByObjectMetadataIdFamilySelector = selectorFamily<
-  PageLayout | undefined,
-  { objectMetadataId: string }
->({
-  key: 'recordPageLayoutByObjectMetadataIdFamilySelector',
-  get:
-    ({ objectMetadataId }) =>
-    ({ get }) => {
-      const recordPageLayouts = get(recordPageLayoutsState);
+export const recordPageLayoutByObjectMetadataIdFamilySelector =
+  createAtomFamilySelector<
+    PageLayout | undefined,
+    { objectMetadataId: string }
+  >({
+    key: 'recordPageLayoutByObjectMetadataIdFamilySelector',
+    get:
+      ({ objectMetadataId }) =>
+      ({ get }) => {
+        const pageLayouts = get(pageLayoutsWithRelationsSelector);
 
-      return recordPageLayouts.find(
-        (pageLayout) => pageLayout.objectMetadataId === objectMetadataId,
-      );
-    },
-});
+        return pageLayouts.find(
+          (pageLayout) =>
+            pageLayout.type === PageLayoutType.RECORD_PAGE &&
+            pageLayout.objectMetadataId === objectMetadataId,
+        );
+      },
+  });

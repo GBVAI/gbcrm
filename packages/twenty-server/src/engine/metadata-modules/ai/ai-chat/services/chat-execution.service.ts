@@ -1,11 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { anthropic } from '@ai-sdk/anthropic';
-import { groq } from '@ai-sdk/groq';
-import { openai } from '@ai-sdk/openai';
 import {
   convertToModelMessages,
+  type LanguageModelUsage,
   stepCountIs,
+  type StepResult,
   streamText,
   type SystemModelMessage,
   type ToolSet,
@@ -16,9 +15,13 @@ import {
 import { AppPath } from 'twenty-shared/types';
 import { getAppPath, isDefined } from 'twenty-shared/utils';
 
+import { UsageOperationType } from 'src/engine/core-modules/usage/enums/usage-operation-type.enum';
+
 import { type CodeExecutionStreamEmitter } from 'src/engine/core-modules/tool-provider/interfaces/tool-provider.interface';
 
+import { CodeInterpreterService } from 'src/engine/core-modules/code-interpreter/code-interpreter.service';
 import { WorkspaceDomainsService } from 'src/engine/core-modules/domain/workspace-domains/services/workspace-domains.service';
+import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
 import { COMMON_PRELOAD_TOOLS } from 'src/engine/core-modules/tool-provider/constants/common-preload-tools.const';
 import { wrapToolsWithOutputSerialization } from 'src/engine/core-modules/tool-provider/output-serialization/wrap-tools-with-output-serialization.util';
 import { ToolRegistryService } from 'src/engine/core-modules/tool-provider/services/tool-registry.service';
@@ -35,18 +38,25 @@ import { AgentActorContextService } from 'src/engine/metadata-modules/ai/ai-agen
 import { AGENT_CONFIG } from 'src/engine/metadata-modules/ai/ai-agent/constants/agent-config.const';
 import { type BrowsingContextType } from 'src/engine/metadata-modules/ai/ai-agent/types/browsingContext.type';
 import { repairToolCall } from 'src/engine/metadata-modules/ai/ai-agent/utils/repair-tool-call.util';
-import { AIBillingService } from 'src/engine/metadata-modules/ai/ai-billing/services/ai-billing.service';
+import { AiBillingService } from 'src/engine/metadata-modules/ai/ai-billing/services/ai-billing.service';
+import { extractCacheCreationTokensFromSteps } from 'src/engine/metadata-modules/ai/ai-billing/utils/extract-cache-creation-tokens.util';
 import { SystemPromptBuilderService } from 'src/engine/metadata-modules/ai/ai-chat/services/system-prompt-builder.service';
 import {
   extractCodeInterpreterFiles,
   type ExtractedFile,
 } from 'src/engine/metadata-modules/ai/ai-chat/utils/extract-code-interpreter-files.util';
 import {
-  type AIModelConfig,
-  ModelProvider,
-} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-models.const';
+  AI_SDK_ANTHROPIC,
+  AI_SDK_BEDROCK,
+  AI_SDK_OPENAI,
+} from 'src/engine/metadata-modules/ai/ai-models/constants/ai-sdk-package.const';
 import { AI_TELEMETRY_CONFIG } from 'src/engine/metadata-modules/ai/ai-models/constants/ai-telemetry.const';
-import { AiModelRegistryService } from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
+import { type AIModelConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-model-config.type';
+import {
+  AiModelRegistryService,
+  type RegisteredAIModel,
+} from 'src/engine/metadata-modules/ai/ai-models/services/ai-model-registry.service';
+import { SdkProviderFactoryService } from 'src/engine/metadata-modules/ai/ai-models/services/sdk-provider-factory.service';
 import { SkillService } from 'src/engine/metadata-modules/skill/skill.service';
 
 export type ChatExecutionOptions = {
@@ -55,6 +65,8 @@ export type ChatExecutionOptions = {
   messages: UIMessage<unknown, UIDataTypes, UITools>[];
   browsingContext: BrowsingContextType | null;
   onCodeExecutionUpdate?: CodeExecutionStreamEmitter;
+  modelId?: string;
+  abortSignal?: AbortSignal;
 };
 
 export type ChatExecutionResult = {
@@ -70,10 +82,13 @@ export class ChatExecutionService {
     private readonly toolRegistry: ToolRegistryService,
     private readonly skillService: SkillService,
     private readonly aiModelRegistryService: AiModelRegistryService,
-    private readonly aiBillingService: AIBillingService,
+    private readonly aiBillingService: AiBillingService,
     private readonly agentActorContextService: AgentActorContextService,
     private readonly workspaceDomainsService: WorkspaceDomainsService,
+    private readonly codeInterpreterService: CodeInterpreterService,
     private readonly systemPromptBuilder: SystemPromptBuilderService,
+    private readonly exceptionHandlerService: ExceptionHandlerService,
+    private readonly sdkProviderFactory: SdkProviderFactoryService,
   ) {}
 
   async streamChat({
@@ -82,6 +97,8 @@ export class ChatExecutionService {
     messages,
     browsingContext,
     onCodeExecutionUpdate,
+    modelId,
+    abortSignal,
   }: ChatExecutionOptions): Promise<ChatExecutionResult> {
     const { actorContext, roleId, userId, userContext } =
       await this.agentActorContextService.buildUserAndAgentActorContext(
@@ -121,24 +138,36 @@ export class ChatExecutionService {
       toolContext,
     );
 
-    const preloadedToolNames = Object.keys(preloadedTools);
+    const resolvedModelId = modelId ?? workspace.smartModel;
 
-    // Respect the workspace's model preference (Settings > AI > Model Router)
+    this.aiModelRegistryService.validateModelAvailability(
+      resolvedModelId,
+      workspace,
+    );
+
     const registeredModel =
       await this.aiModelRegistryService.resolveModelForAgent({
-        modelId: workspace.smartModel,
+        modelId: resolvedModelId,
       });
 
     const modelConfig = this.aiModelRegistryService.getEffectiveModelConfig(
       registeredModel.modelId,
     );
 
+    const { tools: nativeSearchTools, callableToolNames: searchToolNames } =
+      this.getNativeWebSearchTools(registeredModel);
+
     // Direct tools: native provider tools + preloaded tools.
     // These are callable directly AND as fallback through execute_tool.
     const directTools: ToolSet = {
       ...wrapToolsWithOutputSerialization(preloadedTools),
-      ...this.getNativeWebSearchTool(registeredModel.provider),
+      ...nativeSearchTools,
     };
+
+    const preloadedToolNames = [
+      ...Object.keys(preloadedTools),
+      ...searchToolNames,
+    ];
 
     // ToolSet is constant for the entire conversation — no mutation.
     // learn_tools returns schemas as text; execute_tool dispatches to cached tools.
@@ -158,20 +187,24 @@ export class ChatExecutionService {
       ),
     };
 
-    const { processedMessages, extractedFiles } =
-      extractCodeInterpreterFiles(messages);
+    let processedMessages: UIMessage[] = messages;
 
     let storedFiles: Array<{
       filename: string;
-      storagePath: string;
-      url: string;
+      fileId: string;
     }> = [];
 
-    if (extractedFiles.length > 0) {
-      storedFiles = await this.storeExtractedFiles(
-        extractedFiles,
-        workspace.id,
-      );
+    if (this.codeInterpreterService.isEnabled()) {
+      const extracted = extractCodeInterpreterFiles(messages);
+
+      processedMessages = extracted.processedMessages;
+
+      if (extracted.extractedFiles.length > 0) {
+        storedFiles = await this.storeExtractedFiles(
+          extracted.extractedFiles,
+          workspace.id,
+        );
+      }
     }
 
     const systemPrompt = this.systemPromptBuilder.buildFullPrompt(
@@ -192,17 +225,77 @@ export class ChatExecutionService {
       role: 'system',
       content: systemPrompt,
       providerOptions:
-        registeredModel.provider === ModelProvider.ANTHROPIC
+        registeredModel.sdkPackage === AI_SDK_ANTHROPIC
           ? { anthropic: { cacheControl: { type: 'ephemeral' } } }
-          : undefined,
+          : registeredModel.sdkPackage === AI_SDK_BEDROCK
+            ? { bedrock: { cacheControl: { type: 'ephemeral' } } }
+            : undefined,
+    };
+
+    const modelMessages = await convertToModelMessages(processedMessages);
+
+    const billUsageFromSteps = (steps: StepResult<ToolSet>[]) => {
+      const usage = steps.reduce<LanguageModelUsage>(
+        (acc, step) => ({
+          inputTokens: (acc.inputTokens ?? 0) + (step.usage.inputTokens ?? 0),
+          outputTokens:
+            (acc.outputTokens ?? 0) + (step.usage.outputTokens ?? 0),
+          totalTokens: (acc.totalTokens ?? 0) + (step.usage.totalTokens ?? 0),
+          inputTokenDetails: {
+            noCacheTokens:
+              (acc.inputTokenDetails?.noCacheTokens ?? 0) +
+              (step.usage.inputTokenDetails?.noCacheTokens ?? 0),
+            cacheReadTokens:
+              (acc.inputTokenDetails?.cacheReadTokens ?? 0) +
+              (step.usage.inputTokenDetails?.cacheReadTokens ?? 0),
+            cacheWriteTokens:
+              (acc.inputTokenDetails?.cacheWriteTokens ?? 0) +
+              (step.usage.inputTokenDetails?.cacheWriteTokens ?? 0),
+          },
+          outputTokenDetails: {
+            textTokens:
+              (acc.outputTokenDetails?.textTokens ?? 0) +
+              (step.usage.outputTokenDetails?.textTokens ?? 0),
+            reasoningTokens:
+              (acc.outputTokenDetails?.reasoningTokens ?? 0) +
+              (step.usage.outputTokenDetails?.reasoningTokens ?? 0),
+          },
+        }),
+        {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          inputTokenDetails: {
+            noCacheTokens: 0,
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          },
+          outputTokenDetails: { textTokens: 0, reasoningTokens: 0 },
+        },
+      );
+
+      const cacheCreationTokens = extractCacheCreationTokensFromSteps(steps);
+
+      this.aiBillingService.calculateAndBillUsage(
+        registeredModel.modelId,
+        { usage, cacheCreationTokens },
+        workspace.id,
+        UsageOperationType.AI_CHAT_TOKEN,
+        null,
+        userWorkspaceId,
+      );
     };
 
     const stream = streamText({
       model: registeredModel.model,
-      messages: [systemMessage, ...convertToModelMessages(processedMessages)],
+      messages: [systemMessage, ...modelMessages],
       tools: activeTools,
+      abortSignal,
       stopWhen: stepCountIs(AGENT_CONFIG.MAX_STEPS),
       experimental_telemetry: AI_TELEMETRY_CONFIG,
+      onAbort: ({ steps }) => {
+        billUsageFromSteps(steps);
+      },
       experimental_repairToolCall: async ({
         toolCall,
         tools: toolsForRepair,
@@ -219,17 +312,15 @@ export class ChatExecutionService {
       },
     });
 
-    stream.usage
-      .then((usage) => {
-        this.aiBillingService.calculateAndBillUsage(
-          registeredModel.modelId,
-          usage,
-          workspace.id,
-          null,
-        );
+    Promise.all([stream.usage, stream.steps])
+      .then(([, steps]) => {
+        billUsageFromSteps(steps);
       })
       .catch((error) => {
-        this.logger.error('Failed to bill usage:', error);
+        if (error?.name === 'AbortError') {
+          return;
+        }
+        this.exceptionHandlerService.captureExceptions([error]);
       });
 
     return {
@@ -308,32 +399,71 @@ export class ChatExecutionService {
     return context;
   }
 
-  private getNativeWebSearchTool(provider: ModelProvider): ToolSet {
-    switch (provider) {
-      case ModelProvider.ANTHROPIC:
-        return { web_search: anthropic.tools.webSearch_20250305() };
-      case ModelProvider.OPENAI:
-        return { web_search: openai.tools.webSearch() };
-      case ModelProvider.GROQ:
-        // Type assertion needed due to @ai-sdk/groq tool type mismatch
+  private getNativeWebSearchTools(model: RegisteredAIModel): {
+    tools: ToolSet;
+    callableToolNames: string[];
+  } {
+    const empty = { tools: {}, callableToolNames: [] };
+    const providerName = model.providerName;
+
+    if (!providerName) {
+      return empty;
+    }
+
+    switch (model.sdkPackage) {
+      case AI_SDK_ANTHROPIC: {
+        const provider =
+          this.sdkProviderFactory.getRawAnthropicProvider(providerName);
+
+        if (!provider) {
+          return empty;
+        }
+
         return {
-          web_search: groq.tools.browserSearch({}) as ToolSet[string],
+          tools: { web_search: provider.tools.webSearch_20250305() },
+          callableToolNames: ['web_search'],
         };
+      }
+      case AI_SDK_BEDROCK: {
+        const provider =
+          this.sdkProviderFactory.getRawBedrockProvider(providerName);
+
+        if (!provider) {
+          return empty;
+        }
+
+        return {
+          tools: {
+            web_search: provider.tools.webSearch_20250305() as ToolSet[string],
+          },
+          callableToolNames: ['web_search'],
+        };
+      }
+      case AI_SDK_OPENAI: {
+        const provider =
+          this.sdkProviderFactory.getRawOpenAIProvider(providerName);
+
+        if (!provider) {
+          return empty;
+        }
+
+        return {
+          tools: { web_search: provider.tools.webSearch() },
+          callableToolNames: ['web_search'],
+        };
+      }
       default:
-        return {};
+        return empty;
     }
   }
 
   private async storeExtractedFiles(
     files: ExtractedFile[],
     _workspaceId: string,
-  ): Promise<Array<{ filename: string; storagePath: string; url: string }>> {
-    // Files are already uploaded and have URLs, just return them with their info
-    // The code interpreter tool will download them when needed
+  ): Promise<Array<{ filename: string; fileId: string }>> {
     return files.map((file) => ({
       filename: file.filename,
-      storagePath: file.filename,
-      url: file.url,
+      fileId: file.fileId,
     }));
   }
 }

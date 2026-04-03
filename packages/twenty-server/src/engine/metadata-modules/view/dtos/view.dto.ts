@@ -6,6 +6,7 @@ import {
   ViewOpenRecordIn,
   ViewType,
   ViewVisibility,
+  ViewKey,
 } from 'twenty-shared/types';
 
 import { UUIDScalarType } from 'src/engine/api/graphql/workspace-schema-builder/graphql-types/scalars';
@@ -16,7 +17,6 @@ import { ViewFilterDTO } from 'src/engine/metadata-modules/view-filter/dtos/view
 import { ViewGroupDTO } from 'src/engine/metadata-modules/view-group/dtos/view-group.dto';
 import { ViewSortDTO } from 'src/engine/metadata-modules/view-sort/dtos/view-sort.dto';
 import { ViewCalendarLayout } from 'src/engine/metadata-modules/view/enums/view-calendar-layout.enum';
-import { ViewKey } from 'src/engine/metadata-modules/view/enums/view-key.enum';
 
 registerEnumType(ViewOpenRecordIn, { name: 'ViewOpenRecordIn' });
 registerEnumType(ViewType, { name: 'ViewType' });
@@ -24,7 +24,7 @@ registerEnumType(ViewKey, { name: 'ViewKey' });
 registerEnumType(ViewCalendarLayout, { name: 'ViewCalendarLayout' });
 registerEnumType(ViewVisibility, { name: 'ViewVisibility' });
 
-@ObjectType('CoreView')
+@ObjectType('View')
 export class ViewDTO {
   @IDField(() => UUIDScalarType)
   id: string;

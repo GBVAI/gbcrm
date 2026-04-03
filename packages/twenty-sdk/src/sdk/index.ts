@@ -1,3 +1,10 @@
+export {
+  AggregateOperations,
+  NavigationMenuItemType,
+  ObjectRecordGroupByDateGranularity,
+  PageLayoutTabLayoutMode,
+} from 'twenty-shared/types';
+export type { PageLayoutWidgetUniversalConfiguration } from 'twenty-shared/types';
 export type { ApplicationConfig } from './application/application-config';
 export { defineApplication } from './application/define-application';
 export type {
@@ -28,7 +35,14 @@ export type {
   FrontComponentConfig,
   FrontComponentType,
 } from './front-component-config';
+export { getPublicAssetUrl } from './get-public-asset-url';
 export { defineLogicFunction } from './logic-functions/define-logic-function';
+export { definePostInstallLogicFunction } from './logic-functions/define-post-install-logic-function';
+export { definePreInstallLogicFunction } from './logic-functions/define-pre-install-logic-function';
+export type {
+  InstallLogicFunctionHandler,
+  InstallLogicFunctionPayload,
+} from './logic-functions/install-logic-function-payload-type';
 export type {
   LogicFunctionConfig,
   LogicFunctionHandler,
@@ -48,51 +62,96 @@ export type {
 export type { RoutePayload } from './logic-functions/triggers/route-payload-type';
 export { defineNavigationMenuItem } from './navigation-menu-items/define-navigation-menu-item';
 export { defineObject } from './objects/define-object';
-export { STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS } from './objects/standard-object-ids';
+export {
+  STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS as STANDARD_OBJECT,
+  STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS,
+} from './objects/standard-object-ids';
 export { definePageLayout } from './page-layouts/define-page-layout';
 export type { PageLayoutConfig } from './page-layouts/page-layout-config';
-export {
-  AggregateOperations,
-  ObjectRecordGroupByDateGranularity,
-  PageLayoutTabLayoutMode,
-} from 'twenty-shared/types';
-export type { PageLayoutWidgetUniversalConfiguration } from 'twenty-shared/types';
 export { defineRole } from './roles/define-role';
 export { PermissionFlag } from './roles/permission-flag-type';
+export { defineAgent } from './agents/define-agent';
 export { defineSkill } from './skills/define-skill';
 export { defineView } from './views/define-view';
 export type { ViewConfig } from './views/view-config';
+export { ViewKey } from './views/view-key';
 
-// Action components for front components
-export { Action } from './action';
-export type { ActionProps } from './action';
-export { ActionLink } from './action';
-export type { ActionLinkProps } from './action';
-export { ActionOpenSidePanelPage } from './action';
-export type { ActionOpenSidePanelPageProps } from './action';
+// Command components for front components
+export {
+  Command,
+  CommandLink,
+  CommandModal,
+  CommandOpenSidePanelPage,
+} from './command';
+export type {
+  CommandLinkProps,
+  CommandModalProps,
+  CommandOpenSidePanelPageProps,
+  CommandProps,
+} from './command';
+
+// Conditional availability typed variables for command menu items
+export {
+  every,
+  everyDefined,
+  everyEquals,
+  favoriteRecordIds,
+  featureFlags,
+  hasAnySoftDeleteFilterOnView,
+  includes,
+  includesEvery,
+  isDefined,
+  isInSidePanel,
+  isNonEmptyString,
+  isSelectAll,
+  none,
+  noneDefined,
+  noneEquals,
+  numberOfSelectedRecords,
+  objectMetadataItem,
+  objectPermissions,
+  pageType,
+  selectedRecords,
+  some,
+  someDefined,
+  someEquals,
+  someNonEmptyString,
+  targetObjectReadPermissions,
+  targetObjectWritePermissions,
+} from './front-component-api';
 
 // Front Component API exports
 export {
+  closeSidePanel,
+  enqueueSnackbar,
+  getFrontComponentCommandErrorDedupeKey,
   navigate,
+  openCommandConfirmationModal,
   openSidePanelPage,
   unmountFrontComponent,
+  updateProgress,
   useFrontComponentExecutionContext,
+  useFrontComponentId,
+  useRecordId,
   useUserId,
 } from './front-component-api';
-export type { FrontComponentExecutionContext } from './front-component-api';
-
-export { AppPath, CommandMenuPages } from 'twenty-shared/types';
-
-// Front Component Common exports
-export {
-  ALLOWED_HTML_ELEMENTS,
-  COMMON_HTML_EVENTS,
-  EVENT_TO_REACT,
-  HTML_COMMON_PROPERTIES,
-  HTML_TAG_TO_REMOTE_COMPONENT,
+export type {
+  CloseSidePanelFunction,
+  CommandConfirmationModalAccent,
+  CommandConfirmationModalResult,
+  EnqueueSnackbarFunction,
+  FrontComponentExecutionContext,
+  NavigateFunction,
+  OpenCommandConfirmationModalFunction,
+  OpenCommandConfirmationModalHostFunction,
+  OpenSidePanelPageFunction,
+  RequestAccessTokenRefreshFunction,
+  UnmountFrontComponentFunction,
+  UpdateProgressFunction,
 } from './front-component-api';
-export type { AllowedHtmlElement } from './front-component-api';
 
-// Style bridge utilities for CSS-in-JS libraries in remote components
-export { installStyleBridge } from '../front-component-renderer/polyfills/installStyleBridge';
-export { exposeGlobals } from '../front-component-renderer/remote/utils/exposeGlobals';
+export { AppPath, SidePanelPages } from 'twenty-shared/types';
+export type {
+  EnqueueSnackbarParams,
+  SnackBarVariant,
+} from 'twenty-shared/types';

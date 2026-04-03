@@ -13,11 +13,14 @@ export const ALL_JSONB_PROPERTIES_WITH_SERIALIZED_RELATION_BY_METADATA_NAME = {
   },
   objectMetadata: {},
   view: {},
-  viewField: {},
+  viewField: {
+    overrides: 'overrides',
+  },
   viewGroup: {},
   viewFieldGroup: {},
   viewFilter: {},
   viewFilterGroup: {},
+  viewSort: {},
   index: {},
   role: {},
   roleTarget: {},
@@ -34,6 +37,9 @@ export const ALL_JSONB_PROPERTIES_WITH_SERIALIZED_RELATION_BY_METADATA_NAME = {
   },
   commandMenuItem: {},
   navigationMenuItem: {},
+  permissionFlag: {},
+  objectPermission: {},
+  fieldPermission: {},
   frontComponent: {},
 } as const satisfies {
   [P in AllMetadataName]: Partial<{

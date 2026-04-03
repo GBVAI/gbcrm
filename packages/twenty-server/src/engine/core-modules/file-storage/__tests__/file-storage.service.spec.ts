@@ -1,8 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { Readable } from 'stream';
-
 import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
 import { FileStorageDriverFactory } from 'src/engine/core-modules/file-storage/file-storage-driver.factory';
 import { FileStorageService } from 'src/engine/core-modules/file-storage/file-storage.service';
@@ -69,84 +67,10 @@ describe('FileStorageService', () => {
         uploadFolder: jest.fn(),
         checkFileExists: jest.fn(),
         checkFolderExists: jest.fn(),
+        getPresignedUrl: jest.fn(),
       };
 
       mockFileStorageDriverFactory.getCurrentDriver.mockReturnValue(mockDriver);
-    });
-
-    describe('writeFileLegacy', () => {
-      it('should delegate to the current driver', async () => {
-        const writeParams = {
-          file: Buffer.from('test content'),
-          name: 'test.txt',
-          folder: 'documents',
-          mimeType: 'text/plain',
-        };
-
-        mockDriver.writeFile.mockResolvedValue(undefined);
-
-        await service.writeFileLegacy(writeParams);
-
-        expect(fileStorageDriverFactory.getCurrentDriver).toHaveBeenCalled();
-        expect(mockDriver.writeFile).toHaveBeenCalledWith({
-          filePath: 'documents/test.txt',
-          sourceFile: writeParams.file,
-          mimeType: 'text/plain',
-        });
-      });
-
-      it('should handle write errors', async () => {
-        const writeParams = {
-          file: 'test content',
-          name: 'test.txt',
-          folder: 'documents',
-          mimeType: 'text/plain',
-        };
-
-        const error = new Error('Write failed');
-
-        mockDriver.writeFile.mockRejectedValue(error);
-
-        await expect(service.writeFileLegacy(writeParams)).rejects.toThrow(
-          'Write failed',
-        );
-        expect(fileStorageDriverFactory.getCurrentDriver).toHaveBeenCalled();
-      });
-    });
-
-    describe('readFileLegacy', () => {
-      it('should delegate to the current driver', async () => {
-        const readParams = {
-          filePath: 'documents/test.txt',
-        };
-
-        const mockStream = new Readable();
-
-        mockDriver.readFile.mockResolvedValue(mockStream);
-
-        const result = await service.readFileLegacy(readParams);
-
-        expect(fileStorageDriverFactory.getCurrentDriver).toHaveBeenCalled();
-        expect(mockDriver.readFile).toHaveBeenCalledWith({
-          filePath: 'documents/test.txt',
-        });
-        expect(result).toBe(mockStream);
-      });
-
-      it('should handle read errors', async () => {
-        const readParams = {
-          filePath: 'documents/test.txt',
-        };
-
-        const error = new Error('Read failed');
-
-        mockDriver.readFile.mockRejectedValue(error);
-
-        await expect(service.readFileLegacy(readParams)).rejects.toThrow(
-          'Read failed',
-        );
-        expect(fileStorageDriverFactory.getCurrentDriver).toHaveBeenCalled();
-      });
     });
 
     describe('deleteLegacy', () => {
@@ -225,6 +149,47 @@ describe('FileStorageService', () => {
         );
         expect(fileStorageDriverFactory.getCurrentDriver).toHaveBeenCalled();
         expect(mockDriver.copy).toHaveBeenCalledWith(copyParams);
+      });
+    });
+
+    describe('getPresignedUrl', () => {
+      it('should delegate to the driver and return the URL', async () => {
+        mockDriver.getPresignedUrl.mockResolvedValue(
+          'https://s3.example.com/signed',
+        );
+
+        mockApplicationRepository.findOneOrFail.mockResolvedValue({
+          universalIdentifier: 'app-uid',
+        });
+
+        const result = await service.getPresignedUrl({
+          resourcePath: 'file.txt',
+          fileFolder: 'workflow' as any,
+          applicationUniversalIdentifier: 'app-uid',
+          workspaceId: 'ws-id',
+          responseContentType: 'image/png',
+          responseContentDisposition: 'inline',
+        });
+
+        expect(result).toBe('https://s3.example.com/signed');
+        expect(mockDriver.getPresignedUrl).toHaveBeenCalled();
+      });
+
+      it('should return null when driver returns null', async () => {
+        mockDriver.getPresignedUrl.mockResolvedValue(null);
+
+        mockApplicationRepository.findOneOrFail.mockResolvedValue({
+          universalIdentifier: 'app-uid',
+        });
+
+        const result = await service.getPresignedUrl({
+          resourcePath: 'file.txt',
+          fileFolder: 'workflow' as any,
+          applicationUniversalIdentifier: 'app-uid',
+          workspaceId: 'ws-id',
+        });
+
+        expect(result).toBeNull();
       });
     });
 

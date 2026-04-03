@@ -10,11 +10,11 @@ import { useGetRelativeDateFilterWithUserTimezone } from '@/object-record/record
 import { type RecordFilter } from '@/object-record/record-filter/types/RecordFilter';
 import { RecordFilterOperand } from '@/object-record/record-filter/types/RecordFilterOperand';
 import { useUserTimezone } from '@/ui/input/components/internal/date/hooks/useUserTimezone';
-import { useRecoilComponentValue } from '@/ui/utilities/state/component-state/hooks/useRecoilComponentValue';
-import { useSetRecoilComponentState } from '@/ui/utilities/state/component-state/hooks/useSetRecoilComponentState';
+import { useAtomComponentSelectorValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentSelectorValue';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import { stringifyRelativeDateFilter } from '@/views/view-filter-value/utils/stringifyRelativeDateFilter';
 
-import { useFeatureFlagsMap } from '@/workspace/hooks/useFeatureFlagsMap';
 import { DEFAULT_RELATIVE_DATE_FILTER_VALUE } from 'twenty-shared/constants';
 import {
   isDefined,
@@ -23,11 +23,11 @@ import {
 
 export const useApplyObjectFilterDropdownOperand = () => {
   const { userTimezone } = useUserTimezone();
-  const objectFilterDropdownCurrentRecordFilter = useRecoilComponentValue(
+  const objectFilterDropdownCurrentRecordFilter = useAtomComponentStateValue(
     objectFilterDropdownCurrentRecordFilterComponentState,
   );
 
-  const setSelectedOperandInDropdown = useSetRecoilComponentState(
+  const setSelectedOperandInDropdown = useSetAtomComponentState(
     selectedOperandInDropdownComponentState,
   );
 
@@ -35,7 +35,7 @@ export const useApplyObjectFilterDropdownOperand = () => {
     objectFilterDropdownCurrentRecordFilter,
   );
 
-  const fieldMetadataItemUsedInDropdown = useRecoilComponentValue(
+  const fieldMetadataItemUsedInDropdown = useAtomComponentSelectorValue(
     fieldMetadataItemUsedInDropdownComponentSelector,
   );
 
@@ -47,10 +47,6 @@ export const useApplyObjectFilterDropdownOperand = () => {
 
   const { getRelativeDateFilterWithUserTimezone } =
     useGetRelativeDateFilterWithUserTimezone();
-
-  const featureFlags = useFeatureFlagsMap();
-  const isWholeDayFilterEnabled =
-    featureFlags.IS_DATE_TIME_WHOLE_DAY_FILTER_ENABLED ?? false;
 
   const applyObjectFilterDropdownOperand = (
     newOperand: RecordFilterOperand,
@@ -126,7 +122,6 @@ export const useApplyObjectFilterDropdownOperand = () => {
             recordFilterToUpsert.value,
             newOperand,
             userTimezone,
-            isWholeDayFilterEnabled,
           );
         } else if (filterValueIsEmpty || isStillRelativeFilterValue.success) {
           const zonedDateToUse = Temporal.Now.zonedDateTimeISO(userTimezone);
@@ -138,10 +133,7 @@ export const useApplyObjectFilterDropdownOperand = () => {
 
             recordFilterToUpsert.value = initialNowDateFilterValue;
           } else {
-            if (
-              newOperand === RecordFilterOperand.IS &&
-              isWholeDayFilterEnabled
-            ) {
+            if (newOperand === RecordFilterOperand.IS) {
               recordFilterToUpsert.value = zonedDateToUse
                 .toPlainDate()
                 .toString();
@@ -171,7 +163,6 @@ const convertDateTimeFilterValue = (
   currentValue: string,
   targetOperand: RecordFilterOperand,
   userTimezone: string,
-  isWholeDayFilterEnabled = false,
 ): string => {
   const zonedDateToUse = Temporal.Now.zonedDateTimeISO(userTimezone);
 
@@ -181,11 +172,7 @@ const convertDateTimeFilterValue = (
         ? Temporal.Instant.from(currentValue).toZonedDateTimeISO(userTimezone)
         : Temporal.PlainDate.from(currentValue).toZonedDateTime(userTimezone);
 
-      if (isWholeDayFilterEnabled) {
-        return existingZoned.toPlainDate().toString();
-      } else {
-        return existingZoned.toInstant().toString();
-      }
+      return existingZoned.toPlainDate().toString();
     } catch {
       return zonedDateToUse.toPlainDate().toString();
     }

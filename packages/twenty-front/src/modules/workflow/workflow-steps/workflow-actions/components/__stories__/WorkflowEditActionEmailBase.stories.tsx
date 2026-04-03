@@ -13,10 +13,7 @@ import { WorkflowStepActionDrawerDecorator } from '~/testing/decorators/Workflow
 import { WorkflowStepDecorator } from '~/testing/decorators/WorkflowStepDecorator';
 import { WorkspaceDecorator } from '~/testing/decorators/WorkspaceDecorator';
 import { graphqlMocks } from '~/testing/graphqlMocks';
-import {
-  getMockedConnectedAccount,
-  mockedConnectedAccounts,
-} from '~/testing/mock-data/connected-accounts';
+import { mockedConnectedAccountRecords } from '~/testing/mock-data/generated/data/connectedAccounts/mock-connectedAccounts-data';
 import { getWorkflowNodeIdMock } from '~/testing/mock-data/workflow';
 
 const DEFAULT_SEND_EMAIL_ACTION: WorkflowSendEmailAction = {
@@ -35,6 +32,7 @@ const DEFAULT_SEND_EMAIL_ACTION: WorkflowSendEmailAction = {
       subject: '',
       body: '',
       files: [],
+      inReplyTo: '',
     },
     outputSchema: {},
     errorHandlingOptions: {
@@ -55,7 +53,8 @@ const CONFIGURED_SEND_EMAIL_ACTION: WorkflowSendEmailAction = {
   valid: true,
   settings: {
     input: {
-      connectedAccountId: mockedConnectedAccounts[0].accountOwnerId,
+      connectedAccountId: mockedConnectedAccountRecords[0]
+        .accountOwnerId as string,
       recipients: {
         to: 'test@twenty.com',
         cc: '',
@@ -64,6 +63,7 @@ const CONFIGURED_SEND_EMAIL_ACTION: WorkflowSendEmailAction = {
       subject: 'Welcome to Twenty!',
       body: 'Dear Tim,\n\nWelcome to Twenty! We are excited to have you on board.\n\nBest regards,\nThe Team',
       files: [],
+      inReplyTo: '',
     },
     outputSchema: {},
     errorHandlingOptions: {
@@ -93,6 +93,7 @@ const DEFAULT_DRAFT_EMAIL_ACTION: WorkflowDraftEmailAction = {
       subject: '',
       body: '',
       files: [],
+      inReplyTo: '',
     },
     outputSchema: {},
     errorHandlingOptions: {
@@ -116,7 +117,18 @@ const meta: Meta<typeof WorkflowEditActionEmailBase> = {
         graphql.query('FindManyConnectedAccounts', () => {
           return HttpResponse.json({
             data: {
-              connectedAccounts: getMockedConnectedAccount(),
+              connectedAccounts: {
+                edges: mockedConnectedAccountRecords.map((record) => ({
+                  node: record,
+                  cursor: record.id,
+                })),
+                pageInfo: {
+                  hasNextPage: false,
+                  hasPreviousPage: false,
+                  startCursor: null,
+                  endCursor: null,
+                },
+              },
             },
           });
         }),
@@ -171,7 +183,7 @@ export const Configured: Story = {
     expect(await canvas.findByText('Account')).toBeVisible();
     expect(await canvas.findByText('To')).toBeVisible();
 
-    const emailInput = await canvas.findByText('tim@twenty.com');
+    const emailInput = await canvas.findByText('test@twenty.com');
     expect(emailInput).toBeVisible();
 
     const subjectInput = await canvas.findByText('Welcome to Twenty!');

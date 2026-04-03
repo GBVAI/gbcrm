@@ -1,6 +1,5 @@
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
+import { CoreObjectNameSingular, FieldMetadataType } from 'twenty-shared/types';
 import { type WorkflowFormFieldType } from '@/workflow/workflow-steps/workflow-actions/form-action/types/WorkflowFormFieldType';
-import { FieldMetadataType } from 'twenty-shared/types';
 import { assertUnreachable } from 'twenty-shared/utils';
 import { v4 } from 'uuid';
 
@@ -43,6 +42,17 @@ export const getDefaultFormFieldSettings = (type: WorkflowFormFieldType) => {
         name: 'select',
         label: 'Select',
         placeholder: 'Choose a value',
+        settings: {
+          selectType: 'EXISTING_FIELD',
+          selectedFieldId: undefined,
+        },
+      };
+    case FieldMetadataType.MULTI_SELECT:
+      return {
+        id: v4(),
+        name: 'multiSelect',
+        label: 'Multi-Select',
+        placeholder: 'Choose values',
         settings: {
           selectType: 'EXISTING_FIELD',
           selectedFieldId: undefined,

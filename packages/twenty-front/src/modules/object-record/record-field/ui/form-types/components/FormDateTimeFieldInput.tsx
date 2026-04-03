@@ -18,24 +18,17 @@ import { useHotkeysOnFocusedElement } from '@/ui/utilities/hotkey/hooks/useHotke
 import { useListenClickOutside } from '@/ui/utilities/pointer-event/hooks/useListenClickOutside';
 
 import { isStandaloneVariableString } from '@/workflow/utils/isStandaloneVariableString';
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { useId, useRef, useState } from 'react';
 import { Temporal } from 'temporal-polyfill';
 import { Key } from 'ts-key-enum';
 import { isDefined } from 'twenty-shared/utils';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 import { type Nullable } from 'twenty-ui/utilities';
-
-const StyledInputContainer = styled(FormFieldInputInnerContainer)`
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr 0;
-  overflow: visible;
-  position: relative;
-`;
 
 const StyledDateInputAbsoluteContainer = styled.div`
   position: absolute;
-  top: ${({ theme }) => theme.spacing(1)};
+  top: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledDateInputTextContainer = styled.div`
@@ -140,8 +133,6 @@ export const FormDateTimeFieldInput = ({
   const handlePickerEnter = () => {};
 
   const handlePickerEscape = () => {
-    // FIXME: Escape key is not handled properly by the underlying DateInput component. We need to solve that.
-
     setDraftValue({
       type: 'static',
       value: draftValue.value,
@@ -229,22 +220,30 @@ export const FormDateTimeFieldInput = ({
 
   const { userTimezone } = useUserTimezone();
 
-  const dateValue = isStandaloneVariableString(defaultValue)
-    ? null
-    : defaultValue === 'null' || defaultValue === '' || !isDefined(defaultValue)
+  const isVariable = Boolean(isStandaloneVariableString(defaultValue));
+
+  const dateValue =
+    isVariable ||
+    !isDefined(defaultValue) ||
+    defaultValue === 'null' ||
+    defaultValue === ''
       ? null
-      : Temporal.Instant.from(defaultValue).toZonedDateTimeISO(
-          timeZone ?? userTimezone,
-        );
+      : defaultValue.includes('T')
+        ? Temporal.Instant.from(defaultValue).toZonedDateTimeISO(
+            timeZone ?? userTimezone,
+          )
+        : Temporal.PlainDate.from(defaultValue).toZonedDateTime(
+            timeZone ?? userTimezone,
+          );
 
   return (
     <FormFieldInputContainer>
       {label ? <InputLabel>{label}</InputLabel> : null}
 
       <FormFieldInputRowContainer>
-        <StyledInputContainer
-          formFieldInputInstanceId={instanceId}
+        <FormFieldInputInnerContainer
           ref={datePickerWrapperRef}
+          formFieldInputInstanceId={instanceId}
           hasRightElement={isDefined(VariablePicker) && !readonly}
         >
           {draftValue.type === 'static' ? (
@@ -284,7 +283,7 @@ export const FormDateTimeFieldInput = ({
               onRemove={readonly ? undefined : handleUnlinkVariable}
             />
           )}
-        </StyledInputContainer>
+        </FormFieldInputInnerContainer>
         {VariablePicker && !readonly ? (
           <VariablePicker
             instanceId={instanceId}

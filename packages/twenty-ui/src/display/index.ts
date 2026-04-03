@@ -15,7 +15,7 @@ export { invalidAvatarUrlsAtomV2 } from './avatar/components/states/invalidAvata
 export { AVATAR_PROPERTIES_BY_SIZE } from './avatar/constants/AvatarPropertiesBySize';
 export type { AvatarSize } from './avatar/types/AvatarSize';
 export type { AvatarType } from './avatar/types/AvatarType';
-export type { BannerVariant } from './banner/components/Banner';
+export type { BannerColor, BannerVariant } from './banner/components/Banner';
 export { Banner } from './banner/components/Banner';
 export type { SidePanelInformationBannerProps } from './banner/components/SidePanelInformationBanner';
 export { SidePanelInformationBanner } from './banner/components/SidePanelInformationBanner';
@@ -34,6 +34,11 @@ export { CommandBlock } from './command-block/components/CommandBlock';
 export type { IconProps } from './icon/components/Icon';
 export { Icon } from './icon/components/Icon';
 export { IconAddressBook } from './icon/components/IconAddressBook';
+export { IconBrandAnthropic } from './icon/components/IconBrandAnthropic';
+export { IconBrandGemini } from './icon/components/IconBrandGemini';
+export { IconBrandGroq } from './icon/components/IconBrandGroq';
+export { IconBrandMistral } from './icon/components/IconBrandMistral';
+export { IconBrandXai } from './icon/components/IconBrandXai';
 export { IconChartBarHorizontal } from './icon/components/IconChartBarHorizontal';
 export { IconGmail } from './icon/components/IconGmail';
 export { IconGoogle } from './icon/components/IconGoogle';
@@ -42,6 +47,8 @@ export { IconLockCustom } from './icon/components/IconLock';
 export { IconMicrosoft } from './icon/components/IconMicrosoft';
 export { IconMicrosoftCalendar } from './icon/components/IconMicrosoftCalendar';
 export { IconMicrosoftOutlook } from './icon/components/IconMicrosoftOutlook';
+export { IconModelClaude } from './icon/components/IconModelClaude';
+export { IconProviderOpenai } from './icon/components/IconProviderOpenai';
 export { IconRelationManyToOne } from './icon/components/IconRelationManyToOne';
 export { IconTrashXOff } from './icon/components/IconTrashXOff';
 export { IconTwentyStar } from './icon/components/IconTwentyStar';
@@ -103,6 +110,7 @@ export {
   IconBlockquote,
   IconBold,
   IconBolt,
+  IconBook,
   IconBook2,
   IconBookmark,
   IconBookmarkPlus,
@@ -117,6 +125,8 @@ export {
   IconBrandGoogle,
   IconBrandGraphql,
   IconBrandLinkedin,
+  IconBrandNpm,
+  IconBrandOpenai,
   IconBrandX,
   IconBriefcase,
   IconBroadcast,
@@ -154,6 +164,7 @@ export {
   IconCirclePlus,
   IconCircleX,
   IconClick,
+  IconClock,
   IconClockHour8,
   IconClockPlay,
   IconClockShare,
@@ -161,6 +172,7 @@ export {
   IconCodeCircle,
   IconCoins,
   IconColorSwatch,
+  IconColumnInsertRight,
   IconColumns,
   IconCommand,
   IconComment,
@@ -266,10 +278,14 @@ export {
   IconGitBranchDeleted,
   IconGitCommit,
   IconGizmo,
+  IconGraph,
   IconGripVertical,
   IconH1,
   IconH2,
   IconH3,
+  IconH4,
+  IconH5,
+  IconH6,
   IconHandClick,
   IconHandMove,
   IconHeadphones,
@@ -291,6 +307,7 @@ export {
   IconInbox,
   IconInfoCircle,
   IconItalic,
+  IconJetpack,
   IconJson,
   IconKey,
   IconLanguage,
@@ -302,9 +319,11 @@ export {
   IconLayoutList,
   IconLayoutNavbar,
   IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
   IconLayoutSidebarRight,
   IconLayoutSidebarRightCollapse,
   IconLayoutSidebarRightExpand,
+  IconLego,
   IconLetterK,
   IconLibraryPlus,
   IconLifebuoy,
@@ -315,6 +334,7 @@ export {
   IconListCheck,
   IconListDetails,
   IconListNumbers,
+  IconListSearch,
   IconLoader,
   IconLock,
   IconLockOpen,
@@ -335,14 +355,15 @@ export {
   IconMoodSmile,
   IconMoon,
   IconMouse2,
-  IconNorthStar,
   IconNewSection,
+  IconNorthStar,
   IconNoteOff,
   IconNotes,
   IconNumber,
   IconNumber123,
   IconNumber9,
   IconNumbers,
+  IconPaint,
   IconPaperclip,
   IconPassword,
   IconPencil,
@@ -352,6 +373,7 @@ export {
   IconPhoto,
   IconPhotoUp,
   IconPilcrow,
+  IconPin,
   IconPinned,
   IconPinnedOff,
   IconPlayerPause,
@@ -366,6 +388,7 @@ export {
   IconPresentation,
   IconPrinter,
   IconProgressCheck,
+  IconPrompt,
   IconPuzzle,
   IconPuzzle2,
   IconQuestionMark,
@@ -396,6 +419,7 @@ export {
   IconSettings,
   IconSettings2,
   IconSettingsAutomation,
+  IconSettingsBolt,
   IconShare,
   IconShield,
   IconSitemap,
@@ -412,6 +436,7 @@ export {
   IconSpy,
   IconSql,
   IconSquare,
+  IconSquareCheck,
   IconSquareKey,
   IconSquareNumber1,
   IconSquareNumber2,
@@ -422,8 +447,10 @@ export {
   IconSquareNumber7,
   IconSquareNumber8,
   IconSquareNumber9,
+  IconSquarePlus,
   IconSquareRoundedCheck,
   IconSquareRoundedX,
+  IconSquareX,
   IconStack2,
   IconStatusChange,
   IconStepInto,

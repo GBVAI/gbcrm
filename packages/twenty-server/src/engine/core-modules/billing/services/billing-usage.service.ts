@@ -10,7 +10,7 @@ import {
   BillingException,
   BillingExceptionCode,
 } from 'src/engine/core-modules/billing/billing.exception';
-import { type BillingMeteredProductUsageOutput } from 'src/engine/core-modules/billing/dtos/outputs/billing-metered-product-usage.output';
+import { type BillingMeteredProductUsageDTO } from 'src/engine/core-modules/billing/dtos/billing-metered-product-usage.dto';
 import { BillingCustomerEntity } from 'src/engine/core-modules/billing/entities/billing-customer.entity';
 import { BillingSubscriptionEntity } from 'src/engine/core-modules/billing/entities/billing-subscription.entity';
 import { SubscriptionStatus } from 'src/engine/core-modules/billing/enums/billing-subscription-status.enum';
@@ -18,7 +18,7 @@ import { BillingSubscriptionItemService } from 'src/engine/core-modules/billing/
 import { BillingSubscriptionService } from 'src/engine/core-modules/billing/services/billing-subscription.service';
 import { StripeBillingMeterEventService } from 'src/engine/core-modules/billing/stripe/services/stripe-billing-meter-event.service';
 import { StripeCreditGrantService } from 'src/engine/core-modules/billing/stripe/services/stripe-credit-grant.service';
-import { type BillingUsageEvent } from 'src/engine/core-modules/billing/types/billing-usage-event.type';
+import { type UsageEvent } from 'src/engine/core-modules/usage/types/usage-event.type';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { type WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 
@@ -50,10 +50,10 @@ export class BillingUsageService {
 
   async billUsage({
     workspaceId,
-    billingEvents,
+    usageEvents,
   }: {
     workspaceId: string;
-    billingEvents: BillingUsageEvent[];
+    usageEvents: UsageEvent[];
   }) {
     const workspaceStripeCustomer =
       await this.billingCustomerRepository.findOne({
@@ -71,12 +71,10 @@ export class BillingUsageService {
 
     try {
       await Promise.all(
-        billingEvents.map((event) =>
+        usageEvents.map((usageEvent) =>
           this.stripeBillingMeterEventService.sendBillingMeterEvent({
-            eventName: event.eventName,
-            value: event.value,
+            usageEvent,
             stripeCustomerId: workspaceStripeCustomer.stripeCustomerId,
-            dimensions: event.dimensions,
           }),
         ),
       );
@@ -90,7 +88,7 @@ export class BillingUsageService {
 
   async getMeteredProductsUsage(
     workspace: WorkspaceEntity,
-  ): Promise<BillingMeteredProductUsageOutput[]> {
+  ): Promise<BillingMeteredProductUsageDTO[]> {
     const subscription =
       await this.billingSubscriptionService.getCurrentBillingSubscriptionOrThrow(
         { workspaceId: workspace.id },
@@ -146,7 +144,7 @@ export class BillingUsageService {
     >[number],
     periodStart: Date,
     periodEnd: Date,
-  ): Promise<BillingMeteredProductUsageOutput> {
+  ): Promise<BillingMeteredProductUsageDTO> {
     const meterEventsSum =
       await this.stripeBillingMeterEventService.sumMeterEvents(
         item.stripeMeterId,

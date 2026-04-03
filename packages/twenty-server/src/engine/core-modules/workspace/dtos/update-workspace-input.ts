@@ -127,4 +127,15 @@ export class UpdateWorkspaceInput {
   @IsString({ each: true })
   @IsOptional()
   editableProfileFields?: string[];
+
+  @Field(() => [String], { nullable: true })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  enabledAiModelIds?: string[];
+
+  @Field({ nullable: true })
+  @IsBoolean()
+  @IsOptional()
+  useRecommendedModels?: boolean;
 }

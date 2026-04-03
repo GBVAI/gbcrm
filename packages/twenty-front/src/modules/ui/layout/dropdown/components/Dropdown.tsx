@@ -13,9 +13,8 @@ import { dropdownYPositionComponentState } from '@/ui/layout/dropdown/states/int
 import { isDropdownOpenComponentState } from '@/ui/layout/dropdown/states/isDropdownOpenComponentState';
 import { type DropdownOffset } from '@/ui/layout/dropdown/types/DropdownOffset';
 import { type GlobalHotkeysConfig } from '@/ui/utilities/hotkey/types/GlobalHotkeysConfig';
-import { useRecoilComponentValueV2 } from '@/ui/utilities/state/jotai/hooks/useRecoilComponentValueV2';
-import { useSetRecoilComponentStateV2 } from '@/ui/utilities/state/jotai/hooks/useSetRecoilComponentStateV2';
-import styled from '@emotion/styled';
+import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
+import { useSetAtomComponentState } from '@/ui/utilities/state/jotai/hooks/useSetAtomComponentState';
 import {
   type Placement,
   autoUpdate,
@@ -24,6 +23,7 @@ import {
   size,
   useFloating,
 } from '@floating-ui/react';
+import { styled } from '@linaria/react';
 import { type MouseEvent, type ReactNode, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { type Keys } from 'react-hotkeys-hook';
@@ -88,7 +88,7 @@ export const Dropdown = ({
   disableClickForClickableComponent = false,
   middlewareBoundaryPadding = {},
 }: DropdownProps) => {
-  const isDropdownOpen = useRecoilComponentValueV2(
+  const isDropdownOpen = useAtomComponentStateValue(
     isDropdownOpenComponentState,
     dropdownId,
   );
@@ -107,17 +107,17 @@ export const Dropdown = ({
       ]
     : [];
 
-  const setDropdownMaxHeight = useSetRecoilComponentStateV2(
+  const setDropdownMaxHeight = useSetAtomComponentState(
     dropdownMaxHeightComponentState,
     dropdownId,
   );
 
-  const setDropdownMaxWidth = useSetRecoilComponentStateV2(
+  const setDropdownMaxWidth = useSetAtomComponentState(
     dropdownMaxWidthComponentState,
     dropdownId,
   );
 
-  const setDropdownYPosition = useSetRecoilComponentStateV2(
+  const setDropdownYPosition = useSetAtomComponentState(
     dropdownYPositionComponentState,
     dropdownId,
   );

@@ -1,60 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { Readable } from 'stream';
-
 import { render, toPlainText } from '@react-email/render';
 import DOMPurify from 'dompurify';
 import { reactMarkupFromJSON } from 'twenty-emails';
 import { FileFolder } from 'twenty-shared/types';
-import {
-  extractFolderPathFilenameAndTypeOrThrow,
-  isDefined,
-  isValidUuid,
-} from 'twenty-shared/utils';
+import { isDefined, isValidUuid } from 'twenty-shared/utils';
 import { WorkflowAttachment } from 'twenty-shared/workflow';
 import { In, type Repository } from 'typeorm';
 import { z } from 'zod';
 
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
-import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
 import { FileEntity } from 'src/engine/core-modules/file/entities/file.entity';
 import { FileService } from 'src/engine/core-modules/file/services/file.service';
 import {
   EmailToolException,
   EmailToolExceptionCode,
 } from 'src/engine/core-modules/tool/tools/email-tool/exceptions/email-tool.exception';
-import { type EmailComposerResult } from 'src/engine/core-modules/tool/tools/email-tool/types/email-composer-result.type';
-import { type EmailToolInput } from 'src/engine/core-modules/tool/tools/email-tool/types/email-tool-input.type';
+import { EmailComposerResult } from 'src/engine/core-modules/tool/tools/email-tool/types/email-composer-result.type';
+import { EmailToolInput } from 'src/engine/core-modules/tool/tools/email-tool/types/email-tool-input.type';
 import { parseCommaSeparatedEmails } from 'src/engine/core-modules/tool/tools/email-tool/utils/parse-comma-separated-emails.util';
-import { type ToolExecutionContext } from 'src/engine/core-modules/tool/types/tool.type';
+import { ToolExecutionContext } from 'src/engine/core-modules/tool/types/tool.type';
+import { ConnectedAccountDataAccessService } from 'src/engine/metadata-modules/connected-account/data-access/services/connected-account-data-access.service';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
-import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { MessagingAccountAuthenticationService } from 'src/modules/messaging/message-import-manager/services/messaging-account-authentication.service';
 import { type MessageAttachment } from 'src/modules/messaging/message-import-manager/types/message';
+import { type ConnectedAccountWorkspaceEntity } from 'src/modules/connected-account/standard-objects/connected-account.workspace-entity';
 import { parseEmailBody } from 'src/utils/parse-email-body';
 import { streamToBuffer } from 'src/utils/stream-to-buffer';
-
 @Injectable()
 export class EmailComposerService {
   private readonly logger = new Logger(EmailComposerService.name);
 
   constructor(
     private readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager,
+    private readonly connectedAccountDataAccessService: ConnectedAccountDataAccessService,
     private readonly messagingAccountAuthenticationService: MessagingAccountAuthenticationService,
     @InjectRepository(FileEntity)
     private readonly fileRepository: Repository<FileEntity>,
     private readonly fileService: FileService,
-    private readonly featureFlagService: FeatureFlagService,
   ) {}
-
-  private async isOtherFileMigrated(workspaceId: string): Promise<boolean> {
-    return this.featureFlagService.isFeatureEnabled(
-      FeatureFlagKey.IS_OTHER_FILE_MIGRATED,
-      workspaceId,
-    );
-  }
 
   private async getConnectedAccount(
     connectedAccountId: string,
@@ -71,20 +56,15 @@ export class EmailComposerService {
 
     return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
       async () => {
-        const connectedAccountRepository =
-          await this.globalWorkspaceOrmManager.getRepository<ConnectedAccountWorkspaceEntity>(
-            workspaceId,
-            'connectedAccount',
-          );
-
-        const connectedAccount = await connectedAccountRepository.findOne({
-          where: { id: connectedAccountId },
-          relations: {
-            messageChannels: {
-              messageFolders: true,
+        const connectedAccount =
+          await this.connectedAccountDataAccessService.findOne(workspaceId, {
+            where: { id: connectedAccountId },
+            relations: {
+              messageChannels: {
+                messageFolders: true,
+              },
             },
-          },
-        });
+          });
 
         if (!isDefined(connectedAccount)) {
           throw new EmailToolException(
@@ -93,7 +73,7 @@ export class EmailComposerService {
           );
         }
 
-        return connectedAccount;
+        return connectedAccount as unknown as ConnectedAccountWorkspaceEntity;
       },
       authContext,
     );
@@ -106,12 +86,8 @@ export class EmailComposerService {
 
     return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
       async () => {
-        const connectedAccountRepository =
-          await this.globalWorkspaceOrmManager.getRepository<ConnectedAccountWorkspaceEntity>(
-            workspaceId,
-            'connectedAccount',
-          );
-        const allAccounts = await connectedAccountRepository.find();
+        const allAccounts =
+          await this.connectedAccountDataAccessService.find(workspaceId);
 
         if (!allAccounts || allAccounts.length === 0) {
           throw new EmailToolException(
@@ -215,29 +191,11 @@ export class EmailComposerService {
     const attachments: MessageAttachment[] = [];
 
     for (const fileMetadata of files) {
-      const fileEntity = fileEntityMap.get(fileMetadata.id)!;
-
-      const { folderPath, filename } = extractFolderPathFilenameAndTypeOrThrow(
-        fileEntity.path,
-      );
-
-      const isOtherFileMigrated = await this.isOtherFileMigrated(workspaceId);
-
-      let stream: Readable;
-
-      if (isOtherFileMigrated) {
-        stream = await this.fileService.getFileStreamById({
-          fileId: fileMetadata.id,
-          workspaceId,
-          fileFolder: FileFolder.Workflow,
-        });
-      } else {
-        stream = await this.fileService.getFileStream(
-          folderPath,
-          filename,
-          workspaceId,
-        );
-      }
+      const { stream } = await this.fileService.getFileStreamById({
+        fileId: fileMetadata.id,
+        workspaceId,
+        fileFolder: FileFolder.Workflow,
+      });
 
       const buffer = await streamToBuffer(stream);
 
@@ -256,7 +214,7 @@ export class EmailComposerService {
     context: ToolExecutionContext,
   ): Promise<EmailComposerResult> {
     const { workspaceId } = context;
-    const { subject, body, files } = parameters;
+    const { subject, body, files, inReplyTo } = parameters;
     let { connectedAccountId } = parameters;
 
     let recipients: { to: string[]; cc: string[]; bcc: string[] };
@@ -326,7 +284,7 @@ export class EmailComposerService {
       ...connectedAccount,
       accessToken,
       refreshToken,
-    };
+    } as unknown as ConnectedAccountWorkspaceEntity;
 
     const attachments = await this.getAttachments(files || [], workspaceId);
 
@@ -351,6 +309,7 @@ export class EmailComposerService {
         sanitizedHtmlBody,
         attachments,
         connectedAccount: connectedAccountWithFreshTokens,
+        inReplyTo,
       },
     };
   }

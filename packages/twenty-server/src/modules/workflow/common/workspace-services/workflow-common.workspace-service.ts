@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { isDefined } from 'twenty-shared/utils';
 
+import { CommandMenuItemService } from 'src/engine/metadata-modules/command-menu-item/command-menu-item.service';
 import { type FlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/types/flat-entity-maps.type';
 import { findFlatEntityByIdInFlatEntityMaps } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-id-in-flat-entity-maps.util';
 import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
@@ -40,10 +41,13 @@ export type ObjectMetadataInfo = {
 
 @Injectable()
 export class WorkflowCommonWorkspaceService {
+  private readonly logger = new Logger(WorkflowCommonWorkspaceService.name);
+
   constructor(
     private readonly globalWorkspaceOrmManager: GlobalWorkspaceOrmManager,
     private readonly logicFunctionFromSourceService: LogicFunctionFromSourceService,
     private readonly workspaceManyOrAllFlatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
+    private readonly commandMenuItemService: CommandMenuItemService,
   ) {}
 
   async getWorkflowVersionOrFail({
@@ -262,37 +266,89 @@ export class WorkflowCommonWorkspaceService {
         { shouldBypassPermissionChecks: true },
       );
 
-    const workflow = await workflowRepository.findOne({
-      where: { id: workflowId },
-      withDeleted: true,
-    });
-
-    if (workflow?.statuses?.includes(WorkflowStatus.ACTIVE)) {
-      const newStatuses = [
-        ...workflow.statuses.filter(
-          (status) => status !== WorkflowStatus.ACTIVE,
-        ),
-        WorkflowStatus.DEACTIVATED,
-      ];
-
-      await workflowRepository.update(workflowId, {
-        statuses: newStatuses,
-      });
-    }
-
     const workflowVersions = await workflowVersionRepository.find({
-      where: {
-        workflowId,
-      },
+      where: { workflowId },
       withDeleted: true,
     });
 
     for (const workflowVersion of workflowVersions) {
       if (workflowVersion.status === WorkflowVersionStatus.ACTIVE) {
-        await workflowVersionRepository.update(workflowVersion.id, {
-          status: WorkflowVersionStatus.DEACTIVATED,
-        });
+        await this.cleanupCommandMenuItemForVersion(
+          workflowVersion.id,
+          workspaceId,
+        );
       }
+    }
+
+    const workspaceDataSource =
+      await this.globalWorkspaceOrmManager.getGlobalWorkspaceDataSource();
+
+    const queryRunner = workspaceDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const workflow = await workflowRepository.findOne(
+        {
+          where: { id: workflowId },
+          withDeleted: true,
+        },
+        queryRunner.manager,
+      );
+
+      if (workflow?.statuses?.includes(WorkflowStatus.ACTIVE)) {
+        const newStatuses = [
+          ...workflow.statuses.filter(
+            (status) => status !== WorkflowStatus.ACTIVE,
+          ),
+          WorkflowStatus.DEACTIVATED,
+        ];
+
+        await workflowRepository.update(
+          workflowId,
+          { statuses: newStatuses },
+          queryRunner.manager,
+        );
+      }
+
+      for (const workflowVersion of workflowVersions) {
+        if (workflowVersion.status === WorkflowVersionStatus.ACTIVE) {
+          await workflowVersionRepository.update(
+            workflowVersion.id,
+            { status: WorkflowVersionStatus.DEACTIVATED },
+            queryRunner.manager,
+          );
+        }
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private async cleanupCommandMenuItemForVersion(
+    workflowVersionId: string,
+    workspaceId: string,
+  ) {
+    const existingCommandMenuItem =
+      await this.commandMenuItemService.findByWorkflowVersionId(
+        workflowVersionId,
+        workspaceId,
+      );
+
+    if (isDefined(existingCommandMenuItem)) {
+      await this.commandMenuItemService.delete(
+        existingCommandMenuItem.id,
+        workspaceId,
+      );
     }
   }
 

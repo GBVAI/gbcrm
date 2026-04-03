@@ -1,21 +1,24 @@
-import { objectMetadataItemsState } from '@/object-metadata/states/objectMetadataItemsState';
+import { objectMetadataItemsSelector } from '@/object-metadata/states/objectMetadataItemsSelector';
 import { type FieldMetadataItem } from '@/object-metadata/types/FieldMetadataItem';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { SettingsRolesQueryEffect } from '@/settings/roles/components/SettingsRolesQueryEffect';
 import { SettingsRolePermissions } from '@/settings/roles/role-permissions/components/SettingsRolePermissions';
 import { settingsDraftRoleFamilyState } from '@/settings/roles/states/settingsDraftRoleFamilyState';
 import { type RoleWithPartialMembers } from '@/settings/roles/types/RoleWithPartialMembers';
+import { useSetAtomFamilyState } from '@/ui/utilities/state/jotai/hooks/useSetAtomFamilyState';
 import { t } from '@lingui/core/macro';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import {
+  type ObjectFieldManifest,
+  type ObjectManifest,
+  type RoleManifest,
+} from 'twenty-shared/application';
 import { STANDARD_OBJECTS } from 'twenty-shared/metadata';
 import { isDefined } from 'twenty-shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 import {
   FieldMetadataType,
-  type MarketplaceAppDefaultRole,
-  type MarketplaceAppField,
-  type MarketplaceAppObject,
   type PermissionFlagType,
 } from '~/generated-metadata/graphql';
 
@@ -23,13 +26,13 @@ import { findObjectNameByUniversalIdentifier } from '~/pages/settings/applicatio
 
 type SettingsApplicationPermissionsTabProps = {
   defaultRoleId?: string | null;
-  marketplaceAppDefaultRole?: MarketplaceAppDefaultRole | null;
-  marketplaceAppObjects?: MarketplaceAppObject[];
+  marketplaceAppDefaultRole?: RoleManifest;
+  marketplaceAppObjects?: ObjectManifest[];
 };
 
 const resolvePermissionIds = (
-  defaultRole: MarketplaceAppDefaultRole,
-  objectMetadataItems: ObjectMetadataItem[],
+  defaultRole: RoleManifest,
+  objectMetadataItems: EnrichedObjectMetadataItem[],
 ): {
   objectUniversalIdToIdMap: Record<string, string>;
   fieldUniversalIdToIdMap: Record<string, string>;
@@ -39,10 +42,10 @@ const resolvePermissionIds = (
 
   const allObjectUniversalIds = new Set<string>();
 
-  for (const permission of defaultRole.objectPermissions) {
+  for (const permission of defaultRole.objectPermissions ?? []) {
     allObjectUniversalIds.add(permission.objectUniversalIdentifier);
   }
-  for (const permission of defaultRole.fieldPermissions) {
+  for (const permission of defaultRole.fieldPermissions ?? []) {
     allObjectUniversalIds.add(permission.objectUniversalIdentifier);
   }
 
@@ -60,7 +63,7 @@ const resolvePermissionIds = (
     }
   }
 
-  for (const permission of defaultRole.fieldPermissions) {
+  for (const permission of defaultRole.fieldPermissions ?? []) {
     const objectName = findObjectNameByUniversalIdentifier(
       permission.objectUniversalIdentifier,
     );
@@ -99,22 +102,23 @@ const resolvePermissionIds = (
 };
 
 const buildSyntheticRole = (
-  defaultRole: MarketplaceAppDefaultRole,
+  defaultRole: RoleManifest,
   objectUniversalIdToIdMap: Record<string, string>,
   fieldUniversalIdToIdMap: Record<string, string>,
 ): RoleWithPartialMembers => ({
   __typename: 'Role',
-  id: defaultRole.id,
+  id: defaultRole.universalIdentifier,
   label: defaultRole.label,
   description: defaultRole.description ?? '',
   icon: '',
   isEditable: false,
-  canReadAllObjectRecords: defaultRole.canReadAllObjectRecords,
-  canUpdateAllObjectRecords: defaultRole.canUpdateAllObjectRecords,
-  canSoftDeleteAllObjectRecords: defaultRole.canSoftDeleteAllObjectRecords,
-  canDestroyAllObjectRecords: defaultRole.canDestroyAllObjectRecords,
-  canUpdateAllSettings: defaultRole.canUpdateAllSettings,
-  canAccessAllTools: defaultRole.canAccessAllTools,
+  canReadAllObjectRecords: defaultRole.canReadAllObjectRecords ?? false,
+  canUpdateAllObjectRecords: defaultRole.canUpdateAllObjectRecords ?? false,
+  canSoftDeleteAllObjectRecords:
+    defaultRole.canSoftDeleteAllObjectRecords ?? false,
+  canDestroyAllObjectRecords: defaultRole.canDestroyAllObjectRecords ?? false,
+  canUpdateAllSettings: defaultRole.canUpdateAllSettings ?? false,
+  canAccessAllTools: defaultRole.canAccessAllTools ?? false,
   canBeAssignedToUsers: false,
   canBeAssignedToAgents: false,
   canBeAssignedToApiKeys: false,
@@ -123,20 +127,22 @@ const buildSyntheticRole = (
   apiKeys: [],
   rowLevelPermissionPredicates: [],
   rowLevelPermissionPredicateGroups: [],
-  objectPermissions: defaultRole.objectPermissions.map((permission) => ({
-    __typename: 'ObjectPermission' as const,
-    objectMetadataId:
-      objectUniversalIdToIdMap[permission.objectUniversalIdentifier] ??
-      permission.objectUniversalIdentifier,
-    canReadObjectRecords: permission.canReadObjectRecords,
-    canUpdateObjectRecords: permission.canUpdateObjectRecords,
-    canSoftDeleteObjectRecords: permission.canSoftDeleteObjectRecords,
-    canDestroyObjectRecords: permission.canDestroyObjectRecords,
-  })),
-  fieldPermissions: defaultRole.fieldPermissions.map((permission) => ({
+  objectPermissions: (defaultRole.objectPermissions ?? []).map(
+    (permission) => ({
+      __typename: 'ObjectPermission' as const,
+      objectMetadataId:
+        objectUniversalIdToIdMap[permission.objectUniversalIdentifier] ??
+        permission.objectUniversalIdentifier,
+      canReadObjectRecords: permission.canReadObjectRecords,
+      canUpdateObjectRecords: permission.canUpdateObjectRecords,
+      canSoftDeleteObjectRecords: permission.canSoftDeleteObjectRecords,
+      canDestroyObjectRecords: permission.canDestroyObjectRecords,
+    }),
+  ),
+  fieldPermissions: (defaultRole.fieldPermissions ?? []).map((permission) => ({
     __typename: 'FieldPermission' as const,
     id: uuidv4(),
-    roleId: defaultRole.id,
+    roleId: defaultRole.universalIdentifier,
     objectMetadataId:
       objectUniversalIdToIdMap[permission.objectUniversalIdentifier] ??
       permission.objectUniversalIdentifier,
@@ -146,21 +152,22 @@ const buildSyntheticRole = (
     canReadFieldValue: permission.canReadFieldValue,
     canUpdateFieldValue: permission.canUpdateFieldValue,
   })),
-  permissionFlags: defaultRole.permissionFlags.map((flag) => ({
+  permissionFlags: (defaultRole.permissionFlags ?? []).map((flag) => ({
     __typename: 'PermissionFlag' as const,
     id: uuidv4(),
-    roleId: defaultRole.id,
+    roleId: defaultRole.universalIdentifier,
     flag: flag as PermissionFlagType,
   })),
 });
 
 const buildFieldMetadataItemFromMarketplaceField = (
-  field: MarketplaceAppField,
+  field: ObjectFieldManifest,
 ): FieldMetadataItem => {
   const now = new Date().toISOString();
 
   return {
     id: field.universalIdentifier ?? uuidv4(),
+    universalIdentifier: field.universalIdentifier ?? uuidv4(),
     name: field.name,
     label: field.label,
     type: (field.type as FieldMetadataType) ?? FieldMetadataType.TEXT,
@@ -182,20 +189,20 @@ const buildFieldMetadataItemFromMarketplaceField = (
 };
 
 const buildobjectMetadataItemsFromMarketplaceApp = (
-  defaultRole: MarketplaceAppDefaultRole,
+  defaultRole: RoleManifest,
   objectUniversalIdToIdMap: Record<string, string>,
-  marketplaceAppObjects: MarketplaceAppObject[],
-): ObjectMetadataItem[] => {
+  marketplaceAppObjects: ObjectManifest[],
+): EnrichedObjectMetadataItem[] => {
   const unresolvedUniversalIds = new Set<string>();
 
-  for (const permission of defaultRole.objectPermissions) {
+  for (const permission of defaultRole.objectPermissions ?? []) {
     if (
       !isDefined(objectUniversalIdToIdMap[permission.objectUniversalIdentifier])
     ) {
       unresolvedUniversalIds.add(permission.objectUniversalIdentifier);
     }
   }
-  for (const permission of defaultRole.fieldPermissions) {
+  for (const permission of defaultRole.fieldPermissions ?? []) {
     if (
       !isDefined(objectUniversalIdToIdMap[permission.objectUniversalIdentifier])
     ) {
@@ -219,7 +226,9 @@ const buildobjectMetadataItemsFromMarketplaceApp = (
         buildFieldMetadataItemFromMarketplaceField,
       );
 
-      const objectFieldPermissions = defaultRole.fieldPermissions.filter(
+      const objectFieldPermissions = (
+        defaultRole.fieldPermissions ?? []
+      ).filter(
         (permission) => permission.objectUniversalIdentifier === universalId,
       );
 
@@ -235,9 +244,10 @@ const buildobjectMetadataItemsFromMarketplaceApp = (
           .map((permission) => permission.fieldUniversalIdentifier),
       );
 
-      const item: ObjectMetadataItem = {
+      const item: EnrichedObjectMetadataItem = {
         __typename: 'Object',
         id: universalId,
+        universalIdentifier: universalId,
         nameSingular: appObject.nameSingular,
         namePlural: appObject.namePlural,
         labelSingular: appObject.labelSingular,
@@ -274,15 +284,16 @@ const MarketplaceRoleEffect = ({
   marketplaceAppObjects,
   onObjectMetadataItemsFromMarketplaceApp,
 }: {
-  defaultRole: MarketplaceAppDefaultRole;
-  marketplaceAppObjects: MarketplaceAppObject[];
+  defaultRole: RoleManifest;
+  marketplaceAppObjects: ObjectManifest[];
   onObjectMetadataItemsFromMarketplaceApp: (
-    items: ObjectMetadataItem[],
+    items: EnrichedObjectMetadataItem[],
   ) => void;
 }) => {
-  const objectMetadataItems = useRecoilValue(objectMetadataItemsState);
-  const setDraftRole = useSetRecoilState(
-    settingsDraftRoleFamilyState(defaultRole.id),
+  const objectMetadataItems = useAtomStateValue(objectMetadataItemsSelector);
+  const setSettingsDraftRole = useSetAtomFamilyState(
+    settingsDraftRoleFamilyState,
+    defaultRole.universalIdentifier,
   );
 
   const { resolvedRole, objectMetadataItemsFromMarketplaceApp } =
@@ -306,8 +317,8 @@ const MarketplaceRoleEffect = ({
     }, [defaultRole, objectMetadataItems, marketplaceAppObjects]);
 
   useEffect(() => {
-    setDraftRole(resolvedRole);
-  }, [resolvedRole, setDraftRole]);
+    setSettingsDraftRole(resolvedRole);
+  }, [resolvedRole, setSettingsDraftRole]);
 
   useEffect(() => {
     onObjectMetadataItemsFromMarketplaceApp(
@@ -325,16 +336,16 @@ const MarketplaceAppPermissions = ({
   defaultRole,
   marketplaceAppObjects,
 }: {
-  defaultRole: MarketplaceAppDefaultRole;
-  marketplaceAppObjects: MarketplaceAppObject[];
+  defaultRole: RoleManifest;
+  marketplaceAppObjects: ObjectManifest[];
 }) => {
   const [
     objectMetadataItemsFromMarketplaceApp,
     setObjectMetadataItemsFromMarketplaceApp,
-  ] = useState<ObjectMetadataItem[]>([]);
+  ] = useState<EnrichedObjectMetadataItem[]>([]);
 
   const handleObjectsFromMarketplaceApp = useCallback(
-    (objects: ObjectMetadataItem[]) =>
+    (objects: EnrichedObjectMetadataItem[]) =>
       setObjectMetadataItemsFromMarketplaceApp(objects),
     [],
   );
@@ -349,7 +360,7 @@ const MarketplaceAppPermissions = ({
         }
       />
       <SettingsRolePermissions
-        roleId={defaultRole.id}
+        roleId={defaultRole.universalIdentifier}
         isEditable={false}
         objectMetadataItemsFromMarketplaceApp={
           objectMetadataItemsFromMarketplaceApp

@@ -10,19 +10,17 @@ export const NavigationDrawerSubItem = ({
   label,
   secondaryLabel,
   Icon,
-  iconBackgroundColor,
+  iconColor,
   to,
   onClick,
   active,
-  danger,
-  soon,
-  count,
-  keyboard,
+  modifier,
   subItemState,
   rightOptions,
   isDragging,
   isSelectedInEditMode,
   triggerEvent,
+  variant,
 }: NavigationDrawerSubItemProps) => {
   return (
     <NavigationDrawerItem
@@ -32,18 +30,16 @@ export const NavigationDrawerSubItem = ({
       indentationLevel={2}
       subItemState={subItemState}
       Icon={Icon}
-      iconBackgroundColor={iconBackgroundColor}
+      iconColor={iconColor}
       to={to}
       onClick={onClick}
       active={active}
-      danger={danger}
-      soon={soon}
-      count={count}
-      keyboard={keyboard}
+      modifier={modifier}
       rightOptions={rightOptions}
       isDragging={isDragging}
       isSelectedInEditMode={isSelectedInEditMode}
       triggerEvent={triggerEvent}
+      variant={variant}
     />
   );
 };

@@ -1,6 +1,5 @@
+import { FeatureFlagKey } from 'twenty-shared/types';
 import { type QueryRunner } from 'typeorm';
-
-import { FeatureFlagKey } from 'src/engine/core-modules/feature-flag/enums/feature-flag-key.enum';
 
 const tableName = 'featureFlag';
 
@@ -32,11 +31,6 @@ export const seedFeatureFlags = async ({
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_APPLICATION_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
         key: FeatureFlagKey.IS_PUBLIC_DOMAIN_ENABLED,
         workspaceId: workspaceId,
         value: true,
@@ -47,42 +41,7 @@ export const seedFeatureFlags = async ({
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_DASHBOARD_V2_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_ATTACHMENT_MIGRATED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_NOTE_TARGET_MIGRATED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_TASK_TARGET_MIGRATED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_ROW_LEVEL_PERMISSION_PREDICATES_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
         key: FeatureFlagKey.IS_JUNCTION_RELATIONS_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_NAVIGATION_MENU_ITEM_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_NAVIGATION_MENU_ITEM_EDITING_ENABLED,
         workspaceId: workspaceId,
         value: true,
       },
@@ -92,32 +51,22 @@ export const seedFeatureFlags = async ({
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_COMMAND_MENU_ITEM_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
-        key: FeatureFlagKey.IS_DATE_TIME_WHOLE_DAY_FILTER_ENABLED,
-        workspaceId: workspaceId,
-        value: true,
-      },
-      {
         key: FeatureFlagKey.IS_RECORD_PAGE_LAYOUT_EDITING_ENABLED,
         workspaceId: workspaceId,
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_CORE_PICTURE_MIGRATED,
+        key: FeatureFlagKey.IS_USAGE_ANALYTICS_ENABLED,
         workspaceId: workspaceId,
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_FILES_FIELD_MIGRATED,
+        key: FeatureFlagKey.IS_RECORD_PAGE_LAYOUT_GLOBAL_EDITION_ENABLED,
         workspaceId: workspaceId,
         value: true,
       },
       {
-        key: FeatureFlagKey.IS_OTHER_FILE_MIGRATED,
+        key: FeatureFlagKey.IS_RECORD_TABLE_WIDGET_ENABLED,
         workspaceId: workspaceId,
         value: true,
       },

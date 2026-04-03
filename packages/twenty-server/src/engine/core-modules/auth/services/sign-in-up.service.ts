@@ -10,7 +10,7 @@ import { v4 } from 'uuid';
 
 import { USER_SIGNUP_EVENT_NAME } from 'src/engine/api/graphql/workspace-query-runner/constants/user-signup-event-name.constants';
 import { type AppTokenEntity } from 'src/engine/core-modules/app-token/app-token.entity';
-import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import {
   AuthException,
   AuthExceptionCode,
@@ -20,6 +20,7 @@ import {
   compareHash,
   hashPassword,
 } from 'src/engine/core-modules/auth/auth.util';
+import { MAX_WORKSPACES_WITHOUT_ENTERPRISE_KEY } from 'src/engine/core-modules/auth/constants/max-workspaces-without-enterprise-key.constants';
 import {
   type AuthProviderWithPasswordType,
   type ExistingUserOrPartialUserWithPicture,
@@ -28,11 +29,12 @@ import {
   type SignInUpNewUserPayload,
 } from 'src/engine/core-modules/auth/types/signInUp.type';
 import { SubdomainManagerService } from 'src/engine/core-modules/domain/subdomain-manager/services/subdomain-manager.service';
+import { EnterprisePlanService } from 'src/engine/core-modules/enterprise/services/enterprise-plan.service';
 import { FileCorePictureService } from 'src/engine/core-modules/file/file-core-picture/services/file-core-picture.service';
 import { MetricsService } from 'src/engine/core-modules/metrics/metrics.service';
 import { MetricsKeys } from 'src/engine/core-modules/metrics/types/metrics-keys.type';
 import { OnboardingService } from 'src/engine/core-modules/onboarding/onboarding.service';
-import { SecureHttpClientService } from 'src/engine/core-modules/secure-http-client/secure-http-client.service';
+import { TelemetryEventType } from 'src/engine/core-modules/telemetry/telemetry-event.type';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
 import { UserService } from 'src/engine/core-modules/user/services/user.service';
@@ -46,7 +48,7 @@ import { getDomainNameByEmail } from 'src/utils/get-domain-name-by-email';
 import { isWorkEmail } from 'src/utils/is-work-email';
 
 @Injectable()
-// eslint-disable-next-line twenty/inject-workspace-repository
+// oxlint-disable-next-line twenty/inject-workspace-repository
 export class SignInUpService {
   constructor(
     @InjectRepository(UserEntity)
@@ -57,7 +59,6 @@ export class SignInUpService {
     private readonly userWorkspaceService: UserWorkspaceService,
     private readonly onboardingService: OnboardingService,
     private readonly workspaceEventEmitter: WorkspaceEventEmitter,
-    private readonly secureHttpClientService: SecureHttpClientService,
     private readonly twentyConfigService: TwentyConfigService,
     private readonly subdomainManagerService: SubdomainManagerService,
     private readonly userService: UserService,
@@ -65,6 +66,7 @@ export class SignInUpService {
     private readonly workspaceCacheService: WorkspaceCacheService,
     private readonly applicationService: ApplicationService,
     private readonly fileCorePictureService: FileCorePictureService,
+    private readonly enterprisePlanService: EnterprisePlanService,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -207,6 +209,7 @@ export class SignInUpService {
     const updatedUser = await this.signInUpOnExistingWorkspace({
       workspace: invitationValidation.workspace,
       userData: params.userData,
+      roleId: params.invitation.context?.roleId,
     });
 
     await this.workspaceInvitationService.invalidateWorkspaceInvitation(
@@ -255,6 +258,7 @@ export class SignInUpService {
   async signInUpOnExistingWorkspace(
     params: {
       workspace: WorkspaceEntity;
+      roleId?: string | null;
     } & ExistingUserOrPartialUserWithPicture,
   ) {
     await this.throwIfWorkspaceIsNotReadyForSignInUp(params.workspace, params);
@@ -281,6 +285,7 @@ export class SignInUpService {
       await this.userWorkspaceService.addUserToWorkspaceIfUserNotInWorkspace(
         user,
         params.workspace,
+        params.roleId,
       );
 
       return user;
@@ -296,6 +301,7 @@ export class SignInUpService {
     await this.userWorkspaceService.addUserToWorkspaceIfUserNotInWorkspace(
       user,
       params.workspace,
+      params.roleId,
     );
 
     return user;
@@ -307,7 +313,7 @@ export class SignInUpService {
       workspace,
       shouldShowConnectAccountStep,
     }: {
-      user: UserEntity;
+      user: Pick<UserEntity, 'id' | 'firstName' | 'lastName'>;
       workspace: WorkspaceEntity;
       shouldShowConnectAccountStep: boolean;
     },
@@ -357,18 +363,19 @@ export class SignInUpService {
       ? await queryRunner.manager.save(UserEntity, userCreated)
       : await this.userRepository.save(userCreated);
 
-    const serverUrl = this.twentyConfigService.get('SERVER_URL');
-
-    this.workspaceEventEmitter.emitCustomBatchEvent(
+    this.workspaceEventEmitter.emitCustomBatchEvent<TelemetryEventType>(
       USER_SIGNUP_EVENT_NAME,
       [
         {
+          workspaceId: savedUser.currentWorkspace?.id,
+          userWorkspaceId: savedUser.currentUserWorkspace?.id,
           userId: savedUser.id,
           userEmail: newUserWithPicture.email,
           userFirstName: newUserWithPicture.firstName,
           userLastName: newUserWithPicture.lastName,
           locale: newUserWithPicture.locale,
-          serverUrl,
+          serverUrl: this.twentyConfigService.get('SERVER_URL'),
+          serverId: this.twentyConfigService.get('SERVER_ID'),
         },
       ],
       undefined,
@@ -419,6 +426,8 @@ export class SignInUpService {
       return;
     }
 
+    await this.assertWorkspaceCountWithinLimit(workspaceCount);
+
     if (
       !this.twentyConfigService.get(
         'IS_WORKSPACE_CREATION_LIMITED_TO_SERVER_ADMINS',
@@ -440,6 +449,26 @@ export class SignInUpService {
       AuthExceptionCode.FORBIDDEN_EXCEPTION,
       {
         userFriendlyMessage: msg`Workspace creation is restricted to admins`,
+      },
+    );
+  }
+
+  private async assertWorkspaceCountWithinLimit(
+    workspaceCount: number,
+  ): Promise<void> {
+    if (this.enterprisePlanService.isValid()) {
+      return;
+    }
+
+    if (workspaceCount < MAX_WORKSPACES_WITHOUT_ENTERPRISE_KEY) {
+      return;
+    }
+
+    throw new AuthException(
+      `Cannot create more than ${MAX_WORKSPACES_WITHOUT_ENTERPRISE_KEY} workspaces without a valid enterprise key`,
+      AuthExceptionCode.FORBIDDEN_EXCEPTION,
+      {
+        userFriendlyMessage: msg`Workspace limit reached. A valid enterprise key is required to create more workspaces.`,
       },
     );
   }
@@ -547,7 +576,11 @@ export class SignInUpService {
       );
 
       await this.activateOnboardingForUser(
-        { user, workspace, shouldShowConnectAccountStep: true },
+        {
+          user,
+          workspace,
+          shouldShowConnectAccountStep: true,
+        },
         queryRunner,
       );
 
@@ -560,16 +593,18 @@ export class SignInUpService {
       );
 
       await queryRunner.commitTransaction();
-      await this.workspaceCacheService.invalidateAndRecompute(workspaceId, [
-        'flatApplicationMaps',
-      ]);
 
       return { user, workspace };
     } catch (error) {
-      await queryRunner.rollbackTransaction();
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
       throw error;
     } finally {
       await queryRunner.release();
+      await this.workspaceCacheService.invalidateAndRecompute(workspaceId, [
+        'flatApplicationMaps',
+      ]);
     }
   }
 

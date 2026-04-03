@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
+import crypto from 'crypto';
+
 import { v4 } from 'uuid';
 import { isDefined } from 'twenty-shared/utils';
 import { SEED_LOGIC_FUNCTION_INPUT_SCHEMA } from 'twenty-shared/logic-function';
 
-import { ApplicationService } from 'src/engine/core-modules/application/services/application.service';
+import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import { type FlatApplication } from 'src/engine/core-modules/application/types/flat-application.type';
 import { LogicFunctionExecutorService } from 'src/engine/core-modules/logic-function/logic-function-executor/logic-function-executor.service';
 import { LogicFunctionResourceService } from 'src/engine/core-modules/logic-function/logic-function-resource/logic-function-resource.service';
@@ -302,14 +304,33 @@ export class LogicFunctionFromSourceService {
         workspaceId,
       });
 
-    const { checksum } =
-      await this.logicFunctionResourceService.buildFromSourceFile({
-        workspaceId,
-        applicationUniversalIdentifier:
-          ownerFlatApplication.universalIdentifier,
-        sourceHandlerPath: flatLogicFunction.sourceHandlerPath,
-        builtHandlerPath: flatLogicFunction.builtHandlerPath,
-      });
+    const sourceCode = await this.logicFunctionResourceService.getSourceFile({
+      workspaceId,
+      applicationUniversalIdentifier: ownerFlatApplication.universalIdentifier,
+      sourceHandlerPath: flatLogicFunction.sourceHandlerPath,
+    });
+
+    if (!sourceCode) {
+      throw new LogicFunctionException(
+        'Source file not found',
+        LogicFunctionExceptionCode.LOGIC_FUNCTION_NOT_FOUND,
+      );
+    }
+
+    const { builtCode } = await this.logicFunctionExecutorService.transpile({
+      sourceCode,
+      sourceFileName: flatLogicFunction.sourceHandlerPath,
+      builtFileName: flatLogicFunction.builtHandlerPath,
+    });
+
+    await this.logicFunctionResourceService.uploadBuiltFile({
+      workspaceId,
+      applicationUniversalIdentifier: ownerFlatApplication.universalIdentifier,
+      builtHandlerPath: flatLogicFunction.builtHandlerPath,
+      builtCode,
+    });
+
+    const checksum = crypto.createHash('md5').update(builtCode).digest('hex');
 
     await this.helperService.updateOneFromMetadata({
       flatLogicFunctionToUpdate: {

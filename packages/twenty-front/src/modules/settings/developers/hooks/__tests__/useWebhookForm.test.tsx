@@ -1,8 +1,8 @@
-import { MockedProvider } from '@apollo/client/testing';
+import { MockedProvider } from '@apollo/client/testing/react';
 import { act, renderHook } from '@testing-library/react';
+import { GraphQLError } from 'graphql';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { RecoilRoot } from 'recoil';
 
 import { WebhookFormMode } from '@/settings/developers/constants/WebhookFormMode';
 import { CREATE_WEBHOOK } from '@/settings/developers/graphql/mutations/createWebhook';
@@ -124,10 +124,8 @@ const Wrapper = ({
   children: ReactNode;
   mocks?: any[];
 }) => (
-  <MockedProvider mocks={mocks} addTypename={false}>
-    <RecoilRoot>
-      <MemoryRouter>{children}</MemoryRouter>
-    </RecoilRoot>
+  <MockedProvider mocks={mocks}>
+    <MemoryRouter>{children}</MemoryRouter>
   </MockedProvider>
 );
 
@@ -193,7 +191,9 @@ describe('useWebhookForm', () => {
             },
           },
         },
-        error: new Error('Creation failed'),
+        result: {
+          errors: [new GraphQLError('Creation failed')],
+        },
       };
 
       const mocks = [errorMock];
@@ -335,7 +335,9 @@ describe('useWebhookForm', () => {
             },
           },
         },
-        error: new Error('Update failed'),
+        result: {
+          errors: [new GraphQLError('Update failed')],
+        },
       };
 
       const mocks = [getWebhookMock, updateErrorMock];
@@ -466,7 +468,9 @@ describe('useWebhookForm', () => {
             id: webhookId,
           },
         },
-        error: new Error('Deletion failed'),
+        result: {
+          errors: [new GraphQLError('Deletion failed')],
+        },
       };
 
       const mocks = [createGetWebhookMock(webhookId), errorMock];

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { type ToolCallOptions, type ToolSet, jsonSchema } from 'ai';
+import { type ToolExecutionOptions, type ToolSet, jsonSchema } from 'ai';
 
 import {
   type NativeToolProvider,
@@ -10,7 +10,7 @@ import {
 } from 'src/engine/core-modules/tool-provider/interfaces/tool-provider.interface';
 
 import { TOOL_PROVIDERS } from 'src/engine/core-modules/tool-provider/constants/tool-providers.token';
-import { ToolCategory } from 'src/engine/core-modules/tool-provider/enums/tool-category.enum';
+import { ToolCategory } from 'twenty-shared/ai';
 import { compactToolOutput } from 'src/engine/core-modules/tool-provider/output-serialization/compact-tool-output.util';
 import { NativeModelToolProvider } from 'src/engine/core-modules/tool-provider/providers/native-model-tool.provider';
 import { ToolExecutorService } from 'src/engine/core-modules/tool-provider/services/tool-executor.service';
@@ -219,7 +219,7 @@ export class ToolRegistryService {
     toolName: string,
     args: Record<string, unknown>,
     context: ToolContext,
-    _options: ToolCallOptions,
+    _options: ToolExecutionOptions,
   ): Promise<ExecuteToolResult> {
     try {
       const fullContext = this.buildContextFromToolContext(context);

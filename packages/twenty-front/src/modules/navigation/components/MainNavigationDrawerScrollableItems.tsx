@@ -1,41 +1,49 @@
-import { NavigationDrawerOpenedSection } from '@/object-metadata/components/NavigationDrawerOpenedSection';
-import { RemoteNavigationDrawerSection } from '@/object-metadata/components/RemoteNavigationDrawerSection';
-import styled from '@emotion/styled';
+import { NavigationDrawerOpenedSection } from '@/navigation-menu-item/display/sections/components/NavigationDrawerOpenedSection';
+import { NavigationDrawerWorkspaceSectionSkeletonLoader } from '@/object-metadata/components/NavigationDrawerWorkspaceSectionSkeletonLoader';
+
+import { isLayoutCustomizationModeEnabledState } from '@/layout-customization/states/isLayoutCustomizationModeEnabledState';
+import { NavigationDrawerOtherSection } from '@/navigation/components/NavigationDrawerOtherSection';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
+import { styled } from '@linaria/react';
 import { lazy, Suspense } from 'react';
 
-const CurrentWorkspaceMemberNavigationMenuItemFoldersDispatcher = lazy(() =>
+import { themeCssVariables } from 'twenty-ui/theme-constants';
+
+const FavoritesSectionDispatcher = lazy(() =>
   import(
-    '@/navigation-menu-item/components/CurrentWorkspaceMemberNavigationMenuItemFoldersDispatcher'
+    '@/navigation-menu-item/display/sections/favorites/components/FavoritesSectionDispatcher'
   ).then((module) => ({
-    default: module.CurrentWorkspaceMemberNavigationMenuItemFoldersDispatcher,
+    default: module.FavoritesSectionDispatcher,
   })),
 );
 
-const WorkspaceNavigationMenuItemsDispatcher = lazy(() =>
+const WorkspaceSectionDispatcher = lazy(() =>
   import(
-    '@/navigation-menu-item/components/WorkspaceNavigationMenuItemsDispatcher'
+    '@/navigation-menu-item/display/sections/workspace/components/WorkspaceSectionDispatcher'
   ).then((module) => ({
-    default: module.WorkspaceNavigationMenuItemsDispatcher,
+    default: module.WorkspaceSectionDispatcher,
   })),
 );
 
 const StyledScrollableItemsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(3)};
+  gap: ${themeCssVariables.spacing[3]};
 `;
 
 export const MainNavigationDrawerScrollableItems = () => {
+  const isLayoutCustomizationModeEnabled = useAtomStateValue(
+    isLayoutCustomizationModeEnabledState,
+  );
+
   return (
     <StyledScrollableItemsContainer>
       <NavigationDrawerOpenedSection />
-      <Suspense fallback={null}>
-        <CurrentWorkspaceMemberNavigationMenuItemFoldersDispatcher />
+      <Suspense fallback={<NavigationDrawerWorkspaceSectionSkeletonLoader />}>
+        <FavoritesSectionDispatcher />
+        <WorkspaceSectionDispatcher />
       </Suspense>
-      <Suspense fallback={null}>
-        <WorkspaceNavigationMenuItemsDispatcher />
-      </Suspense>
-      <RemoteNavigationDrawerSection />
+      {!isLayoutCustomizationModeEnabled && <NavigationDrawerOtherSection />}
     </StyledScrollableItemsContainer>
   );
 };

@@ -7,6 +7,8 @@ import {
   type OrchestratorStateStepEvent,
   type OrchestratorStateSyncStatus,
 } from '@/cli/utilities/dev/orchestrator/dev-mode-orchestrator-state';
+import { formatSyncErrorEvents } from '@/cli/utilities/dev/orchestrator/steps/format-sync-error-events';
+import { serializeError } from '@/cli/utilities/error/serialize-error';
 import { type Manifest } from 'twenty-shared/application';
 
 export type SyncApplicationOrchestratorStepOutput = {
@@ -18,19 +20,23 @@ export class SyncApplicationOrchestratorStep {
   private apiService: ApiService;
   private state: OrchestratorState;
   private notify: () => void;
+  private verbose: boolean;
 
   constructor({
     apiService,
     state,
     notify,
+    verbose,
   }: {
     apiService: ApiService;
     state: OrchestratorState;
     notify: () => void;
+    verbose?: boolean;
   }) {
     this.apiService = apiService;
     this.state = state;
     this.notify = notify;
+    this.verbose = verbose ?? false;
   }
 
   async execute(input: {
@@ -73,12 +79,29 @@ export class SyncApplicationOrchestratorStep {
       return;
     }
 
-    const errorMessage = `Sync failed with error ${JSON.stringify(syncResult.error, null, 2)}`;
+    const errorEvents = this.verbose
+      ? null
+      : formatSyncErrorEvents(syncResult.error);
 
-    events.push({ message: errorMessage, status: 'error' });
-    step.output = { syncStatus: 'error', error: errorMessage };
+    if (errorEvents) {
+      events.push(...errorEvents);
+      events.push({
+        message: 'Add --verbose to see full error log',
+        status: 'info',
+      });
+    } else {
+      events.push({
+        message: `Sync failed with error: ${serializeError(syncResult.error)}`,
+        status: 'error',
+      });
+    }
+
+    const summaryMessage = errorEvents ? errorEvents[0].message : 'Sync failed';
+
+    step.output = { syncStatus: 'error', error: summaryMessage };
     step.status = 'error';
-    this.state.updatePipeline({ status: 'error', error: errorMessage });
+    this.state.updatePipeline({ status: 'error', error: summaryMessage });
+    this.state.updateAllEntitiesStatus('error');
     this.state.applyStepEvents(events);
   }
 }
