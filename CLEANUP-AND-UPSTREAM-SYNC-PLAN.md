@@ -216,33 +216,67 @@ grep -A3 "allCommands" packages/twenty-server/src/database/commands/upgrade-vers
 
 ### Phase 4: Deploy to Railway (EOD)
 
+**IMPORTANT: Infrastructure is Railway Postgres (NOT Supabase).
+Railway Postgres has NO point-in-time recovery. We MUST take a
+manual pg_dump backup before deploying.**
+
 ```bash
-# 1. Push sync branch
+# 0. BACKUP DATABASE FIRST (critical - no PITR available)
+#    Connect to Railway Postgres via railway CLI or pg_dump:
+#    railway run pg_dump $PG_DATABASE_URL > gbcrm-pre-v1.20-backup-$(date +%Y%m%d).sql
+#    Or from Railway dashboard: use the database service's backup feature
+
+# 1. Push sync branch (already done)
 git push origin sync
 
-# 2. On Railway: point deployment to sync branch (NOT main yet)
-# 3. Set DISABLE_DB_MIGRATIONS=true initially
-# 4. Verify the build completes
-# 5. Set DISABLE_DB_MIGRATIONS=false
-# 6. Monitor logs for upgrade command execution
-# 7. Verify healthcheck passes
-# 8. Test Wildix webhook endpoint
-# 9. Test phone call timeline display
+# 2. On Railway dashboard:
+#    - Go to twenty-server service → Settings → Source
+#    - Change branch from "main" to "sync"
+#    - Set DISABLE_DB_MIGRATIONS=true in env vars
+#    - Trigger manual deploy
 
-# If all good:
+# 3. Wait for build (~10-20 min). Verify:
+#    - Build logs show successful compilation
+#    - Container starts without crash
+
+# 4. Enable migrations:
+#    - Set DISABLE_DB_MIGRATIONS=false (or remove the var)
+#    - Trigger redeploy
+#    - Watch logs for:
+#      "Running database setup and migrations..."
+#      "upgrade" command output (v1.19 → v1.20 → v1.21)
+#      "Successfully synced standard objects!"
+#      "Successfully registered all background sync jobs!"
+
+# 5. Verify healthcheck: /healthz returns 200
+
+# 6. Test Wildix webhook endpoint responds
+# 7. Test phone call timeline displays
+# 8. Test click-to-call functionality
+
+# 9. If all green, merge sync → main:
 git checkout main
-git merge sync --ff-only  # or merge commit
+git merge sync
 git push origin main
 git tag v0.3.0-upstream-sync
 git push origin v0.3.0-upstream-sync
+
+# 10. Switch Railway back to main branch
 ```
 
 ### Rollback Plan
 
 If ANYTHING goes wrong during deploy:
-1. Railway: redeploy previous commit (pre-upstream-sync tag)
-2. Database: if migrations ran partially, restore from Supabase backup
+1. **Railway**: switch service branch back to "main" (still at pre-merge state)
+   OR redeploy previous commit via tag v0.2.1-pre-upstream-sync
+2. **Database**: if upgrade commands ran and corrupted data:
+   - Railway Postgres has NO point-in-time recovery
+   - Restore from the pg_dump taken in step 0
+   - `psql $PG_DATABASE_URL < gbcrm-pre-v1.20-backup-YYYYMMDD.sql`
 3. The sync branch stays separate until merge into main is confirmed
+4. **Partial upgrade recovery**: if upgrade ran v1.20 commands but failed on v1.21,
+   the workspace version will be at 1.20.x. Re-deploying will retry v1.21 only
+   (commands are version-gated and idempotent)
 
 ## Risk Matrix (Updated)
 

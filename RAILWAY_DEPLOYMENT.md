@@ -7,7 +7,7 @@
 
 ### Services Required
 
-1. **Supabase** - PostgreSQL database (managed Supabase instance)
+1. **Postgres** - Railway managed PostgreSQL container (NOT Supabase)
 2. **Redis** - Cache service for background jobs and caching
 3. **Minio** - S3-compatible object storage for file uploads
 4. **twenty-server** - Main application service (server + frontend)
@@ -19,20 +19,22 @@
 
 ## Service Setup
 
-### Supabase Database
+### PostgreSQL Database
 
-Your Supabase instance is already created. Configure the connection:
-
-1. Get your connection string from Supabase Dashboard → Settings → Database
-2. Use the **pooler connection** (port 6543) for better connection handling:
-   ```
-   postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
-   ```
+Using Railway's managed Postgres service (container).
 
 **Environment Variables:**
 ```bash
-PG_DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
-PG_SSL_ALLOW_SELF_SIGNED=true
+# Use Railway's Postgres service variable reference:
+PG_DATABASE_URL=${{Postgres.DATABASE_URL}}
+# Or if using internal networking:
+# PG_DATABASE_URL=postgresql://postgres:${{Postgres.POSTGRES_PASSWORD}}@${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/${{Postgres.POSTGRES_DB}}
+```
+
+**IMPORTANT: Railway Postgres has NO point-in-time recovery.**
+Before any major upgrade, take a manual backup:
+```bash
+railway run pg_dump $PG_DATABASE_URL > backup-$(date +%Y%m%d-%H%M%S).sql
 ```
 
 ### Redis Service
@@ -97,7 +99,7 @@ For each service (twenty-server and twenty-worker):
 
 ### 2. Configure Environment Variables
 
-Update environment variables in Railway dashboard to use Supabase, Redis, and Minio:
+Update environment variables in Railway dashboard to use Postgres, Redis, and Minio:
 
 #### twenty-server variables:
 ```bash
@@ -109,9 +111,8 @@ FRONTEND_URL=https://twenty-server-production-33ed.up.railway.app
 SERVER_URL=https://twenty-server-production-33ed.up.railway.app
 REACT_APP_SERVER_BASE_URL=https://twenty-server-production-33ed.up.railway.app
 
-# Database - Supabase
-PG_DATABASE_URL=<your-supabase-connection-string>
-PG_SSL_ALLOW_SELF_SIGNED=true
+# Database - Railway Postgres
+PG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 
 # Redis
 REDIS_URL=${{Redis.REDIS_URL}}
@@ -135,12 +136,11 @@ DISABLE_CRON_JOBS_REGISTRATION=false
 ```bash
 # Core Application
 APP_SECRET=<same as server>
-FRONTEND_URL=https://twenty-server-production-33ed.up.railway.app
-SERVER_URL=https://twenty-server-production-33ed.up.railway.app
+FRONTEND_URL=https://gbcrm-production.up.railway.app
+SERVER_URL=https://gbcrm-production.up.railway.app
 
-# Database - Supabase
-PG_DATABASE_URL=<your-supabase-connection-string>
-PG_SSL_ALLOW_SELF_SIGNED=true
+# Database - Railway Postgres
+PG_DATABASE_URL=${{Postgres.DATABASE_URL}}
 
 # Redis
 REDIS_URL=${{Redis.REDIS_URL}}
