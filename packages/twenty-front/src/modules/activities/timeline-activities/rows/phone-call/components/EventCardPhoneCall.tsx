@@ -1,4 +1,5 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 import { useLingui, Trans } from '@lingui/react/macro';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
@@ -26,14 +27,14 @@ type PhoneCallRecord = {
 const StyledEventCardPhoneCallContainer = styled.div`
   display: flex;
   flex-direction: row;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[2]};
   width: 100%;
 `;
 
 const StyledPhoneCallContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[2]};
   justify-content: center;
   overflow: hidden;
   width: 100%;
@@ -43,13 +44,13 @@ const StyledPhoneCallTop = styled.div`
   align-items: center;
   display: flex;
   width: 100%;
-  gap: ${({ theme }) => theme.spacing(2)};
+  gap: ${themeCssVariables.spacing[2]};
   justify-content: space-between;
 `;
 
 const StyledPhoneCallTitle = styled.div`
-  color: ${({ theme }) => theme.font.color.primary};
-  font-weight: ${({ theme }) => theme.font.weight.medium};
+  color: ${themeCssVariables.font.color.primary};
+  font-weight: ${themeCssVariables.font.weight.medium};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -57,14 +58,14 @@ const StyledPhoneCallTitle = styled.div`
 
 const StyledPhoneCallMeta = styled.div`
   align-items: center;
-  color: ${({ theme }) => theme.font.color.tertiary};
+  color: ${themeCssVariables.font.color.tertiary};
   display: flex;
-  gap: ${({ theme }) => theme.spacing(1)};
-  font-size: ${({ theme }) => theme.font.size.sm};
+  gap: ${themeCssVariables.spacing[1]};
+  font-size: ${themeCssVariables.font.size.sm};
 `;
 
 const StyledPhoneCallSummary = styled.div`
-  color: ${({ theme }) => theme.font.color.secondary};
+  color: ${themeCssVariables.font.color.secondary};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -72,26 +73,26 @@ const StyledPhoneCallSummary = styled.div`
 
 const StyledPhoneCallDetail = styled.div`
   align-items: center;
-  color: ${({ theme }) => theme.font.color.secondary};
+  color: ${themeCssVariables.font.color.secondary};
   display: flex;
-  gap: ${({ theme }) => theme.spacing(1)};
-  font-size: ${({ theme }) => theme.font.size.sm};
+  gap: ${themeCssVariables.spacing[1]};
+  font-size: ${themeCssVariables.font.size.sm};
 `;
 
 const StyledPhoneLink = styled.a`
-  color: ${({ theme }) => theme.font.color.primary};
+  color: ${themeCssVariables.font.color.primary};
   text-decoration: underline;
-  text-decoration-color: ${({ theme }) => theme.border.color.strong};
+  text-decoration-color: ${themeCssVariables.border.color.strong};
 
   &:hover {
-    text-decoration-color: ${({ theme }) => theme.font.color.primary};
+    text-decoration-color: ${themeCssVariables.font.color.primary};
   }
 `;
 
 const StyledDirectionIcon = styled.div<{ direction?: string }>`
   align-items: center;
-  border: 1px solid ${({ theme }) => theme.border.color.medium};
-  border-radius: ${({ theme }) => theme.spacing(1)};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  border-radius: ${themeCssVariables.spacing[1]};
   color: ${({ theme, direction }) =>
     direction === 'INBOUND'
       ? theme.color.green
@@ -99,7 +100,7 @@ const StyledDirectionIcon = styled.div<{ direction?: string }>`
         ? theme.color.blue
         : theme.font.color.tertiary};
   display: flex;
-  padding: ${({ theme }) => theme.spacing(1)};
+  padding: ${themeCssVariables.spacing[1]};
 `;
 
 const formatDuration = (seconds: number | null): string => {
