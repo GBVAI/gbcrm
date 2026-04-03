@@ -31,8 +31,6 @@ COPY ./packages/twenty-companion/package.json /app/packages/twenty-companion/
 COPY ./packages/twenty-docs/package.json /app/packages/twenty-docs/
 COPY ./packages/twenty-website/package.json /app/packages/twenty-website/
 COPY ./packages/twenty-website-new/package.json /app/packages/twenty-website-new/
-COPY ./packages/twenty-apps/package.json /app/packages/twenty-apps/
-
 # Install all dependencies
 RUN yarn && yarn cache clean && npx nx reset
 
