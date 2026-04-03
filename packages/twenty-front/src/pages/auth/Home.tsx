@@ -1,69 +1,70 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { Link } from 'react-router-dom';
 import { AppPath } from 'twenty-shared/types';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: ${({ theme }) => theme.spacing(10)};
+  padding: ${themeCssVariables.spacing[10]};
   max-width: 800px;
   margin: 0 auto;
-  color: ${({ theme }) => theme.font.color.primary};
+  color: ${themeCssVariables.font.color.primary};
   line-height: 1.6;
 `;
 
 const StyledLogo = styled.img`
   width: 80px;
   height: 80px;
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
 `;
 
 const StyledTitle = styled.h1`
-  font-size: ${({ theme }) => theme.font.size.xl};
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  font-size: ${themeCssVariables.font.size.xl};
+  margin-bottom: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledSubtitle = styled.p`
-  font-size: ${({ theme }) => theme.font.size.md};
-  color: ${({ theme }) => theme.font.color.secondary};
-  margin-bottom: ${({ theme }) => theme.spacing(8)};
+  font-size: ${themeCssVariables.font.size.md};
+  color: ${themeCssVariables.font.color.secondary};
+  margin-bottom: ${themeCssVariables.spacing[8]};
   text-align: center;
 `;
 
 const StyledSectionTitle = styled.h2`
-  font-size: ${({ theme }) => theme.font.size.lg};
-  margin-top: ${({ theme }) => theme.spacing(6)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  font-size: ${themeCssVariables.font.size.lg};
+  margin-top: ${themeCssVariables.spacing[6]};
+  margin-bottom: ${themeCssVariables.spacing[3]};
   align-self: flex-start;
 `;
 
 const StyledText = styled.p`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
   width: 100%;
 `;
 
 const StyledList = styled.ul`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
-  padding-left: ${({ theme }) => theme.spacing(6)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
+  padding-left: ${themeCssVariables.spacing[6]};
   width: 100%;
 `;
 
 const StyledListItem = styled.li`
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${themeCssVariables.spacing[2]};
 `;
 
 const StyledSignInButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(6)};
-  margin-top: ${({ theme }) => theme.spacing(6)};
-  background-color: ${({ theme }) => theme.color.blue};
-  color: ${({ theme }) => theme.font.color.inverted};
-  border-radius: ${({ theme }) => theme.border.radius.md};
+  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[6]};
+  margin-top: ${themeCssVariables.spacing[6]};
+  background-color: ${themeCssVariables.color.blue};
+  color: ${themeCssVariables.font.color.inverted};
+  border-radius: ${themeCssVariables.border.radius.md};
   text-decoration: none;
-  font-weight: ${({ theme }) => theme.font.weight.medium};
+  font-weight: ${themeCssVariables.font.weight.medium};
 
   &:hover {
     opacity: 0.9;
@@ -72,14 +73,14 @@ const StyledSignInButton = styled(Link)`
 
 const StyledFooterLinks = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing(4)};
-  margin-top: ${({ theme }) => theme.spacing(8)};
+  gap: ${themeCssVariables.spacing[4]};
+  margin-top: ${themeCssVariables.spacing[8]};
 `;
 
 const StyledFooterLink = styled(Link)`
-  color: ${({ theme }) => theme.font.color.secondary};
+  color: ${themeCssVariables.font.color.secondary};
   text-decoration: underline;
-  font-size: ${({ theme }) => theme.font.size.sm};
+  font-size: ${themeCssVariables.font.size.sm};
 `;
 
 export const Home = () => {

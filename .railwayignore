@@ -47,5 +47,16 @@ yarn-error.log*
 *.md
 docs/
 
+# Website packages (not needed for server/worker deployment)
+packages/twenty-website/
+packages/twenty-website-new/
+packages/twenty-docs/
+packages/twenty-e2e-testing/
+packages/twenty-apps/
+
+# Build artifacts from local dev
+packages/twenty-server/.swc/
+.yarn/install-state.gz
+
 # Storybook
 storybook-static/

@@ -1,43 +1,44 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
 import { Link } from 'react-router-dom';
 import { AppPath } from 'twenty-shared/types';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: ${({ theme }) => theme.spacing(10)};
+  padding: ${themeCssVariables.spacing[10]};
   max-width: 800px;
   margin: 0 auto;
-  color: ${({ theme }) => theme.font.color.primary};
+  color: ${themeCssVariables.font.color.primary};
   line-height: 1.6;
 `;
 
 const StyledTitle = styled.h1`
-  font-size: ${({ theme }) => theme.font.size.xl};
-  margin-bottom: ${({ theme }) => theme.spacing(6)};
+  font-size: ${themeCssVariables.font.size.xl};
+  margin-bottom: ${themeCssVariables.spacing[6]};
 `;
 
 const StyledSectionTitle = styled.h2`
-  font-size: ${({ theme }) => theme.font.size.xl};
-  margin-top: ${({ theme }) => theme.spacing(6)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  font-size: ${themeCssVariables.font.size.xl};
+  margin-top: ${themeCssVariables.spacing[6]};
+  margin-bottom: ${themeCssVariables.spacing[3]};
   align-self: flex-start;
 `;
 
 const StyledText = styled.p`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
   width: 100%;
 `;
 
 const StyledList = styled.ul`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
-  padding-left: ${({ theme }) => theme.spacing(6)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
+  padding-left: ${themeCssVariables.spacing[6]};
   width: 100%;
 `;
 
 const StyledListItem = styled.li`
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${themeCssVariables.spacing[2]};
 `;
 
 export const TOS = () => {
@@ -48,13 +49,13 @@ export const TOS = () => {
 
       <StyledSectionTitle>Introduction</StyledSectionTitle>
       <StyledText>
-        Welcome to GB Hotels Srl (“Company”, “we”, “our”, “us”). These Terms of Service (“Terms”, “Terms of Service”) govern the use of our internal CRM at https://www.gbcrm.it (the “Service”) operated by GB Hotels Srl.
+        Welcome to GB Hotels Srl ("Company", "we", "our", "us"). These Terms of Service ("Terms", "Terms of Service") govern the use of our internal CRM at https://www.gbcrm.it (the "Service") operated by GB Hotels Srl.
       </StyledText>
       <StyledText>
         Our Privacy Policy also governs your use of our Service and explains how we collect, safeguard and disclose information that results from your use of our web pages. Please read it here: <Link to={AppPath.Privacy}>Privacy Policy</Link>.
       </StyledText>
       <StyledText>
-        Your agreement with us includes these Terms and our Privacy Policy (“Agreements”). You acknowledge that you have read and understood Agreements, and agree to them.
+        Your agreement with us includes these Terms and our Privacy Policy ("Agreements"). You acknowledge that you have read and understood Agreements, and agree to them.
       </StyledText>
       <StyledText>
         If you do not agree with (or cannot comply with) Agreements, then you may not use the Service. These Terms apply to all visitors, users and others who wish to access or use Service.
@@ -67,7 +68,7 @@ export const TOS = () => {
 
       <StyledSectionTitle>Content</StyledSectionTitle>
       <StyledText>
-        Our Service allows you to post, link, store, share and otherwise make available certain information, text, graphics, or other material (“Content”). You are responsible for Content that you post on or through Service, including its legality, reliability, and appropriateness.
+        Our Service allows you to post, link, store, share and otherwise make available certain information, text, graphics, or other material ("Content"). You are responsible for Content that you post on or through Service, including its legality, reliability, and appropriateness.
       </StyledText>
       <StyledText>
         By posting Content on or through Service, you represent and warrant that you have the right to use it. You retain any and all of your rights to any Content you submit, but you grant us the right and license to use, modify, and distribute such Content on and through Service to provide the Service to you and your organization.

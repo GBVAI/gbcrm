@@ -1,41 +1,42 @@
-import styled from '@emotion/styled';
+import { styled } from '@linaria/react';
+import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: ${({ theme }) => theme.spacing(10)};
+  padding: ${themeCssVariables.spacing[10]};
   max-width: 800px;
   margin: 0 auto;
-  color: ${({ theme }) => theme.font.color.primary};
+  color: ${themeCssVariables.font.color.primary};
   line-height: 1.6;
 `;
 
 const StyledTitle = styled.h1`
-  font-size: ${({ theme }) => theme.font.size.xl};
-  margin-bottom: ${({ theme }) => theme.spacing(6)};
+  font-size: ${themeCssVariables.font.size.xl};
+  margin-bottom: ${themeCssVariables.spacing[6]};
 `;
 
 const StyledSectionTitle = styled.h2`
-  font-size: ${({ theme }) => theme.font.size.xl};
-  margin-top: ${({ theme }) => theme.spacing(6)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  font-size: ${themeCssVariables.font.size.xl};
+  margin-top: ${themeCssVariables.spacing[6]};
+  margin-bottom: ${themeCssVariables.spacing[3]};
   align-self: flex-start;
 `;
 
 const StyledText = styled.p`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
   width: 100%;
 `;
 
 const StyledList = styled.ol`
-  margin-bottom: ${({ theme }) => theme.spacing(4)};
-  padding-left: ${({ theme }) => theme.spacing(6)};
+  margin-bottom: ${themeCssVariables.spacing[4]};
+  padding-left: ${themeCssVariables.spacing[6]};
   width: 100%;
 `;
 
 const StyledListItem = styled.li`
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${themeCssVariables.spacing[2]};
 `;
 
 export const Privacy = () => {
@@ -47,10 +48,10 @@ export const Privacy = () => {
 
       <StyledSectionTitle>Introduction</StyledSectionTitle>
       <StyledText>
-        Welcome to GB Hotels Srl (“GB Hotels Srl”, “Company”, “we”, “us”, or “our”).
+        Welcome to GB Hotels Srl ("GB Hotels Srl", "Company", "we", "us", or "our").
       </StyledText>
       <StyledText>
-        GB Hotels Srl operates the website https://www.gbcrm.it and related cloud services (collectively, the “Service”).
+        GB Hotels Srl operates the website https://www.gbcrm.it and related cloud services (collectively, the "Service").
       </StyledText>
       <StyledText>
         This Privacy Policy governs your access to and use of the Service and explains how we collect, use, safeguard, and disclose information that results from your use of our Service.
@@ -81,7 +82,7 @@ export const Privacy = () => {
           <strong>Data Controller</strong> – means a person or organization who (alone or jointly with others) determines the purposes and means of processing Personal Data. For the purposes of this Privacy Policy, GB Hotels Srl is the Data Controller for Personal Data we collect directly from you.
         </StyledListItem>
         <StyledListItem>
-          <strong>Data Processor (or Service Provider)</strong> – means a person or organization which processes Personal Data on behalf of the Data Controller. We may use the services of various third-party service providers to process your data more effectively. When you use GB Hotels Srl’s cloud-based CRM, GB Hotels Srl acts as a Data Processor for the Customer Data you input into our platform on behalf of your organization.
+          <strong>Data Processor (or Service Provider)</strong> – means a person or organization which processes Personal Data on behalf of the Data Controller. We may use the services of various third-party service providers to process your data more effectively. When you use GB Hotels Srl's cloud-based CRM, GB Hotels Srl acts as a Data Processor for the Customer Data you input into our platform on behalf of your organization.
         </StyledListItem>
         <StyledListItem>
           <strong>Data Subject</strong> – is any living individual who is the subject of Personal Data (you, or any individual whose data you provide to us).
@@ -100,10 +101,10 @@ export const Privacy = () => {
           <strong>Personal Data You Provide:</strong> While using our Service (for example, when creating an account, subscribing to our newsletter, or contacting support), we may ask you to provide certain personally identifiable information. This information may include, but is not limited to: your name, email address, phone number, company/organization name, job title, billing information, or any other details you choose to provide.
         </StyledListItem>
         <StyledListItem>
-          <strong>Customer Data (CRM Data):</strong> If you are using GB Hotels Srl’s cloud-based CRM application, you may input or upload personal information about third parties (such as your customers, leads, or contacts) into our Service. In these cases, you (or your organization) act as the Data Controller for such Customer Data, and GB Hotels Srl acts as a Data Processor on your behalf.
+          <strong>Customer Data (CRM Data):</strong> If you are using GB Hotels Srl's cloud-based CRM application, you may input or upload personal information about third parties (such as your customers, leads, or contacts) into our Service. In these cases, you (or your organization) act as the Data Controller for such Customer Data, and GB Hotels Srl acts as a Data Processor on your behalf.
         </StyledListItem>
         <StyledListItem>
-          <strong>Usage Data:</strong> When you interact with our website or app, we automatically collect certain technical information about your visit. This Usage Data may include information such as your device’s Internet Protocol address (IP address), browser type and version, the pages you visit on our Service, the date and time of your visit, time spent on those pages, and other diagnostic data.
+          <strong>Usage Data:</strong> When you interact with our website or app, we automatically collect certain technical information about your visit. This Usage Data may include information such as your device's Internet Protocol address (IP address), browser type and version, the pages you visit on our Service, the date and time of your visit, time spent on those pages, and other diagnostic data.
         </StyledListItem>
         <StyledListItem>
           <strong>Cookies and Similar Technologies:</strong> We use cookies and similar tracking technologies to operate and analyze our Service. Cookies are small data files sent to your browser from a website and stored on your device.
