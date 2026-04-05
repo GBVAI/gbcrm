@@ -3,7 +3,7 @@ import { themeCssVariables } from 'twenty-ui/theme-constants';
 import { useLingui, Trans } from '@lingui/react/macro';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
-import { CoreObjectNameSingular } from '@/object-metadata/types/CoreObjectNameSingular';
+import { CoreObjectNameSingular } from 'twenty-shared/types';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { useUpsertRecordsInStore } from '@/object-record/record-store/hooks/useUpsertRecordsInStore';
 import { isDefined } from 'twenty-shared/utils';
@@ -93,12 +93,12 @@ const StyledDirectionIcon = styled.div<{ direction?: string }>`
   align-items: center;
   border: 1px solid ${themeCssVariables.border.color.medium};
   border-radius: ${themeCssVariables.spacing[1]};
-  color: ${({ theme, direction }) =>
+  color: ${({ direction }) =>
     direction === 'INBOUND'
-      ? theme.color.green
+      ? themeCssVariables.color.green
       : direction === 'OUTBOUND'
-        ? theme.color.blue
-        : theme.font.color.tertiary};
+        ? themeCssVariables.color.blue
+        : themeCssVariables.font.color.tertiary};
   display: flex;
   padding: ${themeCssVariables.spacing[1]};
 `;

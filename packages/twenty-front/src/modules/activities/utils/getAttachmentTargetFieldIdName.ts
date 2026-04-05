@@ -1,5 +1,5 @@
 import { getActivityTargetObjectFieldIdName } from '@/activities/utils/getActivityTargetObjectFieldIdName';
-import { type ObjectMetadataItem } from '@/object-metadata/types/ObjectMetadataItem';
+import { type EnrichedObjectMetadataItem } from '@/object-metadata/types/EnrichedObjectMetadataItem';
 import { FieldMetadataType, RelationType } from '~/generated-metadata/graphql';
 
 import { isDefined } from 'twenty-shared/utils';
@@ -9,7 +9,7 @@ export const getAttachmentTargetFieldIdName = ({
   targetObjectNameSingular,
   preferMorphRelation = false,
 }: {
-  attachmentObjectMetadataItem: Pick<ObjectMetadataItem, 'readableFields'>;
+  attachmentObjectMetadataItem: Pick<EnrichedObjectMetadataItem, 'readableFields'>;
   targetObjectNameSingular: string;
   preferMorphRelation?: boolean;
 }) => {
