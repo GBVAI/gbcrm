@@ -9,23 +9,23 @@ import type {
 } from 'twenty-shared/ai';
 import { Repository } from 'typeorm';
 
-import { AgentChatCancelSubscriberService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-cancel-subscriber.service';
-import { AgentChatEventPublisherService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-event-publisher.service';
-import { toDisplayCredits } from 'src/engine/core-modules/usage/utils/to-display-credits.util';
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { Process } from 'src/engine/core-modules/message-queue/decorators/process.decorator';
 import { Processor } from 'src/engine/core-modules/message-queue/decorators/processor.decorator';
 import { MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
+import { toDisplayCredits } from 'src/engine/core-modules/usage/utils/to-display-credits.util';
+import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { AgentMessageRole } from 'src/engine/metadata-modules/ai/ai-agent-execution/entities/agent-message.entity';
-import { AgentChatStreamingService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-streaming.service';
 import { computeCostBreakdown } from 'src/engine/metadata-modules/ai/ai-billing/utils/compute-cost-breakdown.util';
 import { convertDollarsToBillingCredits } from 'src/engine/metadata-modules/ai/ai-billing/utils/convert-dollars-to-billing-credits.util';
 import { extractCacheCreationTokens } from 'src/engine/metadata-modules/ai/ai-billing/utils/extract-cache-creation-tokens.util';
-import type { AIModelConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-model-config.type';
 import { AgentChatThreadEntity } from 'src/engine/metadata-modules/ai/ai-chat/entities/agent-chat-thread.entity';
+import { AgentChatCancelSubscriberService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-cancel-subscriber.service';
+import { AgentChatEventPublisherService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-event-publisher.service';
+import { AgentChatStreamingService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat-streaming.service';
 import { AgentChatService } from 'src/engine/metadata-modules/ai/ai-chat/services/agent-chat.service';
 import { ChatExecutionService } from 'src/engine/metadata-modules/ai/ai-chat/services/chat-execution.service';
 import { getCancelChannel } from 'src/engine/metadata-modules/ai/ai-chat/utils/get-cancel-channel.util';
+import type { AIModelConfig } from 'src/engine/metadata-modules/ai/ai-models/types/ai-model-config.type';
 
 import { STREAM_AGENT_CHAT_JOB_NAME } from './stream-agent-chat-job-name.constant';
 import { type StreamAgentChatJobData } from './stream-agent-chat-job.types';
@@ -96,6 +96,7 @@ export class StreamAgentChatJob {
           },
         })
         .catch(() => {});
+      throw error;
     } finally {
       await this.cancelSubscriberService.unsubscribe(cancelChannel);
       await this.threadRepository
@@ -144,6 +145,7 @@ export class StreamAgentChatJob {
                 part.type === 'text' || part.type === 'file',
             ),
           },
+          workspaceId: data.workspaceId,
         });
 
     userMessagePromise.catch(() => {});
@@ -189,6 +191,7 @@ export class StreamAgentChatJob {
       };
       let lastStepConversationSize = 0;
       let totalCacheCreationTokens = 0;
+      let streamError: unknown;
 
       // onFinish fires before the uiStream is fully drained. We use this
       // promise to coordinate: the IIFE waits for DB persist to complete
@@ -212,6 +215,14 @@ export class StreamAgentChatJob {
             });
           };
 
+          const onCompaction = () => {
+            writer.write({
+              type: 'data-compaction' as const,
+              id: `compaction-${data.threadId}`,
+              data: {},
+            });
+          };
+
           const { stream, modelConfig } =
             await this.chatExecutionService.streamChat({
               workspace,
@@ -220,7 +231,9 @@ export class StreamAgentChatJob {
               browsingContext: data.browsingContext,
               modelId: data.modelId,
               onCodeExecutionUpdate,
+              onCompaction,
               abortSignal,
+              conversationSizeTokens: data.conversationSizeTokens,
             });
 
           const titleWritePromise = titlePromise.then((generatedTitle) => {
@@ -236,6 +249,8 @@ export class StreamAgentChatJob {
           writer.merge(
             stream.toUIMessageStream({
               onError: (error) => {
+                streamError = error;
+
                 return error instanceof Error ? error.message : String(error);
               },
               sendStart: false,
@@ -261,6 +276,7 @@ export class StreamAgentChatJob {
                   await this.handleStreamFinish({
                     responseMessage,
                     threadId: data.threadId,
+                    workspaceId: data.workspaceId,
                     streamUsage,
                     lastStepConversationSize,
                     modelConfig,
@@ -295,13 +311,16 @@ export class StreamAgentChatJob {
 
           await streamFinishedPromise;
 
-          await this.eventPublisherService.publish({
-            threadId: data.threadId,
-            workspaceId: data.workspaceId,
-            event: { type: 'message-persisted', messageId: data.threadId },
-          });
-
-          resolve();
+          if (streamError) {
+            reject(streamError);
+          } else {
+            await this.eventPublisherService.publish({
+              threadId: data.threadId,
+              workspaceId: data.workspaceId,
+              event: { type: 'message-persisted', messageId: data.threadId },
+            });
+            resolve();
+          }
         } catch (error) {
           reject(error);
         }
@@ -400,6 +419,7 @@ export class StreamAgentChatJob {
   private async handleStreamFinish({
     responseMessage,
     threadId,
+    workspaceId,
     streamUsage,
     lastStepConversationSize,
     modelConfig,
@@ -407,6 +427,7 @@ export class StreamAgentChatJob {
   }: {
     responseMessage: Omit<ExtendedUIMessage, 'id'>;
     threadId: string;
+    workspaceId: string;
     streamUsage: {
       inputTokens: number;
       outputTokens: number;
@@ -427,6 +448,7 @@ export class StreamAgentChatJob {
       threadId,
       uiMessage: responseMessage,
       turnId: userMessage.turnId ?? undefined,
+      workspaceId,
     });
 
     await this.threadRepository.update(threadId, {

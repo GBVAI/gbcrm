@@ -42,7 +42,11 @@ type WildixOriginateResult = {
   wildixResponseType: 'result';
 };
 
-export type WildixMappingStatus = 'linked' | 'not-found' | 'ambiguous' | 'stale';
+export type WildixMappingStatus =
+  | 'linked'
+  | 'not-found'
+  | 'ambiguous'
+  | 'stale';
 
 export type WildixActiveCall = {
   sipCallId: string;
@@ -293,7 +297,8 @@ export class WildixCallControlService {
     }
 
     return (
-      error.statusCode === 400 && error.message.toLowerCase().includes('channel')
+      error.statusCode === 400 &&
+      error.message.toLowerCase().includes('channel')
     );
   }
 
@@ -480,9 +485,7 @@ export class WildixCallControlService {
     const rawDomain = this.twentyConfigService.get('WILDIX_WMS_DOMAIN');
 
     if (!isDefined(rawDomain) || rawDomain.trim() === '') {
-      throw new WildixConfigurationError(
-        'WILDIX_WMS_DOMAIN is not configured',
-      );
+      throw new WildixConfigurationError('WILDIX_WMS_DOMAIN is not configured');
     }
 
     const strippedDomain = rawDomain
@@ -614,7 +617,10 @@ export class WildixCallControlService {
       ) {
         const firstError = maybeBody.errors[0] as Record<string, unknown>;
 
-        if (typeof firstError.message === 'string' && firstError.message !== '') {
+        if (
+          typeof firstError.message === 'string' &&
+          firstError.message !== ''
+        ) {
           return firstError.message;
         }
       }

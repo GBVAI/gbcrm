@@ -1,23 +1,41 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 
 import { ALL_METADATA_NAME } from 'twenty-shared/metadata';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { v4 } from 'uuid';
 
 import { ApplicationRegistrationService } from 'src/engine/core-modules/application/application-registration/application-registration.service';
 import { ApplicationService } from 'src/engine/core-modules/application/application.service';
 import { SdkClientGenerationService } from 'src/engine/core-modules/sdk-client/sdk-client-generation.service';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
-import { DataSourceService } from 'src/engine/metadata-modules/data-source/data-source.service';
+import { UpgradeMigrationService } from 'src/engine/core-modules/upgrade/services/upgrade-migration.service';
+import { UpgradeSequenceReaderService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-reader.service';
+import { type UpgradeMigrationStatus } from 'src/engine/core-modules/upgrade/upgrade-migration.entity';
+import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { getMetadataFlatEntityMapsKey } from 'src/engine/metadata-modules/flat-entity/utils/get-metadata-flat-entity-maps-key.util';
 import { getMetadataRelatedMetadataNames } from 'src/engine/metadata-modules/flat-entity/utils/get-metadata-related-metadata-names.util';
 import { ObjectMetadataEntity } from 'src/engine/metadata-modules/object-metadata/object-metadata.entity';
 import { WorkspaceCacheStorageService } from 'src/engine/workspace-cache-storage/workspace-cache-storage.service';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkspaceDataSourceService } from 'src/engine/workspace-datasource/workspace-datasource.service';
-import { SeededWorkspacesIds } from 'src/engine/workspace-manager/dev-seeder/core/constants/seeder-workspaces.constant';
+import {
+  type SeededEmptyWorkspacesIds,
+  type SeededWorkspacesIds,
+  SEEDER_CREATE_EMPTY_WORKSPACE_INPUT,
+  SEEDER_CREATE_WORKSPACE_INPUT,
+} from 'src/engine/workspace-manager/dev-seeder/core/constants/seeder-workspaces.constant';
+import { seedBillingCustomers } from 'src/engine/workspace-manager/dev-seeder/core/billing/utils/seed-billing-customers.util';
+import { seedBillingSubscriptions } from 'src/engine/workspace-manager/dev-seeder/core/billing/utils/seed-billing-subscriptions.util';
 import { DevSeederPermissionsService } from 'src/engine/workspace-manager/dev-seeder/core/services/dev-seeder-permissions.service';
-import { seedCoreSchema } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-core-schema.util';
+import { seedAgents } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-agents.util';
+import { seedApiKeys } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-api-keys.util';
+import { seedFeatureFlags } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-feature-flags.util';
+import { seedMetadataEntities } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-metadata-entities.util';
+import { seedServerId } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-server-id.util';
+import { seedUserWorkspaces } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-user-workspaces.util';
+import { seedUsers } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-users.util';
+import { createWorkspace } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-workspace.util';
 import { seedPageLayoutTabs } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-page-layout-tabs.util';
 import { seedPageLayoutWidgets } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-page-layout-widgets.util';
 import { seedPageLayouts } from 'src/engine/workspace-manager/dev-seeder/core/utils/seed-page-layouts.util';
@@ -33,7 +51,6 @@ export class DevSeederService {
     private readonly workspaceCacheStorageService: WorkspaceCacheStorageService,
     private readonly twentyConfigService: TwentyConfigService,
     private readonly workspaceDataSourceService: WorkspaceDataSourceService,
-    private readonly dataSourceService: DataSourceService,
     private readonly twentyStandardApplicationService: TwentyStandardApplicationService,
     private readonly devSeederMetadataService: DevSeederMetadataService,
     private readonly devSeederPermissionsService: DevSeederPermissionsService,
@@ -42,8 +59,12 @@ export class DevSeederService {
     private readonly applicationRegistrationService: ApplicationRegistrationService,
     private readonly workspaceCacheService: WorkspaceCacheService,
     private readonly sdkClientGenerationService: SdkClientGenerationService,
+    private readonly upgradeMigrationService: UpgradeMigrationService,
+    private readonly upgradeSequenceReaderService: UpgradeSequenceReaderService,
     @InjectDataSource()
     private readonly coreDataSource: DataSource,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepository: Repository<WorkspaceEntity>,
   ) {}
 
   public async seedDev(
@@ -52,14 +73,20 @@ export class DevSeederService {
   ): Promise<void> {
     const light = options?.light ?? false;
     const isBillingEnabled = this.twentyConfigService.get('IS_BILLING_ENABLED');
-    const appVersion = this.twentyConfigService.get('APP_VERSION');
+    const appVersion = this.twentyConfigService.get('APP_VERSION') ?? 'unknown';
 
-    await seedCoreSchema({
-      dataSource: this.coreDataSource,
+    const lastAttemptedInstanceCommand =
+      await this.upgradeMigrationService.getLastAttemptedInstanceCommandOrThrow();
+    const initialCursor =
+      this.upgradeSequenceReaderService.getInitialCursorForNewWorkspace(
+        lastAttemptedInstanceCommand,
+      );
+
+    await this.seedCoreSchema({
       workspaceId,
-      applicationService: this.applicationService,
       seedBilling: isBillingEnabled,
       appVersion,
+      initialCursor,
     });
 
     await this.applicationRegistrationService.createCliRegistrationIfNotExists();
@@ -74,11 +101,9 @@ export class DevSeederService {
       ['flatApplicationMaps', 'featureFlagsMap'],
     );
 
-    const dataSourceMetadata =
-      await this.dataSourceService.createDataSourceMetadata(
-        workspaceId,
-        schemaName,
-      );
+    await this.workspaceRepository.update(workspaceId, {
+      databaseSchema: schemaName,
+    });
 
     const { workspaceCustomFlatApplication, twentyStandardFlatApplication } =
       await this.applicationService.findWorkspaceTwentyStandardAndCustomApplicationOrThrow(
@@ -101,7 +126,6 @@ export class DevSeederService {
     });
 
     await this.devSeederMetadataService.seed({
-      dataSourceMetadata,
       workspaceId,
       light,
     });
@@ -129,10 +153,10 @@ export class DevSeederService {
       this.coreDataSource,
       'core',
       workspaceId,
-      workspaceCustomFlatApplication.id,
+      twentyStandardFlatApplication.id,
     );
     await seedPageLayoutTabs({
-      applicationId: workspaceCustomFlatApplication.id,
+      applicationId: twentyStandardFlatApplication.id,
       workspaceId,
       dataSource: this.coreDataSource,
       schemaName: 'core',
@@ -150,7 +174,7 @@ export class DevSeederService {
       schemaName: 'core',
       workspaceId,
       objectMetadataItems,
-      workspaceCustomApplicationId: workspaceCustomFlatApplication.id,
+      applicationId: twentyStandardFlatApplication.id,
     });
 
     const relatedPageLayoutCacheKeysToInvalidate = [
@@ -165,12 +189,173 @@ export class DevSeederService {
     );
 
     await this.devSeederDataService.seed({
-      schemaName: dataSourceMetadata.schema,
+      schemaName,
       workspaceId,
       featureFlags: featureFlagsMap,
       light,
     });
 
     await this.workspaceCacheStorageService.flush(workspaceId, undefined);
+  }
+
+  public async seedEmptyWorkspace(
+    workspaceId: SeededEmptyWorkspacesIds,
+  ): Promise<void> {
+    const appVersion = this.twentyConfigService.get('APP_VERSION') ?? 'unknown';
+    const lastAttemptedInstanceCommand =
+      await this.upgradeMigrationService.getLastAttemptedInstanceCommandOrThrow();
+    const initialCursor =
+      this.upgradeSequenceReaderService.getInitialCursorForNewWorkspace(
+        lastAttemptedInstanceCommand,
+      );
+
+    const createWorkspaceStaticInput =
+      SEEDER_CREATE_EMPTY_WORKSPACE_INPUT[workspaceId];
+    const queryRunner = this.coreDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const workspaceCustomApplicationId = v4();
+
+      await createWorkspace({
+        queryRunner,
+        schemaName: 'core',
+        createWorkspaceInput: {
+          ...createWorkspaceStaticInput,
+          workspaceCustomApplicationId,
+        },
+      });
+
+      await this.applicationService.createWorkspaceCustomApplication(
+        {
+          workspaceId,
+          applicationId: workspaceCustomApplicationId,
+        },
+        queryRunner,
+      );
+
+      await this.applicationService.createTwentyStandardApplication(
+        {
+          workspaceId,
+          skipCacheInvalidation: true,
+        },
+        queryRunner,
+      );
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+
+    const { workspaceCustomFlatApplication } =
+      await this.applicationService.findWorkspaceTwentyStandardAndCustomApplicationOrThrow(
+        {
+          workspaceId,
+        },
+      );
+
+    await this.devSeederPermissionsService.initMinimalPermissionsAndActivateWorkspace(
+      {
+        workspaceId,
+        workspaceCustomFlatApplication,
+      },
+    );
+
+    await this.upgradeMigrationService.markAsWorkspaceInitial({
+      name: initialCursor.name,
+      workspaceId,
+      executedByVersion: appVersion,
+      status: initialCursor.status,
+    });
+
+    await this.workspaceCacheStorageService.flush(workspaceId, undefined);
+  }
+
+  private async seedCoreSchema({
+    workspaceId,
+    appVersion,
+    initialCursor,
+    seedBilling = true,
+  }: {
+    workspaceId: SeededWorkspacesIds;
+    appVersion: string;
+    initialCursor: { name: string; status: UpgradeMigrationStatus };
+    seedBilling?: boolean;
+  }): Promise<void> {
+    const schemaName = 'core';
+    const createWorkspaceStaticInput =
+      SEEDER_CREATE_WORKSPACE_INPUT[workspaceId];
+    const queryRunner = this.coreDataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const workspaceCustomApplicationId = v4();
+
+      await createWorkspace({
+        queryRunner,
+        schemaName,
+        createWorkspaceInput: {
+          ...createWorkspaceStaticInput,
+          workspaceCustomApplicationId,
+        },
+      });
+
+      await this.applicationService.createWorkspaceCustomApplication(
+        {
+          workspaceId,
+          applicationId: workspaceCustomApplicationId,
+        },
+        queryRunner,
+      );
+
+      await seedServerId({ queryRunner, schemaName });
+      await seedUsers({ queryRunner, schemaName });
+      await seedUserWorkspaces({ queryRunner, schemaName, workspaceId });
+
+      await this.applicationService.createTwentyStandardApplication(
+        {
+          workspaceId,
+          skipCacheInvalidation: true,
+        },
+        queryRunner,
+      );
+
+      await seedAgents({ queryRunner, schemaName, workspaceId });
+      await seedApiKeys({ queryRunner, schemaName, workspaceId });
+      await seedFeatureFlags({ queryRunner, schemaName, workspaceId });
+
+      if (seedBilling) {
+        await seedBillingCustomers({ queryRunner, schemaName, workspaceId });
+        await seedBillingSubscriptions({
+          queryRunner,
+          schemaName,
+          workspaceId,
+        });
+      }
+
+      await seedMetadataEntities({ queryRunner, schemaName, workspaceId });
+
+      await this.upgradeMigrationService.markAsWorkspaceInitial({
+        name: initialCursor.name,
+        workspaceId,
+        executedByVersion: appVersion,
+        status: initialCursor.status,
+        queryRunner,
+      });
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

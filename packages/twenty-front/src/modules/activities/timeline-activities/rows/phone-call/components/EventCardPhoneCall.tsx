@@ -4,8 +4,8 @@ import { useLingui, Trans } from '@lingui/react/macro';
 import { parsePhoneNumber } from 'libphonenumber-js';
 
 import { CoreObjectNameSingular } from 'twenty-shared/types';
+import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
-import { useUpsertRecordsInStore } from '@/object-record/record-store/hooks/useUpsertRecordsInStore';
 import { isDefined } from 'twenty-shared/utils';
 import { isNonEmptyString } from '@sniptt/guards';
 import { IconArrowDown, IconArrowUp, IconPhone } from 'twenty-ui/display';
@@ -43,9 +43,9 @@ const StyledPhoneCallContent = styled.div`
 const StyledPhoneCallTop = styled.div`
   align-items: center;
   display: flex;
-  width: 100%;
   gap: ${themeCssVariables.spacing[2]};
   justify-content: space-between;
+  width: 100%;
 `;
 
 const StyledPhoneCallTitle = styled.div`
@@ -60,8 +60,8 @@ const StyledPhoneCallMeta = styled.div`
   align-items: center;
   color: ${themeCssVariables.font.color.tertiary};
   display: flex;
-  gap: ${themeCssVariables.spacing[1]};
   font-size: ${themeCssVariables.font.size.sm};
+  gap: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledPhoneCallSummary = styled.div`
@@ -75,8 +75,8 @@ const StyledPhoneCallDetail = styled.div`
   align-items: center;
   color: ${themeCssVariables.font.color.secondary};
   display: flex;
-  gap: ${themeCssVariables.spacing[1]};
   font-size: ${themeCssVariables.font.size.sm};
+  gap: ${themeCssVariables.spacing[1]};
 `;
 
 const StyledPhoneLink = styled.a`
@@ -89,18 +89,21 @@ const StyledPhoneLink = styled.a`
   }
 `;
 
-const StyledDirectionIcon = styled.div<{ direction?: string }>`
+const StyledDirectionIcon = styled.div`
   align-items: center;
   border: 1px solid ${themeCssVariables.border.color.medium};
   border-radius: ${themeCssVariables.spacing[1]};
-  color: ${({ direction }) =>
-    direction === 'INBOUND'
-      ? themeCssVariables.color.green
-      : direction === 'OUTBOUND'
-        ? themeCssVariables.color.blue
-        : themeCssVariables.font.color.tertiary};
+  color: ${themeCssVariables.font.color.tertiary};
   display: flex;
   padding: ${themeCssVariables.spacing[1]};
+
+  &[data-direction='INBOUND'] {
+    color: ${themeCssVariables.color.green};
+  }
+
+  &[data-direction='OUTBOUND'] {
+    color: ${themeCssVariables.color.blue};
+  }
 `;
 
 const formatDuration = (seconds: number | null): string => {
@@ -147,7 +150,6 @@ export const EventCardPhoneCall = ({
   phoneCallId: string;
 }) => {
   const { t: tFn } = useLingui();
-  const { upsertRecordsInStore } = useUpsertRecordsInStore();
 
   const getStatusLabel = (status: string | null): string => {
     switch (status) {
@@ -184,22 +186,21 @@ export const EventCardPhoneCall = ({
       summary: true,
       startedAt: true,
     },
-    onCompleted: (data) => {
-      upsertRecordsInStore({ partialRecords: [data] });
-    },
   });
 
   if (isDefined(error)) {
-    const shouldHandleNotFound = error.graphQLErrors.some(
-      (e) => e.extensions?.code === 'NOT_FOUND',
-    );
-
-    if (shouldHandleNotFound) {
-      return (
-        <div>
-          <Trans>Phone call not found</Trans>
-        </div>
+    if (CombinedGraphQLErrors.is(error)) {
+      const shouldHandleNotFound = error.errors.some(
+        (e) => e.extensions?.code === 'NOT_FOUND',
       );
+
+      if (shouldHandleNotFound) {
+        return (
+          <div>
+            <Trans>Phone call not found</Trans>
+          </div>
+        );
+      }
     }
 
     return (
@@ -219,7 +220,7 @@ export const EventCardPhoneCall = ({
 
   return (
     <StyledEventCardPhoneCallContainer>
-      <StyledDirectionIcon direction={phoneCall.direction ?? undefined}>
+      <StyledDirectionIcon data-direction={phoneCall.direction ?? undefined}>
         {getDirectionIcon(phoneCall.direction)}
       </StyledDirectionIcon>
       <StyledPhoneCallContent>

@@ -5,11 +5,8 @@ import { useState } from 'react';
 
 import { EventCard } from '@/activities/timeline-activities/rows/components/EventCard';
 import { EventCardToggleButton } from '@/activities/timeline-activities/rows/components/EventCardToggleButton';
-import {
-  type EventRowDynamicComponentProps,
-  StyledEventRowItemAction,
-  StyledEventRowItemColumn,
-} from '@/activities/timeline-activities/rows/components/EventRowDynamicComponent';
+import { type EventRowDynamicComponentProps } from '@/activities/timeline-activities/rows/components/EventRowDynamicComponent.types';
+import { EventRowItem } from '@/activities/timeline-activities/rows/components/EventRowItem';
 import { EventCardPhoneCall } from '@/activities/timeline-activities/rows/phone-call/components/EventCardPhoneCall';
 import { isTimelineActivityWithLinkedRecord } from '@/activities/timeline-activities/types/TimelineActivity';
 
@@ -52,8 +49,8 @@ export const EventRowPhoneCall = ({
   return (
     <StyledEventRowPhoneCallContainer>
       <StyledRowContainer>
-        <StyledEventRowItemColumn>{authorFullName}</StyledEventRowItemColumn>
-        <StyledEventRowItemAction>{actionLabel}</StyledEventRowItemAction>
+        <EventRowItem>{authorFullName}</EventRowItem>
+        <EventRowItem variant="action">{actionLabel}</EventRowItem>
         <EventCardToggleButton isOpen={isOpen} setIsOpen={setIsOpen} />
       </StyledRowContainer>
       <EventCard isOpen={isOpen}>

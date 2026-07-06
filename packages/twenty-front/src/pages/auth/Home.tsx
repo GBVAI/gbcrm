@@ -4,20 +4,20 @@ import { AppPath } from 'twenty-shared/types';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 const StyledContainer = styled.div`
+  align-items: center;
+  color: ${themeCssVariables.font.color.primary};
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: ${themeCssVariables.spacing[10]};
-  max-width: 800px;
-  margin: 0 auto;
-  color: ${themeCssVariables.font.color.primary};
   line-height: 1.6;
+  margin: 0 auto;
+  max-width: 800px;
+  padding: ${themeCssVariables.spacing[10]};
 `;
 
 const StyledLogo = styled.img`
-  width: 80px;
   height: 80px;
   margin-bottom: ${themeCssVariables.spacing[4]};
+  width: 80px;
 `;
 
 const StyledTitle = styled.h1`
@@ -26,17 +26,17 @@ const StyledTitle = styled.h1`
 `;
 
 const StyledSubtitle = styled.p`
-  font-size: ${themeCssVariables.font.size.md};
   color: ${themeCssVariables.font.color.secondary};
+  font-size: ${themeCssVariables.font.size.md};
   margin-bottom: ${themeCssVariables.spacing[8]};
   text-align: center;
 `;
 
 const StyledSectionTitle = styled.h2`
-  font-size: ${themeCssVariables.font.size.lg};
-  margin-top: ${themeCssVariables.spacing[6]};
-  margin-bottom: ${themeCssVariables.spacing[3]};
   align-self: flex-start;
+  font-size: ${themeCssVariables.font.size.lg};
+  margin-bottom: ${themeCssVariables.spacing[3]};
+  margin-top: ${themeCssVariables.spacing[6]};
 `;
 
 const StyledText = styled.p`
@@ -55,16 +55,16 @@ const StyledListItem = styled.li`
 `;
 
 const StyledSignInButton = styled(Link)`
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[6]};
-  margin-top: ${themeCssVariables.spacing[6]};
   background-color: ${themeCssVariables.color.blue};
-  color: ${themeCssVariables.font.color.inverted};
   border-radius: ${themeCssVariables.border.radius.md};
-  text-decoration: none;
+  color: ${themeCssVariables.font.color.inverted};
+  display: inline-flex;
   font-weight: ${themeCssVariables.font.weight.medium};
+  justify-content: center;
+  margin-top: ${themeCssVariables.spacing[6]};
+  padding: ${themeCssVariables.spacing[2]} ${themeCssVariables.spacing[6]};
+  text-decoration: none;
 
   &:hover {
     opacity: 0.9;
@@ -79,8 +79,8 @@ const StyledFooterLinks = styled.div`
 
 const StyledFooterLink = styled(Link)`
   color: ${themeCssVariables.font.color.secondary};
-  text-decoration: underline;
   font-size: ${themeCssVariables.font.size.sm};
+  text-decoration: underline;
 `;
 
 export const Home = () => {
@@ -95,8 +95,8 @@ export const Home = () => {
 
       <StyledSectionTitle>What is GBCRM?</StyledSectionTitle>
       <StyledText>
-        GBCRM is a CRM (Customer Relationship Management) application used by
-        GB Hotels Srl to organize contacts, track communications, manage travel
+        GBCRM is a CRM (Customer Relationship Management) application used by GB
+        Hotels Srl to organize contacts, track communications, manage travel
         reservations, and coordinate team activities. It is built on the
         open-source Twenty CRM platform.
       </StyledText>
@@ -131,9 +131,7 @@ export const Home = () => {
       <StyledSignInButton to={AppPath.SignInUp}>Sign In</StyledSignInButton>
 
       <StyledFooterLinks>
-        <StyledFooterLink to={AppPath.Privacy}>
-          Privacy Policy
-        </StyledFooterLink>
+        <StyledFooterLink to={AppPath.Privacy}>Privacy Policy</StyledFooterLink>
         <StyledFooterLink to={AppPath.TOS}>Terms of Service</StyledFooterLink>
       </StyledFooterLinks>
     </StyledContainer>

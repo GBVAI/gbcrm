@@ -1,9 +1,12 @@
+'use client';
+
 import type { MenuNavItemType, MenuScheme } from '@/sections/Menu/types';
 import { theme } from '@/theme';
 import { NavigationMenu } from '@base-ui/react/navigation-menu';
 import { Separator } from '@base-ui/react/separator';
 import { styled } from '@linaria/react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import React from 'react';
 
 const NavList = styled(NavigationMenu.List)`
@@ -27,6 +30,7 @@ const NavLink = styled(NavigationMenu.Link)`
   letter-spacing: 0;
   text-decoration: none;
   text-transform: uppercase;
+  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &[data-scheme='primary'] {
     color: ${theme.colors.primary.text[100]};
@@ -34,6 +38,25 @@ const NavLink = styled(NavigationMenu.Link)`
 
   &[data-scheme='secondary'] {
     color: ${theme.colors.secondary.text[100]};
+  }
+
+  &:hover {
+    color: ${theme.colors.highlight[100]};
+  }
+
+  position: relative;
+
+  &[data-active] {
+    color: ${theme.colors.highlight[100]};
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 40%;
+      width: 20%;
+      height: 2px;
+      background: ${theme.colors.highlight[100]};
+    }
   }
 
   &:focus-visible {
@@ -61,6 +84,8 @@ type NavProps = {
 };
 
 export function Nav({ navItems, scheme }: NavProps) {
+  const pathname = usePathname();
+
   return (
     <NavigationMenu.Root render={<div />}>
       <NavList>
@@ -69,6 +94,9 @@ export function Nav({ navItems, scheme }: NavProps) {
             <NavigationMenu.Item>
               <NavLink
                 data-scheme={scheme}
+                data-active={
+                  pathname?.startsWith(item.href) || undefined
+                }
                 render={<Link href={item.href} />}
               >
                 {item.label}

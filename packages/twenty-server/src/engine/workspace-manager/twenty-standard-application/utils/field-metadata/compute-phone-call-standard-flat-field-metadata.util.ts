@@ -536,26 +536,4 @@ export const buildPhoneCallStandardFlatFieldMetadatas = ({
     twentyStandardApplicationId,
     now,
   }),
-  favorites: createStandardRelationFieldFlatMetadata({
-    objectName,
-    workspaceId,
-    context: {
-      type: FieldMetadataType.RELATION,
-      morphId: null,
-      fieldName: 'favorites',
-      label: 'Favorites',
-      description: 'Favorites linked to the phone call',
-      icon: 'IconHeart',
-      isNullable: false,
-      targetObjectName: 'favorite',
-      targetFieldName: 'phoneCall',
-      settings: {
-        relationType: RelationType.ONE_TO_MANY,
-      },
-    },
-    standardObjectMetadataRelatedEntityIds,
-    dependencyFlatEntityMaps,
-    twentyStandardApplicationId,
-    now,
-  }),
 });

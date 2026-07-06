@@ -9,13 +9,17 @@ export const getAttachmentTargetFieldIdName = ({
   targetObjectNameSingular,
   preferMorphRelation = false,
 }: {
-  attachmentObjectMetadataItem: Pick<EnrichedObjectMetadataItem, 'readableFields'>;
+  attachmentObjectMetadataItem: Pick<
+    EnrichedObjectMetadataItem,
+    'readableFields'
+  >;
   targetObjectNameSingular: string;
   preferMorphRelation?: boolean;
 }) => {
-  const activeReadableFields = attachmentObjectMetadataItem.readableFields.filter(
-    (field) => field.isActive,
-  );
+  const activeReadableFields =
+    attachmentObjectMetadataItem.readableFields.filter(
+      (field) => field.isActive,
+    );
 
   const expectedLegacyJoinColumnName = getActivityTargetObjectFieldIdName({
     nameSingular: targetObjectNameSingular,
@@ -23,7 +27,6 @@ export const getAttachmentTargetFieldIdName = ({
 
   const expectedMorphJoinColumnName = getActivityTargetObjectFieldIdName({
     nameSingular: targetObjectNameSingular,
-    isMorphRelation: true,
   });
 
   const legacyJoinColumnName = activeReadableFields
@@ -55,7 +58,9 @@ export const getAttachmentTargetFieldIdName = ({
 
   const morphJoinColumnName = activeReadableFields
     .filter((field) => field.type === FieldMetadataType.MORPH_RELATION)
-    .filter((field) => field.settings?.relationType === RelationType.MANY_TO_ONE)
+    .filter(
+      (field) => field.settings?.relationType === RelationType.MANY_TO_ONE,
+    )
     .find((field) => {
       const joinColumnName = field.settings?.joinColumnName;
 
@@ -78,15 +83,11 @@ export const getAttachmentTargetFieldIdName = ({
 
   if (preferMorphRelation) {
     return (
-      morphJoinColumnName ??
-      legacyJoinColumnName ??
-      expectedMorphJoinColumnName
+      morphJoinColumnName ?? legacyJoinColumnName ?? expectedMorphJoinColumnName
     );
   }
 
   return (
-    legacyJoinColumnName ??
-    morphJoinColumnName ??
-    expectedLegacyJoinColumnName
+    legacyJoinColumnName ?? morphJoinColumnName ?? expectedLegacyJoinColumnName
   );
 };

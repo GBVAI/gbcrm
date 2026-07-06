@@ -1,9 +1,6 @@
 #!/bin/sh
 set -e
 
-# Save original APP_VERSION for the running application
-ORIGINAL_APP_VERSION="${APP_VERSION:-}"
-
 setup_and_migrate_db() {
     if [ "${DISABLE_DB_MIGRATIONS}" = "true" ]; then
         echo "Database setup and migrations are disabled, skipping..."
@@ -20,28 +17,10 @@ setup_and_migrate_db() {
     fi
 
     yarn command:prod cache:flush
-
-    # The upgrade runner only processes ONE version step per invocation.
-    # Step through each supported version sequentially.
-    # Workspaces already at or above a version are automatically skipped.
-    for step_version in 1.20.0 1.21.0; do
-        echo ""
-        echo "======================================================"
-        echo "  Upgrade step: APP_VERSION=${step_version}"
-        echo "======================================================"
-        export APP_VERSION="${step_version}"
-        yarn command:prod upgrade
-        echo "  Upgrade step ${step_version} completed."
-    done
-
+    yarn command:prod upgrade
     yarn command:prod cache:flush
 
-    # Restore original APP_VERSION for the running application
-    if [ -n "${ORIGINAL_APP_VERSION}" ]; then
-        export APP_VERSION="${ORIGINAL_APP_VERSION}"
-    fi
-
-    # Sync standard objects for new objects added since last upgrade (e.g. phoneCall)
+    # Sync standard objects for GBCRM additions such as phoneCall.
     if yarn command:prod workspace:sync-standard-objects; then
         echo "Successfully synced standard objects!"
     else

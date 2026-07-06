@@ -35,18 +35,26 @@ const computeStandardViewObjectIds = <O extends AllStandardObjectName>({
 }): StandardObjectViewIds<O> | undefined => {
   const objectDefinition = STANDARD_OBJECTS[objectName];
 
+  const objectDefinitionWithOptionalViews = objectDefinition as {
+    views?: Record<
+      string,
+      {
+        viewFields: Record<string, unknown>;
+        viewGroups?: Record<string, unknown>;
+        viewFieldGroups?: Record<string, unknown>;
+      }
+    >;
+  };
+
   if (!Object.prototype.hasOwnProperty.call(objectDefinition, 'views')) {
     return undefined;
   }
 
-  const viewDefinitions = objectDefinition.views as Record<
-    string,
-    {
-      viewFields: Record<string, unknown>;
-      viewGroups?: Record<string, unknown>;
-      viewFieldGroups?: Record<string, unknown>;
-    }
-  >;
+  const viewDefinitions = objectDefinitionWithOptionalViews.views;
+
+  if (!viewDefinitions) {
+    return undefined;
+  }
   const viewNames = Object.keys(
     viewDefinitions,
   ) as AllStandardObjectViewName<O>[];

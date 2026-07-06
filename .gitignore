@@ -54,3 +54,5 @@ mcp.json
 TRANSLATION_QA_REPORT.md
 .playwright-mcp/
 transcriptions-*/
+.playwright-cli/
+output/playwright/

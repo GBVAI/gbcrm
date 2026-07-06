@@ -1,5 +1,10 @@
 import { styled } from '@linaria/react';
-import { type ReactNode } from 'react';
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 
 import { VISUAL_TOKENS } from './homeVisualTokens';
 
@@ -18,6 +23,7 @@ export type ChipProps = {
   leftComponent?: ReactNode | null;
   className?: string;
   maxWidth?: number;
+  onClick?: () => void;
   variant?: ChipVariant;
 };
 
@@ -25,7 +31,7 @@ const StyledContainer = styled.div<
   Pick<ChipProps, 'clickable' | 'isBold' | 'maxWidth' | 'variant'>
 >`
   --chip-horizontal-padding: ${VISUAL_TOKENS.spacing[1]};
-  --chip-vertical-padding: ${VISUAL_TOKENS.spacing[1]};
+  --chip-vertical-padding: 3px;
 
   align-items: center;
   background-color: ${({ variant }) =>
@@ -70,6 +76,9 @@ const StyledContainer = styled.div<
       ? VISUAL_TOKENS.spacing[2]
       : 'var(--chip-horizontal-padding)'};
   user-select: none;
+  font-family: ${VISUAL_TOKENS.font.family};
+  font-size: ${VISUAL_TOKENS.font.size.md};
+  line-height: 1.4;
 
   font-weight: ${({ isBold }) =>
     isBold
@@ -83,7 +92,7 @@ const StyledContainer = styled.div<
         : variant === ChipVariant.Highlighted
           ? VISUAL_TOKENS.background.transparent.medium
           : variant === ChipVariant.Static
-            ? VISUAL_TOKENS.background.transparent.light
+            ? VISUAL_TOKENS.background.transparent.lighter
             : 'inherit'};
   }
 
@@ -94,7 +103,7 @@ const StyledContainer = styled.div<
         : variant === ChipVariant.Highlighted
           ? VISUAL_TOKENS.background.transparent.strong
           : variant === ChipVariant.Static
-            ? VISUAL_TOKENS.background.transparent.light
+            ? VISUAL_TOKENS.background.transparent.lighter
             : 'inherit'};
   }
 
@@ -105,8 +114,10 @@ const StyledContainer = styled.div<
 
 const StyledLabel = styled.span`
   color: inherit;
+  font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
+  line-height: inherit;
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
@@ -121,15 +132,51 @@ export const Chip = ({
   leftComponent = null,
   className,
   maxWidth,
+  onClick,
   variant = ChipVariant.Regular,
 }: ChipProps) => {
+  const isInteractive = clickable || onClick !== undefined;
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isInteractive) {
+      return;
+    }
+
+    event.stopPropagation();
+  };
+
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!isInteractive) {
+      return;
+    }
+
+    event.stopPropagation();
+    onClick?.();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) {
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <StyledContainer
-      clickable={clickable}
+      clickable={isInteractive}
       isBold={isBold}
       variant={variant}
       className={className}
       maxWidth={maxWidth}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {leftComponent}
       <StyledLabel>{label}</StyledLabel>

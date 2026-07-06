@@ -32,7 +32,9 @@ export class WildixHistoryService {
       workspaceId ?? this.twentyConfigService.get('WILDIX_WORKSPACE_ID');
 
     if (!isDefined(apiKey) || apiKey === '') {
-      this.logger.warn('WILDIX_API_KEY not configured — skipping history import');
+      this.logger.warn(
+        'WILDIX_API_KEY not configured — skipping history import',
+      );
 
       return 0;
     }
@@ -149,7 +151,10 @@ export class WildixHistoryService {
       }
 
       const data = (await response.json()) as {
-        conversations?: Array<{ call?: WildixCallRecord; conference?: unknown }>;
+        conversations?: Array<{
+          call?: WildixCallRecord;
+          conference?: unknown;
+        }>;
       };
 
       // Extract only call records (skip conferences)
@@ -203,7 +208,9 @@ export class WildixHistoryService {
   // from multiple participant perspectives. We want one record per unique call ID.
   // Strategy: prefer records where a LOCAL participant has an email address (i.e. the
   // internal agent is known), as this is the most useful record for the CRM.
-  private deduplicateConversations(records: WildixCallRecord[]): WildixCallRecord[] {
+  private deduplicateConversations(
+    records: WildixCallRecord[],
+  ): WildixCallRecord[] {
     const seen = new Map<string, WildixCallRecord>();
 
     for (const record of records) {

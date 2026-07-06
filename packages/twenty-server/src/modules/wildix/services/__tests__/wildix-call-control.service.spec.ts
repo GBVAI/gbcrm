@@ -17,18 +17,16 @@ describe('WildixCallControlService', () => {
     userEmail: 'agent@gbviaggi.it',
   };
 
-  const mockConfigGet = jest.fn(
-    (key: string): string | undefined => {
-      switch (key) {
-        case 'WILDIX_WMS_DOMAIN':
-          return 'gbhotels.wildixin.com';
-        case 'WILDIX_WMS_TOKEN':
-          return 'access_mws_abc';
-        default:
-          return undefined;
-      }
-    },
-  );
+  const mockConfigGet = jest.fn((key: string): string | undefined => {
+    switch (key) {
+      case 'WILDIX_WMS_DOMAIN':
+        return 'gbhotels.wildixin.com';
+      case 'WILDIX_WMS_TOKEN':
+        return 'access_mws_abc';
+      default:
+        return undefined;
+    }
+  });
 
   const mockUserVarsGet = jest.fn();
   const mockUserVarsSet = jest.fn();
@@ -47,7 +45,10 @@ describe('WildixCallControlService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WildixCallControlService(twentyConfigService, userVarsService);
+    service = new WildixCallControlService(
+      twentyConfigService,
+      userVarsService,
+    );
     global.fetch = jest.fn();
   });
 
@@ -82,7 +83,9 @@ describe('WildixCallControlService', () => {
 
     expect(String(requestUrl)).toContain('/api/v2/call-control/make-call');
     expect(String(requestUrl)).toContain('user=201');
-    expect(requestInit.body).toBe(JSON.stringify({ destination: '+393487432338' }));
+    expect(requestInit.body).toBe(
+      JSON.stringify({ destination: '+393487432338' }),
+    );
   });
 
   it('should resolve linkage by exact email and persist it', async () => {

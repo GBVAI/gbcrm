@@ -1,122 +1,399 @@
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
 
-import { Command } from 'nest-commander';
-import { type Repository } from 'typeorm';
+import chalk from 'chalk';
+import { Command, CommandRunner, Option } from 'nest-commander';
+import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
+import { DataSource, In } from 'typeorm';
 
-import {
-  type AllCommands,
-  UpgradeCommandRunner,
-  type VersionCommands,
-} from 'src/database/commands/command-runners/upgrade.command-runner';
-import { WorkspaceIteratorService } from 'src/database/commands/command-runners/workspace-iterator.service';
-import { CoreMigrationRunnerService } from 'src/database/commands/core-migration-runner/services/core-migration-runner.service';
-import { BackfillCommandMenuItemsCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-backfill-command-menu-items.command';
-import { BackfillNavigationMenuItemTypeCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-backfill-navigation-menu-item-type.command';
-import { BackfillSelectFieldOptionIdsCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-backfill-select-field-option-ids.command';
-import { DeleteOrphanNavigationMenuItemsCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-delete-orphan-navigation-menu-items.command';
-import { IdentifyFieldPermissionMetadataCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-identify-field-permission-metadata.command';
-import { IdentifyObjectPermissionMetadataCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-identify-object-permission-metadata.command';
-import { IdentifyPermissionFlagMetadataCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-identify-permission-flag-metadata.command';
-import { MakeFieldPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-make-field-permission-universal-identifier-and-application-id-not-nullable-migration.command';
-import { MakeObjectPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-make-object-permission-universal-identifier-and-application-id-not-nullable-migration.command';
-import { MakePermissionFlagUniversalIdentifierAndApplicationIdNotNullableMigrationCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-make-permission-flag-universal-identifier-and-application-id-not-nullable-migration.command';
-import { MakeWorkflowSearchableCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-make-workflow-searchable.command';
-import { MigrateMessagingInfrastructureToMetadataCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-migrate-messaging-infrastructure-to-metadata.command';
-import { MigrateRichTextToTextCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-migrate-rich-text-to-text.command';
-import { SeedCliApplicationRegistrationCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-seed-cli-application-registration.command';
-import { UpdateStandardIndexViewNamesCommand } from 'src/database/commands/upgrade-version-command/1-20/1-20-update-standard-index-view-names.command';
-import { AddGlobalKeyValuePairUniqueIndexCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-add-global-key-value-pair-unique-index.command';
-import { BackfillDatasourceToWorkspaceCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-backfill-datasource-to-workspace.command';
-import { BackfillPageLayoutsAndFieldsWidgetViewFieldsCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-backfill-page-layouts-and-fields-widget-view-fields.command';
-import { DeduplicateEngineCommandsCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-deduplicate-engine-commands.command';
-import { MigrateAiAgentTextToJsonResponseFormatCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-migrate-ai-agent-text-to-json-response-format.command';
-import { UpdateEditLayoutCommandMenuItemLabelCommand } from 'src/database/commands/upgrade-version-command/1-21/1-21-update-edit-layout-command-menu-item-label.command';
-import { CoreEngineVersionService } from 'src/engine/core-engine-version/services/core-engine-version.service';
+import { CommandLogger } from 'src/database/commands/logger';
+import { InstanceCommandRunnerService } from 'src/engine/core-modules/upgrade/services/instance-command-runner.service';
+import { UpgradeCommandRegistryService } from 'src/engine/core-modules/upgrade/services/upgrade-command-registry.service';
+import { UpgradeMigrationService } from 'src/engine/core-modules/upgrade/services/upgrade-migration.service';
+import { UpgradeSequenceReaderService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-reader.service';
+import { UpgradeSequenceRunnerService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-runner.service';
+import { RemovedSinceVersion } from 'src/engine/core-modules/upgrade/types/removed-since-version.type';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WorkspaceVersionService } from 'src/engine/workspace-manager/workspace-version/services/workspace-version.service';
+import { compareVersionMajorAndMinor } from 'src/utils/version/compare-version-minor-and-major';
+import { isDefined } from 'twenty-shared/utils';
+
+type RawUpgradeCommandOptions = {
+  workspaceId?: Set<string>;
+  startFromWorkspaceId?: string;
+  workspaceCountLimit?: number;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
+
+export type ParsedUpgradeCommandOptions = {
+  workspaceIds?: string[];
+  startFromWorkspaceId?: string;
+  workspaceCountLimit?: number;
+  dryRun?: boolean;
+  verbose?: boolean;
+};
 
 @Command({
   name: 'upgrade',
   description: 'Upgrade workspaces to the latest version',
 })
-export class UpgradeCommand extends UpgradeCommandRunner {
-  override allCommands: AllCommands;
+export class UpgradeCommand extends CommandRunner {
+  protected logger: CommandLogger;
 
   constructor(
-    @InjectRepository(WorkspaceEntity)
-    protected readonly workspaceRepository: Repository<WorkspaceEntity>,
-    protected readonly coreEngineVersionService: CoreEngineVersionService,
+    protected readonly upgradeCommandRegistryService: UpgradeCommandRegistryService,
+    protected readonly upgradeSequenceReaderService: UpgradeSequenceReaderService,
+    protected readonly upgradeSequenceRunnerService: UpgradeSequenceRunnerService,
+    protected readonly instanceCommandRunnerService: InstanceCommandRunnerService,
+    protected readonly upgradeMigrationService: UpgradeMigrationService,
     protected readonly workspaceVersionService: WorkspaceVersionService,
-    protected readonly coreMigrationRunnerService: CoreMigrationRunnerService,
-    protected readonly workspaceIteratorService: WorkspaceIteratorService,
-
-    // 1.20 Commands
-    private readonly identifyPermissionFlagMetadataCommand: IdentifyPermissionFlagMetadataCommand,
-    private readonly makePermissionFlagUniversalIdentifierAndApplicationIdNotNullableMigrationCommand: MakePermissionFlagUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-    private readonly identifyObjectPermissionMetadataCommand: IdentifyObjectPermissionMetadataCommand,
-    private readonly makeObjectPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand: MakeObjectPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-    private readonly identifyFieldPermissionMetadataCommand: IdentifyFieldPermissionMetadataCommand,
-    private readonly makeFieldPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand: MakeFieldPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-    private readonly backfillNavigationMenuItemTypeCommand: BackfillNavigationMenuItemTypeCommand,
-    private readonly backfillCommandMenuItemsCommand: BackfillCommandMenuItemsCommand,
-    private readonly deleteOrphanNavigationMenuItemsCommand: DeleteOrphanNavigationMenuItemsCommand,
-    private readonly seedCliApplicationRegistrationCommand: SeedCliApplicationRegistrationCommand,
-    private readonly migrateRichTextToTextCommand: MigrateRichTextToTextCommand,
-    private readonly migrateMessagingInfrastructureToMetadataCommand: MigrateMessagingInfrastructureToMetadataCommand,
-    private readonly backfillSelectFieldOptionIdsCommand: BackfillSelectFieldOptionIdsCommand,
-    private readonly updateStandardIndexViewNamesCommand: UpdateStandardIndexViewNamesCommand,
-    private readonly makeWorkflowSearchableCommand: MakeWorkflowSearchableCommand,
-
-    // 1.21 Commands
-    private readonly addGlobalKeyValuePairUniqueIndexCommand: AddGlobalKeyValuePairUniqueIndexCommand,
-    private readonly backfillDatasourceToWorkspaceCommand: BackfillDatasourceToWorkspaceCommand,
-    private readonly backfillPageLayoutsAndFieldsWidgetViewFieldsCommand: BackfillPageLayoutsAndFieldsWidgetViewFieldsCommand,
-    private readonly deduplicateEngineCommandsCommand: DeduplicateEngineCommandsCommand,
-    private readonly migrateAiAgentTextToJsonResponseFormatCommand: MigrateAiAgentTextToJsonResponseFormatCommand,
-    private readonly updateEditLayoutCommandMenuItemLabelCommand: UpdateEditLayoutCommandMenuItemLabelCommand,
+    @InjectDataSource()
+    protected readonly dataSource: DataSource,
   ) {
-    super(
-      workspaceRepository,
-      coreEngineVersionService,
-      workspaceVersionService,
-      coreMigrationRunnerService,
-      workspaceIteratorService,
+    super();
+    this.logger = new CommandLogger({
+      verbose: false,
+      constructorName: this.constructor.name,
+    });
+  }
+
+  @Option({
+    flags: '-d, --dry-run',
+    description: 'Simulate the command without making actual changes',
+    required: false,
+  })
+  parseDryRun(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '-v, --verbose',
+    description: 'Verbose output',
+    required: false,
+  })
+  parseVerbose(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '-w, --workspace-id [workspace_id]',
+    description:
+      'workspace id. Command runs on all active/suspended workspaces if not provided.',
+    required: false,
+  })
+  parseWorkspaceId(val: string, previous?: Set<string>): Set<string> {
+    const accumulator = previous ?? new Set<string>();
+
+    accumulator.add(val);
+
+    return accumulator;
+  }
+
+  @Option({
+    flags: '--start-from-workspace-id [workspace_id]',
+    description:
+      'Start from a specific workspace id. Workspaces are processed in ascending order of id.',
+    required: false,
+  })
+  parseStartFromWorkspaceId(val: string): string {
+    return val;
+  }
+
+  @Option({
+    flags: '--workspace-count-limit [count]',
+    description:
+      'Limit the number of workspaces to process. Workspaces are processed in ascending order of id.',
+    required: false,
+  })
+  parseWorkspaceCountLimit(val: string): number {
+    const limit = parseInt(val);
+
+    if (isNaN(limit)) {
+      throw new Error('Workspace count limit must be a number');
+    }
+
+    if (limit <= 0) {
+      throw new Error('Workspace count limit must be greater than 0');
+    }
+
+    return limit;
+  }
+
+  override async run(
+    _passedParams: string[],
+    options: RawUpgradeCommandOptions,
+  ): Promise<void> {
+    if (options.verbose) {
+      this.logger = new CommandLogger({
+        verbose: true,
+        constructorName: this.constructor.name,
+      });
+    }
+
+    try {
+      await this.runLegacyPendingTypeOrmMigrations();
+      await this.runBootstrapMigrations();
+      await this.runLegacy1_21InstanceCommands();
+      await this.guardAllActiveOrSuspendedWorkspacesAreIn1_21_0();
+
+      const sequence = this.upgradeSequenceReaderService.getUpgradeSequence();
+
+      this.logger.log(
+        chalk.blue(
+          [
+            'Initialized upgrade sequence:',
+            `- ${sequence.length} step(s)`,
+            ...sequence.map(
+              (step, index) =>
+                `  [${index}] ${step.kind} — ${step.name} (${step.version})`,
+            ),
+          ].join('\n   '),
+        ),
+      );
+
+      const { totalSuccesses, totalFailures } =
+        await this.upgradeSequenceRunnerService.run({
+          sequence,
+          options: {
+            ...options,
+            workspaceIds: isDefined(options.workspaceId)
+              ? Array.from(options.workspaceId)
+              : undefined,
+          },
+        });
+
+      this.logger.log(
+        chalk.blue(
+          `Upgrade summary: ${totalSuccesses} workspace(s) succeeded, ${totalFailures} workspace(s) failed`,
+        ),
+      );
+
+      if (totalFailures > 0) {
+        throw new Error(
+          `Upgrade completed with ${totalFailures} workspace failure(s)`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(chalk.red(`Upgrade failed: ${error.message}`));
+      throw error;
+    }
+  }
+
+  private async runLegacyPendingTypeOrmMigrations(): Promise<void> {
+    this.logger.log('Running legacy TypeORM migrations...');
+
+    const migrations = await this.dataSource.runMigrations({
+      transaction: 'each',
+    });
+
+    if (migrations.length === 0) {
+      this.logger.log('No pending legacy migrations');
+    } else {
+      this.logger.log(
+        `Executed ${migrations.length} legacy migration(s): ${migrations.map((migration) => migration.name).join(', ')}`,
+      );
+    }
+  }
+
+  private async runLegacy1_21InstanceCommands(): Promise<void> {
+    const legacy1_21Bundle =
+      this.upgradeCommandRegistryService.getBundleForVersion('1.21.0');
+
+    for (const { command, name } of legacy1_21Bundle.fastInstanceCommands) {
+      const result =
+        await this.instanceCommandRunnerService.runFastInstanceCommand({
+          command,
+          name,
+        });
+
+      if (result.status === 'failed') {
+        throw result.error;
+      }
+    }
+
+    for (const { command, name } of legacy1_21Bundle.slowInstanceCommands) {
+      const result =
+        await this.instanceCommandRunnerService.runSlowInstanceCommand({
+          command,
+          name,
+          skipDataMigration: false,
+        });
+
+      if (result.status === 'failed') {
+        throw result.error;
+      }
+    }
+  }
+
+  private async guardAllActiveOrSuspendedWorkspacesAreIn1_21_0(): RemovedSinceVersion<
+    '1.23.0',
+    Promise<void>
+  > {
+    const MINIMUM_VERSION = '1.21.0';
+
+    const activeOrSuspendedWorkspaces = await this.dataSource
+      .getRepository(WorkspaceEntity)
+      .find({
+        select: {
+          version: true,
+          id: true,
+        },
+        where: {
+          activationStatus: In([
+            WorkspaceActivationStatus.ACTIVE,
+            WorkspaceActivationStatus.SUSPENDED,
+          ]),
+        },
+      });
+
+    const workspacesBelowMinimum = activeOrSuspendedWorkspaces.filter(
+      (workspace) =>
+        !isDefined(workspace.version) ||
+        compareVersionMajorAndMinor(workspace.version, MINIMUM_VERSION) ===
+          'lower',
     );
 
-    const commands_1200: VersionCommands = [
-      this.identifyPermissionFlagMetadataCommand,
-      this
-        .makePermissionFlagUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-      this.identifyObjectPermissionMetadataCommand,
-      this
-        .makeObjectPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-      this.identifyFieldPermissionMetadataCommand,
-      this
-        .makeFieldPermissionUniversalIdentifierAndApplicationIdNotNullableMigrationCommand,
-      this.backfillNavigationMenuItemTypeCommand,
-      this.migrateRichTextToTextCommand,
-      this.deleteOrphanNavigationMenuItemsCommand,
-      this.backfillCommandMenuItemsCommand,
-      this.seedCliApplicationRegistrationCommand,
-      this.migrateMessagingInfrastructureToMetadataCommand,
-      this.backfillSelectFieldOptionIdsCommand,
-      this.updateStandardIndexViewNamesCommand,
-      this.makeWorkflowSearchableCommand,
-    ];
+    if (workspacesBelowMinimum.length > 0) {
+      const listing = workspacesBelowMinimum
+        .map(
+          (workspace) =>
+            `  - ${workspace.id} (version: ${workspace.version ?? 'null'})`,
+        )
+        .join('\n');
 
-    const commands_1210: VersionCommands = [
-      this.addGlobalKeyValuePairUniqueIndexCommand,
-      this.backfillDatasourceToWorkspaceCommand,
-      this.backfillPageLayoutsAndFieldsWidgetViewFieldsCommand,
-      this.deduplicateEngineCommandsCommand,
-      this.migrateAiAgentTextToJsonResponseFormatCommand,
-      this.updateEditLayoutCommandMenuItemLabelCommand,
-    ];
+      throw new Error(
+        `Cannot upgrade: ${workspacesBelowMinimum.length} workspace(s) have a version below ${MINIMUM_VERSION}.\n` +
+          `All workspaces must be upgraded to at least ${MINIMUM_VERSION} before running the 1.22.0 upgrade.\n` +
+          `Affected workspaces:\n${listing}`,
+      );
+    }
+  }
 
-    this.allCommands = {
-      '1.19.0': [],
-      '1.20.0': commands_1200,
-      '1.21.0': commands_1210,
-    };
+  // Workspaces created during 1.21 were activated before the cursor-based
+  // upgrade system existed. They have no upgradeMigration record yet.
+  // Stamp them with the last 1.21 workspace command as their initial cursor.
+  private async backfillWorkspaceCreatedIn1_21_0Cursors(): RemovedSinceVersion<
+    '1.23.0',
+    Promise<void>
+  > {
+    const allWorkspaceIds =
+      await this.workspaceVersionService.getActiveOrSuspendedWorkspaceIds();
+
+    if (allWorkspaceIds.length === 0) {
+      return;
+    }
+
+    const version1_21WorkspaceCommands =
+      this.upgradeCommandRegistryService.getBundleForVersion(
+        '1.21.0',
+      ).workspaceCommands;
+
+    const lastWorkspaceCommand =
+      version1_21WorkspaceCommands[version1_21WorkspaceCommands.length - 1];
+
+    if (!lastWorkspaceCommand) {
+      throw new Error(
+        `Cannot backfill workspace cursors: no workspace commands found for version 1.21.0`,
+      );
+    }
+
+    const existingCursorWorkspaceIds: { workspaceId: string }[] =
+      await this.dataSource.query(
+        `SELECT DISTINCT "workspaceId"
+         FROM "core"."upgradeMigration"
+         WHERE "workspaceId" IS NOT NULL
+           AND "name" = ANY($1)`,
+        [version1_21WorkspaceCommands.map((command) => command.name)],
+      );
+
+    const existingCursorSet = new Set(
+      existingCursorWorkspaceIds.map((row) => row.workspaceId),
+    );
+
+    const workspacesWithoutCursor = allWorkspaceIds.filter(
+      (workspaceId) => !existingCursorSet.has(workspaceId),
+    );
+
+    if (workspacesWithoutCursor.length === 0) {
+      return;
+    }
+
+    this.logger.log(
+      chalk.blue(
+        `Backfilling initial cursor for ${workspacesWithoutCursor.length} workspace(s) → "${lastWorkspaceCommand.name}"`,
+      ),
+    );
+
+    for (const workspaceId of workspacesWithoutCursor) {
+      await this.upgradeMigrationService.markAsWorkspaceInitial({
+        name: lastWorkspaceCommand.name,
+        workspaceId,
+        executedByVersion: '1.21.0',
+        status: 'completed',
+      });
+    }
+
+    // GBCRM bridge from the legacy workspace.version runner:
+    // workspaces upgraded before the cursor-based engine need a non-initial
+    // cursor too, otherwise UpgradeSequenceRunnerService cannot infer the
+    // starting point because it intentionally ignores isInitial rows when
+    // resolving the global last-attempted command.
+    await this.upgradeMigrationService.recordUpgradeMigration({
+      name: lastWorkspaceCommand.name,
+      workspaceIds: workspacesWithoutCursor,
+      isInstance: false,
+      status: 'completed',
+      executedByVersion: '1.21.0',
+    });
+  }
+
+  // Schema changes required by the upgrade engine itself (e.g. new columns
+  // on upgradeMigration) must be applied before the sequence runs.
+  private async runBootstrapMigrations(): RemovedSinceVersion<
+    '1.23.0',
+    Promise<void>
+  > {
+    const BOOTSTRAP_MIGRATION = 'AddIsInitialToUpgradeMigration1775909335324';
+
+    const alreadyExecuted = await this.dataSource.query(
+      `SELECT 1 FROM "core"."_typeorm_migrations" WHERE "name" = $1`,
+      [BOOTSTRAP_MIGRATION],
+    );
+
+    if (alreadyExecuted.length > 0) {
+      return;
+    }
+
+    const migration = this.dataSource.migrations.find(
+      (migration) => migration.name === BOOTSTRAP_MIGRATION,
+    );
+
+    if (!migration) {
+      throw new Error(
+        `Bootstrap migration "${BOOTSTRAP_MIGRATION}" not found in registered migrations`,
+      );
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await migration.up(queryRunner);
+
+      await queryRunner.query(
+        `INSERT INTO "core"."_typeorm_migrations" ("timestamp", "name") VALUES ($1, $2)`,
+        [1775909335324, BOOTSTRAP_MIGRATION],
+      );
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
