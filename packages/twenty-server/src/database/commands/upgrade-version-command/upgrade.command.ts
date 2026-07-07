@@ -2,8 +2,9 @@ import { InjectDataSource } from '@nestjs/typeorm';
 
 import chalk from 'chalk';
 import { Command, CommandRunner, Option } from 'nest-commander';
+import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { DataSource, In } from 'typeorm';
+import { DataSource } from 'typeorm';
 
 import { CommandLogger } from 'src/database/commands/logger';
 import { InstanceCommandRunnerService } from 'src/engine/core-modules/upgrade/services/instance-command-runner.service';
@@ -11,11 +12,8 @@ import { UpgradeCommandRegistryService } from 'src/engine/core-modules/upgrade/s
 import { UpgradeMigrationService } from 'src/engine/core-modules/upgrade/services/upgrade-migration.service';
 import { UpgradeSequenceReaderService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-reader.service';
 import { UpgradeSequenceRunnerService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-runner.service';
-import { RemovedSinceVersion } from 'src/engine/core-modules/upgrade/types/removed-since-version.type';
-import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { WorkspaceVersionService } from 'src/engine/workspace-manager/workspace-version/services/workspace-version.service';
 import { compareVersionMajorAndMinor } from 'src/utils/version/compare-version-minor-and-major';
-import { isDefined } from 'twenty-shared/utils';
 
 type RawUpgradeCommandOptions = {
   workspaceId?: Set<string>;
@@ -135,6 +133,7 @@ export class UpgradeCommand extends CommandRunner {
       await this.runBootstrapMigrations();
       await this.runLegacy1_21InstanceCommands();
       await this.guardAllActiveOrSuspendedWorkspacesAreIn1_21_0();
+      await this.backfillWorkspaceCreatedIn1_21_0Cursors();
 
       const sequence = this.upgradeSequenceReaderService.getUpgradeSequence();
 
@@ -196,6 +195,17 @@ export class UpgradeCommand extends CommandRunner {
   }
 
   private async runLegacy1_21InstanceCommands(): Promise<void> {
+    const hasStartedCursorBased1_22Upgrade =
+      await this.hasCompletedAnyCommandForVersion('1.22.0');
+
+    if (hasStartedCursorBased1_22Upgrade) {
+      this.logger.log(
+        'Skipping legacy 1.21 instance command replay: 1.22 cursor-based upgrade has already started',
+      );
+
+      return;
+    }
+
     const legacy1_21Bundle =
       this.upgradeCommandRegistryService.getBundleForVersion('1.21.0');
 
@@ -225,32 +235,72 @@ export class UpgradeCommand extends CommandRunner {
     }
   }
 
-  private async guardAllActiveOrSuspendedWorkspacesAreIn1_21_0(): RemovedSinceVersion<
-    '1.23.0',
-    Promise<void>
-  > {
+  private async hasCompletedAnyCommandForVersion(
+    version: string,
+  ): Promise<boolean> {
+    const prefix = `${version}_`;
+    const [result]: Array<{ exists?: boolean | string }> =
+      await this.dataSource.query(
+        `SELECT EXISTS (
+          SELECT 1
+          FROM "core"."upgradeMigration"
+          WHERE "status" = 'completed'
+            AND LEFT("name", $2) = $1
+        ) AS "exists"`,
+        [prefix, prefix.length],
+      );
+
+    return result?.exists === true || result?.exists === 'true';
+  }
+
+  private async guardAllActiveOrSuspendedWorkspacesAreIn1_21_0(): Promise<void> {
     const MINIMUM_VERSION = '1.21.0';
 
-    const activeOrSuspendedWorkspaces = await this.dataSource
-      .getRepository(WorkspaceEntity)
-      .find({
-        select: {
-          version: true,
-          id: true,
-        },
-        where: {
-          activationStatus: In([
-            WorkspaceActivationStatus.ACTIVE,
-            WorkspaceActivationStatus.SUSPENDED,
-          ]),
-        },
-      });
+    const [versionColumnResult]: Array<{ exists?: boolean | string }> =
+      await this.dataSource.query(
+        `SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'core'
+            AND table_name = 'workspace'
+            AND column_name = 'version'
+        ) AS "exists"`,
+      );
+
+    const hasVersionColumn =
+      versionColumnResult?.exists === true ||
+      versionColumnResult?.exists === 'true';
+
+    if (!hasVersionColumn) {
+      this.logger.log(
+        'Skipping legacy workspace.version guard: column no longer exists',
+      );
+
+      return;
+    }
+
+    const activeOrSuspendedWorkspaces: Array<{
+      id: string;
+      version: string | null;
+    }> = await this.dataSource.query(
+      `SELECT "id", "version"
+       FROM "core"."workspace"
+       WHERE "activationStatus" = ANY($1)`,
+      [[WorkspaceActivationStatus.ACTIVE, WorkspaceActivationStatus.SUSPENDED]],
+    );
 
     const workspacesBelowMinimum = activeOrSuspendedWorkspaces.filter(
-      (workspace) =>
-        !isDefined(workspace.version) ||
-        compareVersionMajorAndMinor(workspace.version, MINIMUM_VERSION) ===
-          'lower',
+      (workspace) => {
+        const version = workspace.version;
+
+        if (version === null) {
+          return true;
+        }
+
+        return (
+          compareVersionMajorAndMinor(version, MINIMUM_VERSION) === 'lower'
+        );
+      },
     );
 
     if (workspacesBelowMinimum.length > 0) {
@@ -263,7 +313,7 @@ export class UpgradeCommand extends CommandRunner {
 
       throw new Error(
         `Cannot upgrade: ${workspacesBelowMinimum.length} workspace(s) have a version below ${MINIMUM_VERSION}.\n` +
-          `All workspaces must be upgraded to at least ${MINIMUM_VERSION} before running the 1.22.0 upgrade.\n` +
+          `All workspaces must be upgraded to at least ${MINIMUM_VERSION} before running the cursor-based upgrade.\n` +
           `Affected workspaces:\n${listing}`,
       );
     }
@@ -272,10 +322,7 @@ export class UpgradeCommand extends CommandRunner {
   // Workspaces created during 1.21 were activated before the cursor-based
   // upgrade system existed. They have no upgradeMigration record yet.
   // Stamp them with the last 1.21 workspace command as their initial cursor.
-  private async backfillWorkspaceCreatedIn1_21_0Cursors(): RemovedSinceVersion<
-    '1.23.0',
-    Promise<void>
-  > {
+  private async backfillWorkspaceCreatedIn1_21_0Cursors(): Promise<void> {
     const allWorkspaceIds =
       await this.workspaceVersionService.getActiveOrSuspendedWorkspaceIds();
 
@@ -349,10 +396,7 @@ export class UpgradeCommand extends CommandRunner {
 
   // Schema changes required by the upgrade engine itself (e.g. new columns
   // on upgradeMigration) must be applied before the sequence runs.
-  private async runBootstrapMigrations(): RemovedSinceVersion<
-    '1.23.0',
-    Promise<void>
-  > {
+  private async runBootstrapMigrations(): Promise<void> {
     const BOOTSTRAP_MIGRATION = 'AddIsInitialToUpgradeMigration1775909335324';
 
     const alreadyExecuted = await this.dataSource.query(

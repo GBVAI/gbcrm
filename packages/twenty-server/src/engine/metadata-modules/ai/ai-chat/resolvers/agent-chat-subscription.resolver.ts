@@ -1,4 +1,4 @@
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Subscription } from '@nestjs/graphql';
 
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,9 +16,10 @@ import { SettingsPermissionGuard } from 'src/engine/guards/settings-permission.g
 import { UserAuthGuard } from 'src/engine/guards/user-auth.guard';
 import { WorkspaceAuthGuard } from 'src/engine/guards/workspace-auth.guard';
 import {
-  AgentException,
-  AgentExceptionCode,
-} from 'src/engine/metadata-modules/ai/ai-agent/agent.exception';
+  AiException,
+  AiExceptionCode,
+} from 'src/engine/metadata-modules/ai/ai.exception';
+import { AiGraphqlApiExceptionInterceptor } from 'src/engine/metadata-modules/ai/interceptors/ai-graphql-api-exception.interceptor';
 import { AgentChatEventDTO } from 'src/engine/metadata-modules/ai/ai-chat/dtos/agent-chat-event.dto';
 import { AgentChatThreadEntity } from 'src/engine/metadata-modules/ai/ai-chat/entities/agent-chat-thread.entity';
 import { SubscriptionService } from 'src/engine/subscriptions/subscription.service';
@@ -26,6 +27,7 @@ import { FeatureFlagKey } from 'twenty-shared/types';
 
 @MetadataResolver()
 @UseGuards(WorkspaceAuthGuard, UserAuthGuard)
+@UseInterceptors(AiGraphqlApiExceptionInterceptor)
 export class AgentChatSubscriptionResolver {
   constructor(
     private readonly subscriptionService: SubscriptionService,
@@ -54,9 +56,9 @@ export class AgentChatSubscriptionResolver {
     });
 
     if (!isDefined(thread)) {
-      throw new AgentException(
+      throw new AiException(
         'Thread not found',
-        AgentExceptionCode.AGENT_EXECUTION_FAILED,
+        AiExceptionCode.THREAD_NOT_FOUND,
       );
     }
 

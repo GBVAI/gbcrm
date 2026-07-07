@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { createSiteWebGlRenderer } from '@/lib/webgl';
 
 const VIRTUAL_RENDER_HEIGHT = 768;
 
@@ -571,7 +572,7 @@ const FaqVisualShell = styled.div`
   @media (min-width: ${theme.breakpoints.md}px) {
     right: -10%;
     transform: translateY(-12%);
-    width: min(60vw, 900px);
+    width: 60vw;
   }
 `;
 
@@ -607,7 +608,7 @@ export function FaqBackground() {
         1,
       );
 
-    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    const renderer = createSiteWebGlRenderer({ antialias: false, alpha: true });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(1);
     renderer.setClearColor(0x000000, 0);

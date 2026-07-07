@@ -6,18 +6,13 @@ import { useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { createSiteWebGlRenderer } from '@/lib/webgl';
 
 const GLB_URL = '/illustrations/why-twenty/stepper/logo.glb';
 
 const VisualColumn = styled.div`
   min-width: 0;
   width: 100%;
-
-  @media (min-width: ${theme.breakpoints.md}px) {
-    max-width: 672px;
-    position: sticky;
-    top: ${theme.spacing(10)};
-  }
 `;
 
 const VisualContainer = styled.div`
@@ -30,8 +25,10 @@ const VisualContainer = styled.div`
   width: 100%;
 
   @media (min-width: ${theme.breakpoints.md}px) {
-    height: 705px;
-    max-width: 672px;
+    aspect-ratio: 672 / 705;
+    height: auto;
+    max-height: 705px;
+    min-height: 0;
   }
 `;
 
@@ -229,7 +226,7 @@ export function Logo() {
 
     updateOrthoFrustum();
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    const renderer = createSiteWebGlRenderer({ alpha: true, antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);

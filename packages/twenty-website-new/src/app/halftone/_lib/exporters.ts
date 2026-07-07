@@ -130,6 +130,7 @@ const halftoneFragmentShader = `
   uniform float tile;
   uniform float s_3;
   uniform float s_4;
+  uniform float applyToDarkAreas;
   uniform vec3 dashColor;
   uniform vec3 hoverDashColor;
   uniform float time;
@@ -201,7 +202,9 @@ const halftoneFragmentShader = `
     float hoverHalftoneMask = 0.0;
     if (hoverHalftoneActive > 0.0) {
       float hoverHalftoneRadiusPx = hoverHalftoneRadius * logicalResolution.y;
-      hoverHalftoneMask = smoothstep(hoverHalftoneRadiusPx, 0.0, fragDist);
+      hoverHalftoneMask =
+        smoothstep(hoverHalftoneRadiusPx, 0.0, fragDist) *
+        clamp(hoverHalftoneActive, 0.0, 1.0);
     }
 
     float hoverFlowMask = 0.0;
@@ -243,16 +246,16 @@ const halftoneFragmentShader = `
     );
     float lightLift =
       hoverLightStrength * hoverLightMask * mix(0.78, 1.18, motionBias) * 0.22;
+    float toneValue =
+      (sceneSample.r + sceneSample.g + sceneSample.b) * (1.0 / 3.0);
+    if (applyToDarkAreas > 0.5) {
+      toneValue = 1.0 - toneValue;
+    }
+    // Preserve the pre-toneTarget light-mode response by keeping the power
+    // bias inside the averaged tone calculation.
+    float powerBias = localPower * length(vec2(0.5)) * (1.0 / 3.0);
     float bandRadius = clamp(
-      (
-        (
-          sceneSample.r +
-          sceneSample.g +
-          sceneSample.b +
-          localPower * length(vec2(0.5))
-        ) *
-        (1.0 / 3.0)
-      ) + lightLift,
+      toneValue + powerBias + lightLift,
       0.0,
       1.0
     ) * 1.86 * 0.5;
@@ -2041,6 +2044,7 @@ function createInteractionState() {
     autoElapsed: initialPose.autoElapsed,
     activePointerId: null,
     dragging: false,
+    hoverStrength: 0,
     mouseX: 0.5,
     mouseY: 0.5,
     pointerInside: false,
@@ -2230,6 +2234,9 @@ async function mountHalftoneCanvas(options) {
       tile: { value: settings.halftone.scale },
       s_3: { value: settings.halftone.power },
       s_4: { value: settings.halftone.width },
+      applyToDarkAreas: {
+        value: settings.halftone.toneTarget === 'dark' ? 1 : 0,
+      },
       dashColor: { value: new THREE.Color(settings.halftone.dashColor) },
       hoverDashColor: {
         value: new THREE.Color(settings.halftone.hoverDashColor),
@@ -2818,6 +2825,9 @@ async function mountHalftoneCanvas(options) {
       tile: { value: settings.halftone.scale },
       s_3: { value: settings.halftone.power },
       s_4: { value: settings.halftone.width },
+      applyToDarkAreas: {
+        value: settings.halftone.toneTarget === 'dark' ? 1 : 0,
+      },
       dashColor: { value: new THREE.Color(settings.halftone.dashColor) },
       hoverDashColor: {
         value: new THREE.Color(settings.halftone.hoverDashColor),
@@ -2884,6 +2894,8 @@ async function mountHalftoneCanvas(options) {
   const interaction = createInteractionState();
   const imagePointerFollow = 0.38;
   const imagePointerVelocityDamping = 0.82;
+  const imageHoverFadeIn = 18;
+  const imageHoverFadeOut = 7;
 
   const syncSize = () => {
     const virtualWidth = getVirtualWidth();
@@ -3022,9 +3034,18 @@ async function mountHalftoneCanvas(options) {
     animationFrameId = window.requestAnimationFrame(renderFrame);
     clock.update(timestamp);
 
+    const deltaSeconds = clock.getDelta();
     const elapsedTime = clock.getElapsed();
     halftoneMaterial.uniforms.time.value = elapsedTime;
-    const pointerActive = interaction.pointerInside;
+    const hoverEasing =
+      1 -
+      Math.exp(
+        -deltaSeconds *
+          (interaction.pointerInside ? imageHoverFadeIn : imageHoverFadeOut),
+      );
+    interaction.hoverStrength +=
+      ((interaction.pointerInside ? 1 : 0) - interaction.hoverStrength) *
+      hoverEasing;
 
     interaction.smoothedMouseX +=
       (interaction.mouseX - interaction.smoothedMouseX) * imagePointerFollow;
@@ -3043,20 +3064,20 @@ async function mountHalftoneCanvas(options) {
     );
     halftoneMaterial.uniforms.dragOffset.value.set(0, 0);
     halftoneMaterial.uniforms.hoverHalftoneActive.value =
-      pointerActive && settings.animation.hoverHalftoneEnabled ? 1 : 0;
+      settings.animation.hoverHalftoneEnabled ? interaction.hoverStrength : 0;
     halftoneMaterial.uniforms.hoverHalftonePowerShift.value =
-      pointerActive && settings.animation.hoverHalftoneEnabled
+      settings.animation.hoverHalftoneEnabled
         ? settings.animation.hoverHalftonePowerShift
         : 0;
     halftoneMaterial.uniforms.hoverHalftoneRadius.value =
       settings.animation.hoverHalftoneRadius;
     halftoneMaterial.uniforms.hoverHalftoneWidthShift.value =
-      pointerActive && settings.animation.hoverHalftoneEnabled
+      settings.animation.hoverHalftoneEnabled
         ? settings.animation.hoverHalftoneWidthShift
         : 0;
     halftoneMaterial.uniforms.hoverLightStrength.value =
-      pointerActive && settings.animation.hoverLightEnabled
-        ? settings.animation.hoverLightIntensity
+      settings.animation.hoverLightEnabled
+        ? settings.animation.hoverLightIntensity * interaction.hoverStrength
         : 0;
     halftoneMaterial.uniforms.hoverLightRadius.value =
       settings.animation.hoverLightRadius;

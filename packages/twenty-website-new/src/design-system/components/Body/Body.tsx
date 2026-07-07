@@ -3,8 +3,9 @@ import { css } from '@linaria/core';
 import { BodyType } from './types/Body';
 
 const bodyClassName = css`
+  color: inherit;
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 
   &[data-family='sans'] {
     font-family: ${theme.font.family.sans};
@@ -33,34 +34,40 @@ const bodyClassName = css`
 
   &[data-size='md'] {
     font-size: ${theme.font.size(4)};
-    line-height: ${theme.lineHeight(5.5)};
+    line-height: 1.55;
   }
 
   &[data-size='sm'] {
+    color: var(--body-sm-color, ${theme.colors.primary.text[60]});
     font-size: ${theme.font.size(4)};
-    line-height: ${theme.lineHeight(5.5)};
+    line-height: 1.55;
   }
 
   &[data-size='xs'] {
     font-size: ${theme.font.size(3)};
-    line-height: ${theme.lineHeight(3.5)};
+    line-height: 1.55;
   }
 
   @media (min-width: ${theme.breakpoints.md}px) {
     &[data-size='md'] {
       font-size: ${theme.font.size(4.5)};
-      line-height: ${theme.lineHeight(6)};
+      line-height: 1.55;
     }
 
     &[data-size='sm'] {
       font-size: ${theme.font.size(4)};
-      line-height: ${theme.lineHeight(5.5)};
+      line-height: 1.55;
     }
 
     &[data-size='xs'] {
       font-size: ${theme.font.size(3)};
-      line-height: ${theme.lineHeight(3.5)};
+      line-height: 1.55;
     }
+  }
+
+  &[data-variant='body-paragraph'] {
+    color: var(--body-paragraph-color, ${theme.colors.primary.text[80]});
+    line-height: 1.55;
   }
 `;
 
@@ -68,6 +75,7 @@ export type BodyAs = 'p' | 'span' | 'div';
 export type BodyFamily = 'sans' | 'serif' | 'mono';
 export type BodyWeight = 'light' | 'regular' | 'medium';
 export type BodySize = 'md' | 'sm' | 'xs';
+export type BodyVariant = 'default' | 'body-paragraph';
 
 export type BodyProps = {
   as?: BodyAs;
@@ -75,6 +83,7 @@ export type BodyProps = {
   family?: BodyFamily;
   weight?: BodyWeight;
   size?: BodySize;
+  variant?: BodyVariant;
   className?: string;
 };
 
@@ -84,6 +93,7 @@ export function Body({
   family = 'sans',
   weight = 'regular',
   size = 'md',
+  variant = 'default',
   className,
 }: BodyProps) {
   const rootClassName = [bodyClassName, className].filter(Boolean).join(' ');
@@ -94,6 +104,7 @@ export function Body({
       data-family={family}
       data-weight={weight}
       data-size={size}
+      data-variant={variant}
     >
       {body.text}
     </Tag>

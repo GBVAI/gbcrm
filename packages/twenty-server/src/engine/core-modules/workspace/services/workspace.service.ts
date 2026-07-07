@@ -68,7 +68,6 @@ import { prefillWorkflows } from 'src/engine/workspace-manager/standard-objects-
 import { WorkspaceManagerService } from 'src/engine/workspace-manager/workspace-manager.service';
 import { DEFAULT_FEATURE_FLAGS } from 'src/engine/workspace-manager/workspace-migration/constant/default-feature-flags';
 import { WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
-import { extractVersionMajorMinorPatch } from 'src/utils/version/extract-version-major-minor-patch';
 
 @Injectable()
 // oxlint-disable-next-line twenty/inject-workspace-repository
@@ -392,7 +391,8 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
         lastAttemptedInstanceCommand,
       );
 
-    const appVersion = this.twentyConfigService.get('APP_VERSION');
+    const executedByVersion =
+      this.twentyConfigService.get('APP_VERSION') ?? 'unknown';
 
     const queryRunner = this.coreDataSource.createQueryRunner();
 
@@ -403,13 +403,12 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       await queryRunner.manager.update(WorkspaceEntity, workspaceId, {
         displayName,
         activationStatus: WorkspaceActivationStatus.ACTIVE,
-        version: extractVersionMajorMinorPatch(appVersion),
       });
 
       await this.upgradeMigrationService.markAsWorkspaceInitial({
         name: initialCursor.name,
         workspaceId,
-        executedByVersion: appVersion ?? 'unknown',
+        executedByVersion,
         status: initialCursor.status,
         queryRunner,
       });
@@ -820,5 +819,11 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
       );
       this.exceptionHandlerService.captureExceptions([error as Error]);
     }
+  }
+
+  async findOneWorkspaceById(id: string) {
+    return await this.workspaceRepository.findOneBy({
+      id,
+    });
   }
 }
