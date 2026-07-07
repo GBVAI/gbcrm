@@ -13,9 +13,7 @@ import { PhoneCallWorkspaceEntity } from 'src/modules/phone-call/standard-object
   key: `phoneCall.restoreOne`,
   type: WorkspaceQueryHookType.POST_HOOK,
 })
-export class PhoneCallRestoreOnePostQueryHook
-  implements WorkspacePostQueryHookInstance
-{
+export class PhoneCallRestoreOnePostQueryHook implements WorkspacePostQueryHookInstance {
   constructor(
     private readonly phoneCallPostQueryHookService: PhoneCallPostQueryHookService,
   ) {}

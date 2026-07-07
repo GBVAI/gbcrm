@@ -5,12 +5,7 @@ import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { isDefined } from 'twenty-shared/utils';
-import {
-  IconCheck,
-  IconDownload,
-  IconTrash,
-  IconUpload,
-} from 'twenty-ui/display';
+import { IconCheck, IconDownload, IconTrash, IconUpload } from 'twenty-ui/icon';
 import { Button } from 'twenty-ui/input';
 import { Section } from 'twenty-ui/layout';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
@@ -55,6 +50,48 @@ const StyledMainContent = styled.div`
   flex: 1;
   min-width: 0;
   overflow: hidden;
+`;
+
+const StyledMarkdownContent = styled.div`
+  .markdown-section {
+    margin: 0;
+  }
+
+  .markdown-section h4 {
+    font-size: ${themeCssVariables.font.size.lg};
+    font-weight: ${themeCssVariables.font.weight.semiBold};
+    line-height: 1.35;
+    margin-bottom: ${themeCssVariables.spacing[2]};
+    margin-top: ${themeCssVariables.spacing[5]};
+  }
+
+  .markdown-section ul {
+    margin-bottom: ${themeCssVariables.spacing[3]};
+    margin-top: ${themeCssVariables.spacing[2]};
+    padding-left: ${themeCssVariables.spacing[4]};
+  }
+
+  .markdown-section li {
+    margin-bottom: ${themeCssVariables.spacing[1]} !important;
+    padding-bottom: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .markdown-section .markdown-code-outer-container {
+    margin: ${themeCssVariables.spacing[3]} 0 ${themeCssVariables.spacing[4]};
+  }
+
+  .markdown-section .markdown-block-code {
+    padding: ${themeCssVariables.spacing[3]} ${themeCssVariables.spacing[4]};
+  }
+
+  .markdown-section .markdown-block-code code {
+    color: ${themeCssVariables.font.color.primary};
+    display: block;
+    font-family: ${themeCssVariables.code.font.family}, monospace;
+    font-size: ${themeCssVariables.font.size.sm};
+    line-height: 1.6;
+  }
 `;
 
 export const SettingsApplicationDetailAboutTab = ({
@@ -113,7 +150,7 @@ export const SettingsApplicationDetailAboutTab = ({
           title={
             isUpgrading
               ? t`Upgrading...`
-              : t`Upgrade to ${latestAvailableVersion}`
+              : t`Upgrade to ${latestAvailableVersion ?? ''}`
           }
           variant={'secondary'}
           accent={'blue'}
@@ -161,7 +198,9 @@ export const SettingsApplicationDetailAboutTab = ({
       <StyledContentContainer>
         <StyledMainContent>
           <Section>
-            <LazyMarkdownRenderer text={markdownText} />
+            <StyledMarkdownContent>
+              <LazyMarkdownRenderer text={markdownText} />
+            </StyledMarkdownContent>
           </Section>
         </StyledMainContent>
 

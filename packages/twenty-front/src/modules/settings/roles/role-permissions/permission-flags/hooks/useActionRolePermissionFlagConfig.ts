@@ -1,10 +1,11 @@
 import { type SettingsRolePermissionsSettingPermission } from '@/settings/roles/role-permissions/permission-flags/types/SettingsRolePermissionsSettingPermission';
-import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
 import { t } from '@lingui/core/macro';
 import { useMemo } from 'react';
 import {
   IconApi,
   IconAt,
+  IconCalendarEvent,
+  IconCode,
   IconDownload,
   IconFileExport,
   IconFileImport,
@@ -13,11 +14,8 @@ import {
   IconSparkles,
   IconTable,
   IconUser,
-} from 'twenty-ui/display';
-import {
-  FeatureFlagKey,
-  PermissionFlagType,
-} from '~/generated-metadata/graphql';
+} from 'twenty-ui/icon';
+import { PermissionFlagType } from '~/generated-metadata/graphql';
 
 type UseActionRolePermissionFlagConfigParams = {
   assignmentCapabilities?: {
@@ -30,8 +28,6 @@ type UseActionRolePermissionFlagConfigParams = {
 export const useActionRolePermissionFlagConfig = ({
   assignmentCapabilities,
 }: UseActionRolePermissionFlagConfigParams = {}): SettingsRolePermissionsSettingPermission[] => {
-  const isAiEnabled = useIsFeatureEnabled(FeatureFlagKey.IS_AI_ENABLED);
-
   const {
     canBeAssignedToAgents = false,
     canBeAssignedToUsers = false,
@@ -83,6 +79,16 @@ export const useActionRolePermissionFlagConfig = ({
         isRelevantForUsers: true,
       },
       {
+        key: PermissionFlagType.CREATE_CALENDAR_EVENT_TOOL,
+        name: t`Create Calendar Event`,
+        description: t`Create calendar events via connected accounts`,
+        Icon: IconCalendarEvent,
+        isToolPermission: true,
+        isRelevantForAgents: true,
+        isRelevantForApiKeys: true,
+        isRelevantForUsers: true,
+      },
+      {
         key: PermissionFlagType.HTTP_REQUEST_TOOL,
         name: t`HTTP Request`,
         description: t`Make HTTP requests to external APIs`,
@@ -91,6 +97,16 @@ export const useActionRolePermissionFlagConfig = ({
         isRelevantForAgents: true,
         isRelevantForApiKeys: false,
         isRelevantForUsers: false,
+      },
+      {
+        key: PermissionFlagType.CODE_INTERPRETER_TOOL,
+        name: t`Code Interpreter`,
+        description: t`Run code to analyze files and data`,
+        Icon: IconCode,
+        isToolPermission: true,
+        isRelevantForAgents: true,
+        isRelevantForApiKeys: false,
+        isRelevantForUsers: true,
       },
       {
         key: PermissionFlagType.IMPORT_CSV,
@@ -154,10 +170,6 @@ export const useActionRolePermissionFlagConfig = ({
       canBeAssignedToUsers && !canBeAssignedToAgents && !canBeAssignedToApiKeys;
 
     return allPermissions.filter((permission) => {
-      if (permission.key === PermissionFlagType.AI && !isAiEnabled) {
-        return false;
-      }
-
       if (hasAssignmentCapabilities) {
         if (canBeAssignedOnlyToAgents && !permission.isRelevantForAgents) {
           return false;
@@ -179,6 +191,5 @@ export const useActionRolePermissionFlagConfig = ({
     canBeAssignedToAgents,
     canBeAssignedToUsers,
     canBeAssignedToApiKeys,
-    isAiEnabled,
   ]);
 };

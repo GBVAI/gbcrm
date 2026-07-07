@@ -1,17 +1,19 @@
 import { styled } from '@linaria/react';
 import { t } from '@lingui/core/macro';
 import {
+  type IconComponent,
   IconComment,
   IconHome,
   IconMessageCirclePlus,
-  OverflowingTextWithTooltip,
-} from 'twenty-ui/display';
+} from 'twenty-ui/icon';
+import { OverflowingTextWithTooltip } from 'twenty-ui/surfaces';
 import { ThemeContext, themeCssVariables } from 'twenty-ui/theme-constants';
 import { useIsMobile } from 'twenty-ui/utilities';
 
 import { useContext } from 'react';
 
 import { useSwitchToNewAiChat } from '@/ai/hooks/useSwitchToNewAiChat';
+import { useHasPermissionFlag } from '@/settings/roles/hooks/useHasPermissionFlag';
 import { NavigationDrawerAnimatedCollapseWrapper } from '@/ui/navigation/navigation-drawer/components/NavigationDrawerAnimatedCollapseWrapper';
 import { isNavigationDrawerExpandedState } from '@/ui/navigation/states/isNavigationDrawerExpanded';
 import { navigationDrawerActiveTabState } from '@/ui/navigation/states/navigationDrawerActiveTabState';
@@ -22,8 +24,7 @@ import {
 import { useAtomState } from '@/ui/utilities/state/jotai/hooks/useAtomState';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useSetAtomState } from '@/ui/utilities/state/jotai/hooks/useSetAtomState';
-import { useIsFeatureEnabled } from '@/workspace/hooks/useIsFeatureEnabled';
-import { FeatureFlagKey } from '~/generated-metadata/graphql';
+import { PermissionFlagType } from '~/generated-metadata/graphql';
 
 const StyledRow = styled.div<{ isExpanded: boolean }>`
   align-items: center;
@@ -120,7 +121,7 @@ const StyledNewChatButton = styled.div`
   justify-content: center;
   min-width: 0;
   overflow: hidden;
-  padding-inline: ${themeCssVariables.spacing[1]};
+  padding-inline: ${themeCssVariables.spacing[2]};
   transition:
     background calc(${themeCssVariables.animation.duration.fast} * 1s) ease,
     color calc(${themeCssVariables.animation.duration.fast} * 1s) ease;
@@ -132,7 +133,15 @@ const StyledNewChatButton = styled.div`
   }
 `;
 
-export const MainNavigationDrawerTabsRow = () => {
+type MainNavigationDrawerTabsRowProps = {
+  NavigationMenuTabIcon?: IconComponent;
+  navigationMenuTabLabel?: string;
+};
+
+export const MainNavigationDrawerTabsRow = ({
+  NavigationMenuTabIcon = IconHome,
+  navigationMenuTabLabel = t`Home`,
+}: MainNavigationDrawerTabsRowProps) => {
   const { theme } = useContext(ThemeContext);
   const isMobile = useIsMobile();
   const isNavigationDrawerExpanded = useAtomStateValue(
@@ -141,16 +150,16 @@ export const MainNavigationDrawerTabsRow = () => {
   const [navigationDrawerActiveTab, setNavigationDrawerActiveTab] =
     useAtomState(navigationDrawerActiveTabState);
   const { switchToNewChat } = useSwitchToNewAiChat();
-  const isAiEnabled = useIsFeatureEnabled(FeatureFlagKey.IS_AI_ENABLED);
   const setIsNavigationDrawerExpanded = useSetAtomState(
     isNavigationDrawerExpandedState,
   );
-
-  if (!isAiEnabled) {
-    return null;
-  }
+  const hasAiPermission = useHasPermissionFlag(PermissionFlagType.AI);
 
   const isExpanded = isNavigationDrawerExpanded || isMobile;
+
+  if (!hasAiPermission) {
+    return null;
+  }
 
   const handleTabClick = (tab: NavigationDrawerActiveTab) => () => {
     setNavigationDrawerActiveTab(tab);
@@ -195,7 +204,7 @@ export const MainNavigationDrawerTabsRow = () => {
               navigationDrawerActiveTab ===
               NAVIGATION_DRAWER_TABS.NAVIGATION_MENU
             }
-            aria-label={t`Home`}
+            aria-label={navigationMenuTabLabel}
             tabIndex={
               navigationDrawerActiveTab ===
               NAVIGATION_DRAWER_TABS.NAVIGATION_MENU
@@ -206,7 +215,7 @@ export const MainNavigationDrawerTabsRow = () => {
             onKeyDown={handleTabKeyDown(NAVIGATION_DRAWER_TABS.NAVIGATION_MENU)}
           >
             <StyledTabIcon>
-              <IconHome
+              <NavigationMenuTabIcon
                 size={theme.icon.size.md}
                 color={getTabIconColor(
                   navigationDrawerActiveTab ===

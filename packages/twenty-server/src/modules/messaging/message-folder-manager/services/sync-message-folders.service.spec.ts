@@ -13,6 +13,7 @@ import { In } from 'typeorm';
 
 import { type DiscoveredMessageFolder } from 'src/modules/messaging/message-folder-manager/interfaces/message-folder-driver.interface';
 
+import { type EncryptedString } from 'src/engine/core-modules/secret-encryption/branded-strings/encrypted-string.type';
 import { MessageFolderEntity } from 'src/engine/metadata-modules/message-folder/entities/message-folder.entity';
 import { GlobalWorkspaceOrmManager } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-orm.manager';
 import { GmailGetAllFoldersService } from 'src/modules/messaging/message-folder-manager/drivers/gmail/services/gmail-get-all-folders.service';
@@ -46,9 +47,10 @@ const createMockMessageChannel = (
     id: 'account-456',
     handle: 'test@gmail.com',
     provider: overrides.provider ?? ConnectedAccountProvider.GOOGLE,
-    accessToken: 'mock-access-token',
-    refreshToken: 'mock-refresh-token',
+    accessToken: 'mock-access-token' as EncryptedString,
+    refreshToken: 'mock-refresh-token' as EncryptedString,
     connectionParameters: {},
+    workspaceId: 'workspace-123',
   },
   messageFolders: overrides.messageFolders ?? [],
   visibility: MessageChannelVisibility.SHARE_EVERYTHING,
@@ -370,7 +372,6 @@ describe('SyncMessageFoldersService', () => {
           id: 'folder-1',
           externalId: 'inbox-ext',
           name: 'INBOX',
-          isSynced: true,
           isSentFolder: false,
           parentFolderId: null,
         });
@@ -378,7 +379,6 @@ describe('SyncMessageFoldersService', () => {
           createMockDiscoveredFolder({
             externalId: 'inbox-ext',
             name: 'INBOX',
-            isSynced: true,
             isSentFolder: false,
             parentFolderId: null,
           }),
@@ -476,7 +476,6 @@ describe('SyncMessageFoldersService', () => {
           createMockDiscoveredFolder({
             externalId: 'unchanged-ext',
             name: 'Unchanged',
-            isSynced: true,
           }),
           createMockDiscoveredFolder({
             externalId: 'new-ext',
@@ -537,7 +536,6 @@ describe('SyncMessageFoldersService', () => {
           createMockDiscoveredFolder({
             externalId: 'inbox-ext',
             name: 'INBOX',
-            isSynced: true,
           }),
         ];
         const messageChannel = createMockMessageChannel({

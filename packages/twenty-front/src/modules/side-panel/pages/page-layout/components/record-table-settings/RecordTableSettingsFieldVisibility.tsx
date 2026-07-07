@@ -6,7 +6,7 @@ import { DraggableList } from '@/ui/layout/draggable-list/components/DraggableLi
 import { type DropResult } from '@hello-pangea/dnd';
 import { styled } from '@linaria/react';
 import { useMemo } from 'react';
-import { IconEye, IconEyeOff, useIcons } from 'twenty-ui/display';
+import { IconEye, IconEyeOff, useIcons } from 'twenty-ui/icon';
 import { MenuItemDraggable } from 'twenty-ui/navigation';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 
@@ -27,19 +27,25 @@ const StyledSectionLabel = styled.div`
 
 type RecordTableSettingsFieldVisibilityProps = {
   viewId: string;
+  widgetId: string;
+  pageLayoutId: string;
 };
 
 export const RecordTableSettingsFieldVisibility = ({
   viewId,
+  widgetId,
+  pageLayoutId,
 }: RecordTableSettingsFieldVisibilityProps) => {
   const { recordTableWidgetViewFieldItems } =
-    useRecordTableWidgetViewFieldItems(viewId);
+    useRecordTableWidgetViewFieldItems({ viewId, widgetId, pageLayoutId });
 
   const { toggleRecordTableWidgetFieldVisibility } =
-    useToggleRecordTableWidgetFieldVisibility();
+    useToggleRecordTableWidgetFieldVisibility({ pageLayoutId, widgetId });
 
-  const { reorderRecordTableWidgetFields } =
-    useReorderRecordTableWidgetFields();
+  const { reorderRecordTableWidgetFields } = useReorderRecordTableWidgetFields({
+    pageLayoutId,
+    widgetId,
+  });
 
   const { getIcon } = useIcons();
 

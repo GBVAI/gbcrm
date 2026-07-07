@@ -1,7 +1,7 @@
 import { buildBaseManifest } from 'test/integration/metadata/suites/application/utils/build-base-manifest.util';
+import { cleanupApplicationAndAppRegistration } from 'test/integration/metadata/suites/application/utils/cleanup-application-and-app-registration.util';
 import { setupApplicationForSync } from 'test/integration/metadata/suites/application/utils/setup-application-for-sync.util';
 import { syncApplication } from 'test/integration/metadata/suites/application/utils/sync-application.util';
-import { uninstallApplication } from 'test/integration/metadata/suites/application/utils/uninstall-application.util';
 import { findNavigationMenuItems } from 'test/integration/metadata/suites/navigation-menu-item/utils/find-navigation-menu-items.util';
 import { type Manifest } from 'twenty-shared/application';
 import { NavigationMenuItemType } from 'twenty-shared/types';
@@ -64,38 +64,9 @@ describe('Manifest update - navigation menu items', () => {
   }, 60000);
 
   afterEach(async () => {
-    try {
-      await uninstallApplication({
-        universalIdentifier: TEST_APP_ID,
-        expectToFail: false,
-      });
-    } catch {
-      // May fail if the test didn't fully install/sync
-    }
-
-    await globalThis.testDataSource.query(
-      `DELETE FROM core."role" WHERE "universalIdentifier" = $1`,
-      [TEST_ROLE_ID],
-    );
-
-    await globalThis.testDataSource.query(
-      `DELETE FROM core."file" WHERE "applicationId" IN (
-        SELECT id FROM core."application" WHERE "universalIdentifier" = $1
-      )`,
-      [TEST_APP_ID],
-    );
-
-    await globalThis.testDataSource.query(
-      `DELETE FROM core."application"
-       WHERE "universalIdentifier" = $1`,
-      [TEST_APP_ID],
-    );
-
-    await globalThis.testDataSource.query(
-      `DELETE FROM core."applicationRegistration"
-       WHERE "universalIdentifier" = $1`,
-      [TEST_APP_ID],
-    );
+    await cleanupApplicationAndAppRegistration({
+      applicationUniversalIdentifier: TEST_APP_ID,
+    });
   });
 
   it('should create a folder and a child item when child is listed BEFORE folder in manifest', async () => {
@@ -193,6 +164,76 @@ describe('Manifest update - navigation menu items', () => {
     expect(itemsAfterSecondSync[0]).toMatchObject({
       name: 'Renamed Folder',
       icon: 'IconFolderOpen',
+    });
+  }, 60000);
+
+  it('should move existing menu items into a folder created in the same sync', async () => {
+    await syncApplication({
+      manifest: buildManifest({
+        navigationMenuItems: [
+          {
+            universalIdentifier: TEST_CHILD_ID,
+            type: NavigationMenuItemType.LINK,
+            name: 'Child Link',
+            icon: 'IconLink',
+            position: 0,
+            link: 'https://example.com',
+          },
+        ],
+      }),
+      expectToFail: false,
+    });
+
+    const itemsAfterFirstSync = await findAppNavigationMenuItems();
+
+    expect(itemsAfterFirstSync).toHaveLength(1);
+    expect(itemsAfterFirstSync[0]).toMatchObject({
+      type: NavigationMenuItemType.LINK,
+      name: 'Child Link',
+      folderId: null,
+    });
+
+    await syncApplication({
+      manifest: buildManifest({
+        navigationMenuItems: [
+          {
+            universalIdentifier: TEST_FOLDER_ID,
+            type: NavigationMenuItemType.FOLDER,
+            name: 'Test Folder',
+            icon: 'IconFolder',
+            position: 0,
+          },
+          {
+            universalIdentifier: TEST_CHILD_ID,
+            type: NavigationMenuItemType.LINK,
+            name: 'Child Link',
+            icon: 'IconLink',
+            position: 0,
+            link: 'https://example.com',
+            folderUniversalIdentifier: TEST_FOLDER_ID,
+          },
+        ],
+      }),
+      expectToFail: false,
+    });
+
+    const itemsAfterSecondSync = await findAppNavigationMenuItems();
+
+    expect(itemsAfterSecondSync).toHaveLength(2);
+
+    const folder = itemsAfterSecondSync.find(
+      (item) => item.type === NavigationMenuItemType.FOLDER,
+    );
+    const child = itemsAfterSecondSync.find(
+      (item) => item.type === NavigationMenuItemType.LINK,
+    );
+
+    expect(folder).toBeDefined();
+    expect(child).toBeDefined();
+    expect(child).toMatchObject({
+      type: NavigationMenuItemType.LINK,
+      name: 'Child Link',
+      folderId: folder!.id,
     });
   }, 60000);
 

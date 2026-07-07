@@ -8,7 +8,7 @@ import { CombinedGraphQLErrors } from '@apollo/client/errors';
 import { useFindOneRecord } from '@/object-record/hooks/useFindOneRecord';
 import { isDefined } from 'twenty-shared/utils';
 import { isNonEmptyString } from '@sniptt/guards';
-import { IconArrowDown, IconArrowUp, IconPhone } from 'twenty-ui/display';
+import { IconArrowDown, IconArrowUp, IconPhone } from 'twenty-ui/icon';
 type PhoneCallRecord = {
   id: string;
   __typename: string;

@@ -132,6 +132,9 @@ export const ALL_MANY_TO_ONE_METADATA_FOREIGN_KEY = {
     view: {
       foreignKey: 'viewId',
     },
+    relationTargetFieldMetadata: {
+      foreignKey: 'relationTargetFieldMetadataId',
+    },
     viewFilterGroup: {
       foreignKey: 'viewFilterGroupId',
     },
@@ -168,12 +171,19 @@ export const ALL_MANY_TO_ONE_METADATA_FOREIGN_KEY = {
     workspace: null,
     application: null,
   },
-  permissionFlag: {
+  rolePermissionFlag: {
     workspace: null,
     application: null,
     role: {
       foreignKey: 'roleId',
     },
+    permissionFlag: {
+      foreignKey: 'permissionFlagId',
+    },
+  },
+  permissionFlag: {
+    workspace: null,
+    application: null,
   },
   objectPermission: {
     workspace: null,
@@ -275,6 +285,10 @@ export const ALL_MANY_TO_ONE_METADATA_FOREIGN_KEY = {
     workspace: null,
     application: null,
   },
+  applicationVariable: {
+    workspace: null,
+    application: null,
+  },
   viewSort: {
     application: null,
     workspace: null,
@@ -283,6 +297,23 @@ export const ALL_MANY_TO_ONE_METADATA_FOREIGN_KEY = {
     },
     view: {
       foreignKey: 'viewId',
+    },
+  },
+  connectionProvider: {
+    workspace: null,
+    application: null,
+  },
+  searchFieldMetadata: {
+    workspace: null,
+    application: null,
+    objectMetadata: {
+      foreignKey: 'objectMetadataId',
+    },
+    fieldMetadata: {
+      foreignKey: 'fieldMetadataId',
+    },
+    tsVectorFieldMetadata: {
+      foreignKey: 'tsVectorFieldMetadataId',
     },
   },
 } as const satisfies ManyToOneMetadataRelationsProperties;

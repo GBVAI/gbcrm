@@ -17,12 +17,14 @@ type RecordTableWidgetProviderProps = PropsWithChildren<{
   objectNameSingular: string;
   viewId: string;
   widgetId: string;
+  recordLimit?: number;
 }>;
 
 export const RecordTableWidgetProvider = ({
   objectNameSingular,
   viewId,
   widgetId,
+  recordLimit,
   children,
 }: RecordTableWidgetProviderProps) => {
   const { objectMetadataItem } = useObjectMetadataItem({
@@ -88,6 +90,7 @@ export const RecordTableWidgetProvider = ({
           labelIdentifierFieldMetadataItem,
           fieldMetadataItemByFieldMetadataItemId,
           fieldDefinitionByFieldMetadataItemId,
+          recordLimit,
         }}
       >
         <ViewComponentInstanceContext.Provider
@@ -98,6 +101,7 @@ export const RecordTableWidgetProvider = ({
           >
             <RecordTableWidgetViewLoadEffect
               viewId={viewId}
+              widgetId={widgetId}
               objectMetadataItem={objectMetadataItem}
             />
             {children}

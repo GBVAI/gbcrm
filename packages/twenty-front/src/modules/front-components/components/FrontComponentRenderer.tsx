@@ -1,5 +1,9 @@
+import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
+import { domainConfigurationState } from '@/domain-manager/states/domainConfigurationState';
 import { FrontComponentRendererProvider } from '@/front-components/components/FrontComponentRendererProvider';
 import { FrontComponentRendererWithSdkClient } from '@/front-components/components/FrontComponentRendererWithSdkClient';
+import { getFunctionsBaseUrl } from '@/settings/logic-functions/utils/getLogicFunctionHttpUrl';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useFrontComponentExecutionContext } from '@/front-components/hooks/useFrontComponentExecutionContext';
 import { useOnFrontComponentUpdated } from '@/front-components/hooks/useOnFrontComponentUpdated';
 import { frontComponentApplicationTokenPairComponentState } from '@/front-components/states/frontComponentApplicationTokenPairComponentState';
@@ -18,16 +22,19 @@ import { FindOneFrontComponentDocument } from '~/generated-metadata/graphql';
 type FrontComponentRendererProps = {
   frontComponentId: string;
   commandMenuItemId?: string;
-  recordId?: string;
+  selectedRecordIds?: string[];
 };
 
 export const FrontComponentRenderer = ({
   frontComponentId,
   commandMenuItemId,
-  recordId,
+  selectedRecordIds,
 }: FrontComponentRendererProps) => {
   const { colorScheme } = useContext(ThemeContext);
   const { enqueueErrorSnackBar } = useSnackBar();
+
+  const { publicFunctionDomain } = useAtomStateValue(domainConfigurationState);
+  const currentWorkspace = useAtomStateValue(currentWorkspaceState);
 
   const setFrontComponentApplicationTokenPair = useSetAtomComponentState(
     frontComponentApplicationTokenPairComponentState,
@@ -38,7 +45,8 @@ export const FrontComponentRenderer = ({
     useFrontComponentExecutionContext({
       frontComponentId,
       commandMenuItemId,
-      recordId,
+      selectedRecordIds,
+      colorScheme,
     });
 
   const handleError = useCallback(
@@ -100,6 +108,15 @@ export const FrontComponentRenderer = ({
 
   const accessToken = applicationTokenPair.applicationAccessToken.token;
 
+  const applicationVariables =
+    data.frontComponent.applicationVariables ?? undefined;
+
+  const functionsBaseUrl =
+    getFunctionsBaseUrl({
+      publicFunctionDomain,
+      workspaceSubdomain: currentWorkspace?.subdomain,
+    }) ?? `${REACT_APP_SERVER_BASE_URL}/s`;
+
   if (usesSdkClient) {
     return (
       <FrontComponentRendererProvider frontComponentId={frontComponentId}>
@@ -108,10 +125,12 @@ export const FrontComponentRenderer = ({
           componentUrl={componentUrl}
           applicationAccessToken={accessToken}
           applicationId={data.frontComponent.applicationId}
+          functionsBaseUrl={functionsBaseUrl}
           executionContext={executionContext}
           frontComponentHostCommunicationApi={
             frontComponentHostCommunicationApi
           }
+          applicationVariables={applicationVariables}
           onError={handleError}
         />
       </FrontComponentRendererProvider>
@@ -125,8 +144,10 @@ export const FrontComponentRenderer = ({
         componentUrl={componentUrl}
         applicationAccessToken={accessToken}
         apiUrl={REACT_APP_SERVER_BASE_URL}
+        functionsBaseUrl={functionsBaseUrl}
         executionContext={executionContext}
         frontComponentHostCommunicationApi={frontComponentHostCommunicationApi}
+        applicationVariables={applicationVariables}
         onError={handleError}
       />
     </FrontComponentRendererProvider>

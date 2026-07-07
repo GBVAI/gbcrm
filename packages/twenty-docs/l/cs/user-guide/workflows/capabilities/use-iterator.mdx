@@ -1,7 +1,6 @@
 ---
 title: Použijte iterátor
 description: Procházejte pole záznamů a provádějte akce s každou položkou.
-image: /images/user-guide/workflows/workflow.png
 ---
 
 Iterátor vám umožní procházet pole záznamů a provádět akce na každém z nich. Je zásadní pro pracovní postupy, které potřebují zpracovat více záznamů vrácených akcí Search Records nebo přijatých přes webhooky.
@@ -130,8 +129,8 @@ Uvnitř iterátoru použijte `{{iterator.currentItem}}` pro přístup k aktuáln
 **Řešení**: Ujistěte se, že předáváte výsledek akce Search Records nebo pole, nikoli jeden záznam.
 
 ```
-✅ Správně: {{searchRecords}}
-❌ Špatně: {{searchRecords[0]}}
+✅ Correct: {{searchRecords}}
+❌ Wrong: {{searchRecords[0]}}
 ```
 
 ### Iterátor se nespouští
@@ -141,7 +140,7 @@ Uvnitř iterátoru použijte `{{iterator.currentItem}}` pro přístup k aktuáln
 **Řešení**: Před iterátor přidejte filtr pro kontrolu délky pole:
 
 ```
-Filtr: {{searchRecords.length}} > 0
+Filter: {{searchRecords.length}} > 0
 ```
 
 ### Akce se spouštějí příliš mnohokrát

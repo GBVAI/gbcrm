@@ -6,7 +6,7 @@
     "outDir": "./dist",
     "rootDir": ".",
     "jsx": "react-jsx",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -16,7 +16,7 @@
     "alwaysStrict": true,
     "noImplicitAny": true,
     "strictBindCallApply": false,
-    "target": "es2018",
+    "target": "es2020",
     "module": "esnext",
     "lib": ["es2020", "dom"],
     "skipLibCheck": true,
@@ -24,7 +24,10 @@
     "resolveJsonModule": true,
     "paths": {
       "src/*": ["./src/*"],
-      "~/*": ["./*"]
+      "~/*": ["./*"],
+      "@utils/*": ["./src/utils/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@modules/*": ["./src/modules/*"]
     }
   },
   "exclude": [

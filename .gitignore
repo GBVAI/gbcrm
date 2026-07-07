@@ -2,7 +2,8 @@
 .env.local
 .DS_Store
 /.idea
-.claude/
+.claude/*
+!.claude/settings.json
 .cursor/debug-*.log
 **/**/node_modules/
 .cache
@@ -52,8 +53,12 @@ dump.rdb
 
 mcp.json
 /.junie/
+/.agents/plugins/marketplace.json
 TRANSLATION_QA_REPORT.md
 .playwright-mcp/
 transcriptions-*/
 .playwright-cli/
 output/playwright/
+screenshots/
+!**/public/screenshots/
+!**/assets/screenshots/

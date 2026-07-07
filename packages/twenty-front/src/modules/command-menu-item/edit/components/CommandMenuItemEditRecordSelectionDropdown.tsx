@@ -12,11 +12,7 @@ import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomState
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { useContext } from 'react';
-import {
-  IconChevronDown,
-  IconSquareCheck,
-  IconSquareX,
-} from 'twenty-ui/display';
+import { IconChevronDown, IconSquareCheck, IconSquareX } from 'twenty-ui/icon';
 import { MenuItemSelect } from 'twenty-ui/navigation';
 import { ThemeContext, themeCssVariables } from 'twenty-ui/theme-constants';
 
@@ -83,7 +79,7 @@ export const CommandMenuItemEditRecordSelectionDropdown = ({
   const TriggerIcon = isNoneSelected ? IconSquareX : IconSquareCheck;
   const triggerLabel = isNoneSelected
     ? t`No record selected`
-    : t`Records selected`;
+    : t`Record(s) selected`;
 
   return (
     <Dropdown
@@ -108,6 +104,7 @@ export const CommandMenuItemEditRecordSelectionDropdown = ({
         </StyledClickableArea>
       }
       dropdownPlacement="bottom-start"
+      dropdownOffset={{ y: 4 }}
       dropdownComponents={
         <DropdownContent widthInPixels={GenericDropdownContentWidth.Medium}>
           <StyledDropdownMenuContainer
@@ -122,7 +119,7 @@ export const CommandMenuItemEditRecordSelectionDropdown = ({
               />
               <MenuItemSelect
                 LeftIcon={IconSquareCheck}
-                text={t`Records selected`}
+                text={t`Record(s) selected`}
                 selected={!isNoneSelected}
                 onClick={() => handleSelectMode('selection')}
               />

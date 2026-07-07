@@ -2,6 +2,7 @@ import { type MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 import { assertUnreachable } from 'twenty-shared/utils';
 
+import { type FlatEntityMapsExceptionContext } from 'src/engine/metadata-modules/flat-entity/exceptions/flat-entity-maps.exception';
 import { CustomException } from 'src/utils/custom-exception';
 
 export enum ApplicationExceptionCode {
@@ -22,6 +23,10 @@ export enum ApplicationExceptionCode {
   POST_INSTALL_ERROR = 'POST_INSTALL_ERROR',
   APP_ALREADY_INSTALLED = 'APP_ALREADY_INSTALLED',
   CANNOT_DOWNGRADE_APPLICATION = 'CANNOT_DOWNGRADE_APPLICATION',
+  SERVER_VERSION_INCOMPATIBLE = 'SERVER_VERSION_INCOMPATIBLE',
+  INVALID_APP_ENGINE_REQUIREMENT = 'INVALID_APP_ENGINE_REQUIREMENT',
+  INVALID_SERVER_VERSION = 'INVALID_SERVER_VERSION',
+  APPLICATION_INSTALLATION_FAILED = 'APPLICATION_INSTALLATION_FAILED',
 }
 
 const getApplicationExceptionUserFriendlyMessage = (
@@ -62,20 +67,38 @@ const getApplicationExceptionUserFriendlyMessage = (
       return msg`This version of the application is already installed in this workspace.`;
     case ApplicationExceptionCode.CANNOT_DOWNGRADE_APPLICATION:
       return msg`A higher version of this application is already installed. Downgrading is not allowed.`;
+    case ApplicationExceptionCode.SERVER_VERSION_INCOMPATIBLE:
+      return msg`This app requires a newer version of the Twenty server. Please upgrade your server or use a compatible app version.`;
+    case ApplicationExceptionCode.INVALID_APP_ENGINE_REQUIREMENT:
+      return msg`The app manifest declares an invalid server version requirement.`;
+    case ApplicationExceptionCode.INVALID_SERVER_VERSION:
+      return msg`The server's APP_VERSION is not a valid semver version. Self-hosted instances must configure a valid APP_VERSION.`;
+    case ApplicationExceptionCode.APPLICATION_INSTALLATION_FAILED:
+      return msg`We couldn't install this application because some of its metadata could not be applied to your workspace.`;
     default:
       assertUnreachable(code);
   }
 };
 
 export class ApplicationException extends CustomException<ApplicationExceptionCode> {
+  context?: FlatEntityMapsExceptionContext;
+
   constructor(
     message: string,
     code: ApplicationExceptionCode,
-    { userFriendlyMessage }: { userFriendlyMessage?: MessageDescriptor } = {},
+    {
+      userFriendlyMessage,
+      context,
+    }: {
+      userFriendlyMessage?: MessageDescriptor;
+      context?: FlatEntityMapsExceptionContext;
+    } = {},
   ) {
     super(message, code, {
       userFriendlyMessage:
         userFriendlyMessage ?? getApplicationExceptionUserFriendlyMessage(code),
     });
+
+    this.context = context;
   }
 }

@@ -1,7 +1,6 @@
 ---
 title: ワークフローによるメール送信
 description: ワークフローアクションを使用して、パーソナライズされたメールを自動送信します。
-image: /images/user-guide/workflows/workflow.png
 ---
 
 CRM で特定のイベントが発生したときにメールを自動送信します—新規連絡先を歓迎し、商談をフォローアップしたり、チームメンバーに通知したりします。
@@ -43,14 +42,14 @@ CRM で特定のイベントが発生したときにメールを自動送信し�
 `{{variable}}` 構文を使用して前のステップのデータを参照します:
 
 ```text
-{{trigger.object.firstName}} 様、
+Hi {{trigger.object.firstName}},
 
-ご連絡いただきありがとうございます！
+Thank you for connecting with us!
 
-御社 {{trigger.object.company.name}} は当社のシステムに登録されました。
+Your company, {{trigger.object.company.name}}, is now in our system.
 
-よろしくお願いいたします。
-チーム一同
+Best regards,
+The Team
 ```
 
 ### トリガーから利用できる変数
@@ -136,7 +135,7 @@ CRM で特定のイベントが発生したときにメールを自動送信し�
 | **イベント確認メール**     | イベントの詳細またはアジェンダ |
 
 <Note>
-  添付ファイルは静的です—すべての受信者に同じファイルが送信されます。 For dynamic documents (like personalized quotes), generate and attach files using a [Logic Function](/l/ja/user-guide/workflows/how-tos/connect-to-other-tools/generate-pdf-from-twenty).
+添付ファイルは静的です—すべての受信者に同じファイルが送信されます。 動的ドキュメント（パーソナライズされた見積もりなど）の場合は、[ロジック関数](/l/ja/user-guide/workflows/how-tos/connect-to-other-tools/generate-pdf-from-twenty)を使ってファイルを生成し、添付します。
 </Note>
 
 ## ベストプラクティス

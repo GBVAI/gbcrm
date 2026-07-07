@@ -1,7 +1,6 @@
 ---
 title: Invia email dai flussi di lavoro
 description: Invia automaticamente email personalizzate utilizzando le azioni dei flussi di lavoro.
-image: /images/user-guide/workflows/workflow.png
 ---
 
 Invia automaticamente email quando si verificano eventi specifici nel tuo CRM—dai il benvenuto ai nuovi contatti, effettua il follow-up delle opportunità o avvisa i membri del team.
@@ -43,14 +42,14 @@ Prima di poter inviare email dai flussi di lavoro:
 Richiama i dati dai passaggi precedenti usando la sintassi `{{variable}}`:
 
 ```text
-Ciao {{trigger.object.firstName}},
+Hi {{trigger.object.firstName}},
 
-Grazie per esserti messo in contatto con noi!
+Thank you for connecting with us!
 
-La tua azienda, {{trigger.object.company.name}}, è ora nel nostro sistema.
+Your company, {{trigger.object.company.name}}, is now in our system.
 
-Cordiali saluti,
-Il Team
+Best regards,
+The Team
 ```
 
 ### Variabili disponibili dai trigger

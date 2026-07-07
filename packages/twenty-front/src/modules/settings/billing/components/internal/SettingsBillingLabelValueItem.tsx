@@ -1,10 +1,12 @@
 import { styled } from '@linaria/react';
-import { AppTooltip, IconInfoCircle, TooltipDelay } from 'twenty-ui/display';
+import { type ReactNode } from 'react';
+import { IconInfoCircle } from 'twenty-ui/icon';
+import { AppTooltip, TooltipDelay } from 'twenty-ui/surfaces';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 
 type SettingsBillingLabelValueItemProps = {
   label: string;
-  value: string;
+  value: ReactNode;
   isValueInPrimaryColor?: boolean;
   tooltipText?: string;
   tooltipId?: string;

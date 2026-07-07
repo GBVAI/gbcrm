@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 
 import { isNonEmptyString } from '@sniptt/guards';
 import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { type QueryRunner } from 'typeorm';
+import { type QueryRunner, Repository } from 'typeorm';
 
+import { BillingCreditService } from 'src/engine/core-modules/billing/services/billing-credit.service';
 import { BillingService } from 'src/engine/core-modules/billing/services/billing.service';
 import { OnboardingStatus } from 'src/engine/core-modules/onboarding/enums/onboarding-status.enum';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
@@ -28,25 +30,42 @@ export type OnboardingKeyValueTypeMap = {
 
 @Injectable()
 export class OnboardingService {
+  private readonly logger = new Logger(OnboardingService.name);
+
   constructor(
     private readonly billingService: BillingService,
+    private readonly billingCreditService: BillingCreditService,
     private readonly userVarsService: UserVarsService<OnboardingKeyValueTypeMap>,
     private readonly twentyConfigService: TwentyConfigService,
+    @InjectRepository(WorkspaceEntity)
+    private readonly workspaceRepository: Repository<WorkspaceEntity>,
   ) {}
 
   private isWorkspaceActivationPending(workspace: WorkspaceEntity) {
     return (
-      workspace.activationStatus === WorkspaceActivationStatus.PENDING_CREATION
+      workspace.activationStatus ===
+        WorkspaceActivationStatus.PENDING_CREATION ||
+      workspace.activationStatus === WorkspaceActivationStatus.ONGOING_CREATION
     );
   }
 
-  async getOnboardingStatus(user: UserEntity, workspace: WorkspaceEntity) {
-    if (
-      await this.billingService.isSubscriptionIncompleteOnboardingStatus(
-        workspace.id,
-      )
-    ) {
-      return OnboardingStatus.PLAN_REQUIRED;
+  async getOnboardingStatus({
+    user,
+    workspaceId,
+  }: {
+    user: UserEntity;
+    workspaceId: string;
+  }): Promise<OnboardingStatus | null> {
+    // We always read the workspace directly from the database here (bypassing
+    // the per-instance core entity cache) so that onboardingStatus reflects the
+    // freshest activationStatus right after activateWorkspace, even when a
+    // sibling server instance still has a stale cached workspace.
+    const workspace = await this.workspaceRepository.findOne({
+      where: { id: workspaceId },
+    });
+
+    if (!isDefined(workspace)) {
+      return null;
     }
 
     if (this.isWorkspaceActivationPending(workspace)) {
@@ -73,16 +92,24 @@ export class OnboardingService {
       userVars.get(OnboardingStepKeys.ONBOARDING_BOOK_ONBOARDING_PENDING) ===
       true;
 
-    if (isProfileCreationPending) {
-      return OnboardingStatus.PROFILE_CREATION;
-    }
-
     if (isConnectAccountPending) {
       return OnboardingStatus.SYNC_EMAIL;
     }
 
+    if (isProfileCreationPending) {
+      return OnboardingStatus.PROFILE_CREATION;
+    }
+
     if (isInviteTeamPending) {
       return OnboardingStatus.INVITE_TEAM;
+    }
+
+    if (
+      await this.billingService.isSubscriptionIncompleteOnboardingStatus(
+        workspace.id,
+      )
+    ) {
+      return OnboardingStatus.PLAN_REQUIRED;
     }
 
     if (isBookOnboardingPending) {
@@ -106,6 +133,19 @@ export class OnboardingService {
     }
 
     return OnboardingStatus.COMPLETED;
+  }
+
+  async isOnboardingInviteTeamPending({
+    workspaceId,
+  }: {
+    workspaceId: string;
+  }): Promise<boolean> {
+    return (
+      (await this.userVarsService.get({
+        workspaceId,
+        key: OnboardingStepKeys.ONBOARDING_INVITE_TEAM_PENDING,
+      })) === true
+    );
   }
 
   async setOnboardingConnectAccountPending(
@@ -142,6 +182,59 @@ export class OnboardingService {
       },
       queryRunner,
     );
+  }
+
+  async completeOnboardingConnectAccountStep({
+    userId,
+    workspaceId,
+  }: {
+    userId: string;
+    workspaceId: string;
+  }) {
+    const hasClaimedConnectAccountStep =
+      await this.claimOnboardingConnectAccountStep({ userId, workspaceId });
+
+    if (!hasClaimedConnectAccountStep) {
+      return;
+    }
+
+    await this.creditImportContactsReward({ workspaceId });
+  }
+
+  private async claimOnboardingConnectAccountStep({
+    userId,
+    workspaceId,
+  }: {
+    userId: string;
+    workspaceId: string;
+  }): Promise<boolean> {
+    const affectedRows = await this.userVarsService.delete({
+      userId,
+      workspaceId,
+      key: OnboardingStepKeys.ONBOARDING_CONNECT_ACCOUNT_PENDING,
+    });
+
+    return isDefined(affectedRows) && affectedRows > 0;
+  }
+
+  private async creditImportContactsReward({
+    workspaceId,
+  }: {
+    workspaceId: string;
+  }) {
+    try {
+      await this.billingCreditService.creditWorkspaceBalance({
+        workspaceId,
+        amountMicro: this.twentyConfigService.get(
+          'ONBOARDING_IMPORT_CONTACTS_CREDITS_REWARD',
+        ),
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to credit onboarding import-contacts reward for workspace ${workspaceId}`,
+        error,
+      );
+    }
   }
 
   async setOnboardingInviteTeamPending(

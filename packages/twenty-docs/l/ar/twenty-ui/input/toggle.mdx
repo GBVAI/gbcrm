@@ -1,11 +1,7 @@
 ---
 title: تبديل
-image: /images/user-guide/table-views/table.png
+icon: toggle-on
 ---
-
-<Frame>
-  <img src="/images/user-guide/table-views/table.png" alt="رأس الصفحة" />
-</Frame>
 
 <Tabs>
 <Tab title="الاستخدام">
@@ -17,7 +13,7 @@ export const MyComponent = () => {
   return (
     <Toggle
     value = {true}
-    onChange = {()=>console.log('تم تشغيل حدث onChange')}
+    onChange = {()=>console.log('On Change event')}
     color="green"
     toggleSize = "medium"
     />

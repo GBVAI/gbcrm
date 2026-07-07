@@ -30,7 +30,7 @@ npx jest path/to/test.test.ts --config=packages/PROJECT/jest.config.mjs
 npx nx test twenty-front      # Frontend unit tests
 npx nx test twenty-server     # Backend unit tests
 npx nx run twenty-server:test:integration:with-db-reset  # Integration tests with DB reset
-# To run an indivual test or a pattern of tests, use the following command:
+# To run an individual test or a pattern of tests, use the following command:
 cd packages/{workspace} && npx jest "pattern or filename"
 
 # Storybook
@@ -85,6 +85,7 @@ npx nx run twenty-server:database:migrate:generate --name <name> --type <fast|sl
 ### Database Inspection (Postgres MCP)
 
 A read-only Postgres MCP server is configured in `.mcp.json`. Use it to:
+
 - Inspect workspace data, metadata, and object definitions while developing
 - Verify migration results (columns, types, constraints) after running migrations
 - Explore the multi-tenant schema structure (core, metadata, workspace-specific schemas)
@@ -118,7 +119,8 @@ packages/
 ├── twenty-ui/             # Shared UI components library
 ├── twenty-shared/         # Common types and utilities
 ├── twenty-emails/         # Email templates with React Email
-├── twenty-website/        # Next.js documentation website
+├── twenty-website/    # Next.js marketing website
+├── twenty-docs/           # Documentation website
 ├── twenty-zapier/         # Zapier integration
 └── twenty-e2e-testing/    # Playwright E2E tests
 ```
@@ -173,6 +175,7 @@ packages/
 - **BullMQ** for background job processing
 
 ### Database & Upgrade Commands
+
 - **PostgreSQL** as primary database
 - **Redis** for caching and sessions
 - **ClickHouse** for analytics (when enabled)
@@ -222,7 +225,17 @@ IMPORTANT: Use Context7 for code generation, setup or configuration steps, or li
 
 When running in CI, the dev environment is **not** pre-configured. Dependencies are installed but builds, env files, and databases are not set up.
 
-- **Before running tests, builds, lint, type checks, or DB operations**, run: `bash packages/twenty-utils/setup-dev-env.sh`
+- **Before running tests, builds, lint, type checks, or DB operations**, run:
+
+```bash
+bash packages/twenty-utils/setup-dev-env.sh
+```
+
+This handles everything: starts Postgres + Redis (auto-detects local services vs Docker), creates databases, copies `.env` files, and initializes the database schema (runs migrations) on a fresh database. Idempotent — safe to run multiple times.
+
+- `--docker` — force Docker mode (uses `packages/twenty-docker/docker-compose.dev.yml`)
+- `--down` — stop services
+- `--reset` — wipe data and restart fresh
 - **Skip the setup script** for tasks that only read code — architecture questions, code review, documentation, etc.
 - The script is idempotent and safe to run multiple times.
 

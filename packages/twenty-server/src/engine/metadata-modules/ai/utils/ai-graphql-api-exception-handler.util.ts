@@ -1,5 +1,7 @@
 import { assertUnreachable } from 'twenty-shared/utils';
 
+import { BillingException } from 'src/engine/core-modules/billing/billing.exception';
+import { billingGraphqlApiExceptionHandler } from 'src/engine/core-modules/billing/utils/billing-graphql-api-exception-handler.util';
 import {
   ConflictError,
   ForbiddenError,
@@ -13,6 +15,10 @@ import {
 } from 'src/engine/metadata-modules/ai/ai.exception';
 
 export const aiGraphqlApiExceptionHandler = (error: Error) => {
+  if (error instanceof BillingException) {
+    return billingGraphqlApiExceptionHandler(error);
+  }
+
   if (error instanceof AiException) {
     switch (error.code) {
       case AiExceptionCode.AGENT_NOT_FOUND:
@@ -21,6 +27,7 @@ export const aiGraphqlApiExceptionHandler = (error: Error) => {
       case AiExceptionCode.ROLE_NOT_FOUND:
         throw new NotFoundError(error);
       case AiExceptionCode.INVALID_AGENT_INPUT:
+      case AiExceptionCode.INVALID_CHAT_THREAD_TITLE:
         throw new UserInputError(error);
       case AiExceptionCode.AGENT_ALREADY_EXISTS:
         throw new ConflictError(error);

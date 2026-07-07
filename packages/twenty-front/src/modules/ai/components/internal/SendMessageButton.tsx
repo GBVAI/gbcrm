@@ -1,19 +1,23 @@
 import { AGENT_CHAT_STOP_EVENT_NAME } from '@/ai/constants/AgentChatStopEventName';
-import { agentChatInputIsEmptySelector } from '@/ai/states/agentChatInputIsEmptySelector';
+import { agentChatInputIsEmptySelector } from '@/ai/states/selectors/agentChatInputIsEmptySelector';
 import { agentChatIsLoadingState } from '@/ai/states/agentChatIsLoadingState';
 import { agentChatIsStreamingComponentFamilyState } from '@/ai/states/agentChatIsStreamingComponentFamilyState';
 import { currentAiChatThreadState } from '@/ai/states/currentAiChatThreadState';
 import { dispatchBrowserEvent } from '@/browser-event/utils/dispatchBrowserEvent';
 import { useAtomComponentFamilyStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentFamilyStateValue';
 import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
-import { IconArrowUp, IconPlayerStop } from 'twenty-ui/display';
+import { IconArrowUp, IconPlayerStop } from 'twenty-ui/icon';
 import { RoundedIconButton } from 'twenty-ui/input';
 
 type SendMessageButtonProps = {
   onSend: () => void;
+  isDisabled?: boolean;
 };
 
-export const SendMessageButton = ({ onSend }: SendMessageButtonProps) => {
+export const SendMessageButton = ({
+  onSend,
+  isDisabled = false,
+}: SendMessageButtonProps) => {
   const agentChatInputIsEmpty = useAtomStateValue(
     agentChatInputIsEmptySelector,
   );
@@ -45,7 +49,7 @@ export const SendMessageButton = ({ onSend }: SendMessageButtonProps) => {
       Icon={IconArrowUp}
       size="medium"
       onClick={onSend}
-      disabled={agentChatInputIsEmpty || agentChatIsLoading}
+      disabled={isDisabled || agentChatInputIsEmpty || agentChatIsLoading}
     />
   );
 };

@@ -66,18 +66,16 @@ const RECORD_PAGE_FIELDS_VIEW_NAME_BY_OBJECT: Partial<
   Record<AllStandardObjectName, string>
 > = {
   blocklist: 'blocklistRecordPageFields',
-  calendarChannel: 'calendarChannelRecordPageFields',
   calendarChannelEventAssociation:
     'calendarChannelEventAssociationRecordPageFields',
+  calendarEvent: 'calendarEventRecordPageFields',
   calendarEventParticipant: 'calendarEventParticipantRecordPageFields',
+  callRecording: 'callRecordingRecordPageFields',
   company: 'companyRecordPageFields',
-  connectedAccount: 'connectedAccountRecordPageFields',
-  messageChannel: 'messageChannelRecordPageFields',
   messageChannelMessageAssociation:
     'messageChannelMessageAssociationRecordPageFields',
   messageChannelMessageAssociationMessageFolder:
     'messageChannelMessageAssociationMessageFolderRecordPageFields',
-  messageFolder: 'messageFolderRecordPageFields',
   messageParticipant: 'messageParticipantRecordPageFields',
   note: 'noteRecordPageFields',
   opportunity: 'opportunityRecordPageFields',
@@ -160,7 +158,7 @@ const buildFieldsWidgetConfiguration = ({
       },
       universalConfiguration: {
         configurationType: WidgetConfigurationType.FIELDS,
-        viewId: null,
+        viewUniversalIdentifier: null,
         newFieldDefaultVisibility: true,
       },
     };
@@ -197,7 +195,7 @@ const buildFieldsWidgetConfiguration = ({
     },
     universalConfiguration: {
       configurationType: WidgetConfigurationType.FIELDS,
-      viewId: viewUniversalIdentifier,
+      viewUniversalIdentifier,
       newFieldDefaultVisibility: true,
     },
   };

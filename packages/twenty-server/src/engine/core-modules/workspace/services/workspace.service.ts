@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 
 import assert from 'assert';
@@ -8,11 +8,12 @@ import { TypeOrmQueryService } from '@ptc-org/nestjs-query-typeorm';
 import { PermissionFlagType } from 'twenty-shared/constants';
 import { assertIsDefinedOrThrow, isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { DataSource, QueryRunner, Repository } from 'typeorm';
+import { DataSource, LessThan, QueryRunner, Repository } from 'typeorm';
 
 import { CoreEntityCacheService } from 'src/engine/core-entity-cache/services/core-entity-cache.service';
 import { ApiKeyEntity } from 'src/engine/core-modules/api-key/api-key.entity';
 import { ApplicationService } from 'src/engine/core-modules/application/application.service';
+import { PreInstalledAppsService } from 'src/engine/core-modules/application/pre-installed-apps/pre-installed-apps.service';
 import { type AuthContextUser } from 'src/engine/core-modules/auth/types/auth-context.type';
 import { BillingSubscriptionService } from 'src/engine/core-modules/billing/services/billing-subscription.service';
 import { BillingService } from 'src/engine/core-modules/billing/services/billing.service';
@@ -21,6 +22,11 @@ import { CustomDomainManagerService } from 'src/engine/core-modules/domain/custo
 import { SubdomainManagerService } from 'src/engine/core-modules/domain/subdomain-manager/services/subdomain-manager.service';
 import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handler/exception-handler.service';
 import { FeatureFlagService } from 'src/engine/core-modules/feature-flag/services/feature-flag.service';
+import { EmailingDomainEntity } from 'src/engine/core-modules/emailing-domain/emailing-domain.entity';
+import {
+  EmailingDomainWorkspaceCleanupJob,
+  type EmailingDomainWorkspaceCleanupJobData,
+} from 'src/engine/core-modules/emailing-domain/jobs/emailing-domain-workspace-cleanup.job';
 import { FileCorePictureService } from 'src/engine/core-modules/file/file-core-picture/services/file-core-picture.service';
 import {
   FileWorkspaceFolderDeletionJob,
@@ -29,13 +35,13 @@ import {
 import { InjectMessageQueue } from 'src/engine/core-modules/message-queue/decorators/message-queue.decorator';
 import { MessageQueue } from 'src/engine/core-modules/message-queue/message-queue.constants';
 import { MessageQueueService } from 'src/engine/core-modules/message-queue/services/message-queue.service';
+import { SdkClientGenerationService } from 'src/engine/core-modules/sdk-client/sdk-client-generation.service';
 import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { UpgradeMigrationService } from 'src/engine/core-modules/upgrade/services/upgrade-migration.service';
 import { UpgradeSequenceReaderService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-reader.service';
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { UserWorkspaceService } from 'src/engine/core-modules/user-workspace/user-workspace.service';
 import { UserEntity } from 'src/engine/core-modules/user/user.entity';
-import { type ActivateWorkspaceInput } from 'src/engine/core-modules/workspace/dtos/activate-workspace-input';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import {
   WorkspaceException,
@@ -69,6 +75,12 @@ import { WorkspaceManagerService } from 'src/engine/workspace-manager/workspace-
 import { DEFAULT_FEATURE_FLAGS } from 'src/engine/workspace-manager/workspace-migration/constant/default-feature-flags';
 import { WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
 
+// A workspace stuck in ONGOING_CREATION for longer than this is treated as a
+// crashed activation (the process died before the catch block could reset it to
+// PENDING_CREATION) and may be retried. It is far longer than a real activation
+// takes, so a genuinely in-progress activation is never reclaimed.
+const WORKSPACE_ACTIVATION_STALE_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
+
 @Injectable()
 // oxlint-disable-next-line twenty/inject-workspace-repository
 export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
@@ -98,6 +110,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     aiAdditionalInstructions: PermissionFlagType.WORKSPACE,
     enabledAiModelIds: PermissionFlagType.AI_SETTINGS,
     useRecommendedModels: PermissionFlagType.AI_SETTINGS,
+    isInternalMessagesImportEnabled: PermissionFlagType.WORKSPACE,
   };
 
   constructor(
@@ -119,6 +132,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     private readonly flatEntityMapsCacheService: WorkspaceManyOrAllFlatEntityMapsCacheService,
     private readonly prefillLogicFunctionService: PrefillLogicFunctionService,
     private readonly applicationService: ApplicationService,
+    private readonly preInstalledAppsService: PreInstalledAppsService,
     private readonly workspaceMigrationValidateBuildAndRunService: WorkspaceMigrationValidateBuildAndRunService,
     private readonly workspaceCacheStorageService: WorkspaceCacheStorageService,
     private readonly subdomainManagerService: SubdomainManagerService,
@@ -133,6 +147,7 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     private readonly coreEntityCacheService: CoreEntityCacheService,
     private readonly upgradeMigrationService: UpgradeMigrationService,
     private readonly upgradeSequenceReaderService: UpgradeSequenceReaderService,
+    private readonly sdkClientGenerationService: SdkClientGenerationService,
   ) {
     super(workspaceRepository);
   }
@@ -314,57 +329,102 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     return updatedWorkspace;
   }
 
-  async activateWorkspace(
-    user: AuthContextUser,
-    workspace: WorkspaceEntity,
-    data: ActivateWorkspaceInput,
-  ) {
-    if (!data.displayName || !data.displayName.length) {
-      throw new BadRequestException("'displayName' not provided");
+  async activateWorkspace(user: AuthContextUser, workspace: WorkspaceEntity) {
+    // Acquire the activation lock by atomically moving the workspace to
+    // ONGOING_CREATION. First try the normal case (PENDING_CREATION). If nothing
+    // matches, the workspace may be stuck in ONGOING_CREATION from a prior
+    // attempt that was killed before the catch block could reset it — reclaim it,
+    // but only once the lock is stale, so a genuinely concurrent activation is
+    // never interrupted. Postgres row locking serializes concurrent reclaims, and
+    // repository.update bumps updatedAt, so a reclaimed lock is immediately fresh.
+    let activationLockResult = await this.workspaceRepository.update(
+      {
+        id: workspace.id,
+        activationStatus: WorkspaceActivationStatus.PENDING_CREATION,
+      },
+      { activationStatus: WorkspaceActivationStatus.ONGOING_CREATION },
+    );
+
+    if ((activationLockResult.affected ?? 0) === 0) {
+      activationLockResult = await this.workspaceRepository.update(
+        {
+          id: workspace.id,
+          activationStatus: WorkspaceActivationStatus.ONGOING_CREATION,
+          updatedAt: LessThan(
+            new Date(Date.now() - WORKSPACE_ACTIVATION_STALE_LOCK_TIMEOUT_MS),
+          ),
+        },
+        { activationStatus: WorkspaceActivationStatus.ONGOING_CREATION },
+      );
     }
 
-    if (
-      workspace.activationStatus === WorkspaceActivationStatus.ONGOING_CREATION
-    ) {
+    if ((activationLockResult.affected ?? 0) === 0) {
+      // Activation is idempotent for the terminal state: if a prior attempt
+      // already completed (e.g. the client lost the response and retried),
+      // return the active workspace instead of failing. Otherwise another
+      // activation is genuinely in progress and must not be interrupted.
+      const existingWorkspace = await this.workspaceRepository.findOneBy({
+        id: workspace.id,
+      });
+
+      if (
+        existingWorkspace?.activationStatus === WorkspaceActivationStatus.ACTIVE
+      ) {
+        return existingWorkspace;
+      }
+
       throw new Error('Workspace is already being created');
     }
-
-    if (
-      workspace.activationStatus !== WorkspaceActivationStatus.PENDING_CREATION
-    ) {
-      throw new Error('Workspace is not pending creation');
-    }
-
-    await this.workspaceRepository.update(workspace.id, {
-      activationStatus: WorkspaceActivationStatus.ONGOING_CREATION,
-    });
 
     await this.coreEntityCacheService.invalidate(
       'workspaceEntity',
       workspace.id,
     );
 
-    await this.workspaceManagerService.init({
-      workspace,
-      userId: user.id,
-    });
+    try {
+      await this.workspaceManagerService.init({
+        workspace,
+        userId: user.id,
+      });
 
-    await this.featureFlagService.enableFeatureFlags(
-      DEFAULT_FEATURE_FLAGS,
-      workspace.id,
-    );
+      await this.featureFlagService.enableFeatureFlags(
+        DEFAULT_FEATURE_FLAGS,
+        workspace.id,
+      );
 
-    await this.userWorkspaceService.createWorkspaceMember(workspace.id, user);
+      await this.userWorkspaceService.createWorkspaceMember(workspace.id, user);
 
-    await this.prefillCreatedWorkspaceRecords({
-      workspaceId: workspace.id,
-      schemaName: getWorkspaceSchemaName(workspace.id),
-    });
+      await this.prefillCreatedWorkspaceRecords({
+        workspaceId: workspace.id,
+        schemaName: getWorkspaceSchemaName(workspace.id),
+      });
 
-    await this.activateAndInitializeUpgradeState({
-      workspaceId: workspace.id,
-      displayName: data.displayName,
-    });
+      await this.activateAndInitializeUpgradeState({
+        workspaceId: workspace.id,
+      });
+    } catch (error) {
+      await this.workspaceRepository.update(workspace.id, {
+        activationStatus: WorkspaceActivationStatus.PENDING_CREATION,
+      });
+      await this.coreEntityCacheService.invalidate(
+        'workspaceEntity',
+        workspace.id,
+      );
+
+      throw error;
+    }
+
+    try {
+      await this.sdkClientGenerationService.enqueueSdkClientGenerationForWorkspace(
+        workspace.id,
+      );
+    } catch (error) {
+      this.logger.error(
+        `failed to enqueue SDK client generation jobs for workspace ${workspace.id}`,
+        error,
+      );
+      this.exceptionHandlerService.captureExceptions([error as Error]);
+    }
 
     await this.coreEntityCacheService.invalidate(
       'workspaceEntity',
@@ -377,11 +437,9 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
   }
 
   private async activateAndInitializeUpgradeState({
-    displayName,
     workspaceId,
   }: {
     workspaceId: string;
-    displayName: string;
   }): Promise<void> {
     const lastAttemptedInstanceCommand =
       await this.upgradeMigrationService.getLastAttemptedInstanceCommandOrThrow();
@@ -401,7 +459,6 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
 
     try {
       await queryRunner.manager.update(WorkspaceEntity, workspaceId, {
-        displayName,
         activationStatus: WorkspaceActivationStatus.ACTIVE,
       });
 
@@ -420,6 +477,13 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async suspendWorkspace(id: string) {
+    await this.workspaceRepository.update(id, {
+      activationStatus: WorkspaceActivationStatus.SUSPENDED,
+      suspendedAt: new Date(),
+    });
   }
 
   async deleteWorkspace(id: string, softDelete = false) {
@@ -448,17 +512,23 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
 
     this.logger.log(`workspace ${id} cache flushed`);
 
-    if (this.billingService.isBillingEnabled()) {
-      await this.billingSubscriptionService.deleteSubscriptions(workspace.id);
-    }
-
     if (softDelete) {
+      if (this.billingService.isBillingEnabled()) {
+        await this.billingSubscriptionService.cancelSubscription(workspace.id);
+      }
+
       await this.workspaceRepository.softDelete({ id });
       await this.coreEntityCacheService.invalidate('workspaceEntity', id);
 
       this.logger.log(`workspace ${id} soft deleted`);
 
       return workspace;
+    }
+
+    if (this.billingService.isBillingEnabled()) {
+      await this.billingSubscriptionService.assertSubscriptionCanceledOrNone(
+        workspace.id,
+      );
     }
 
     await this.deleteWorkspaceSyncableMetadataEntities(workspace);
@@ -476,6 +546,18 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     await this.messageQueueService.add<FileWorkspaceFolderDeletionJobData>(
       FileWorkspaceFolderDeletionJob.name,
       { workspaceId: id },
+    );
+
+    const emailingDomains = await this.coreDataSource
+      .getRepository(EmailingDomainEntity)
+      .find({ where: { workspaceId: id } });
+
+    await this.messageQueueService.add<EmailingDomainWorkspaceCleanupJobData>(
+      EmailingDomainWorkspaceCleanupJob.name,
+      {
+        workspaceId: id,
+        domains: emailingDomains.map((emailingDomain) => emailingDomain.domain),
+      },
     );
 
     if (workspace.customDomain) {
@@ -815,6 +897,16 @@ export class WorkspaceService extends TypeOrmQueryService<WorkspaceEntity> {
     } catch (error) {
       this.logger.error(
         `Non-critical: failed to prefill workflow command menu items for workspace ${workspaceId}`,
+        error,
+      );
+      this.exceptionHandlerService.captureExceptions([error as Error]);
+    }
+
+    try {
+      await this.preInstalledAppsService.installOnWorkspace(workspaceId);
+    } catch (error) {
+      this.logger.error(
+        `Non-critical: failed to install pre-installed apps for workspace ${workspaceId}`,
         error,
       );
       this.exceptionHandlerService.captureExceptions([error as Error]);

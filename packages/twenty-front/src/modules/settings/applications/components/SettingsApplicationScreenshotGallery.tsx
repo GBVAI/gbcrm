@@ -7,15 +7,23 @@ type SettingsApplicationScreenshotGalleryProps = {
   displayName: string;
 };
 
+const StyledGalleryContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[2]};
+  margin-bottom: ${themeCssVariables.spacing[6]};
+  min-width: 0;
+  width: 100%;
+`;
+
 const StyledScreenshotsContainer = styled.div`
   align-items: center;
+  aspect-ratio: 8 / 5;
   background-color: ${themeCssVariables.background.secondary};
   border: 1px solid ${themeCssVariables.border.color.medium};
   border-radius: ${themeCssVariables.border.radius.md};
   display: flex;
-  height: 300px;
   justify-content: center;
-  margin-bottom: ${themeCssVariables.spacing[2]};
   overflow: hidden;
 `;
 
@@ -28,11 +36,13 @@ const StyledScreenshotImage = styled.img`
 const StyledScreenshotThumbnails = styled.div`
   display: flex;
   gap: ${themeCssVariables.spacing[2]};
-  margin-bottom: ${themeCssVariables.spacing[6]};
+  min-width: 0;
+  overflow-x: auto;
 `;
 
 const StyledThumbnail = styled.div<{ isSelected?: boolean }>`
   align-items: center;
+  aspect-ratio: 8 / 5;
   background-color: ${themeCssVariables.background.secondary};
   border: 1px solid
     ${({ isSelected }) =>
@@ -42,8 +52,7 @@ const StyledThumbnail = styled.div<{ isSelected?: boolean }>`
   border-radius: ${themeCssVariables.border.radius.sm};
   cursor: pointer;
   display: flex;
-  flex: 1;
-  height: 60px;
+  flex: 0 0 96px;
   justify-content: center;
   overflow: hidden;
 
@@ -71,7 +80,7 @@ export const SettingsApplicationScreenshotGallery = ({
   const safeIndex = Math.min(selectedScreenshotIndex, screenshots.length - 1);
 
   return (
-    <>
+    <StyledGalleryContainer>
       <StyledScreenshotsContainer>
         <StyledScreenshotImage
           src={screenshots[safeIndex]}
@@ -92,6 +101,6 @@ export const SettingsApplicationScreenshotGallery = ({
           </StyledThumbnail>
         ))}
       </StyledScreenshotThumbnails>
-    </>
+    </StyledGalleryContainer>
   );
 };

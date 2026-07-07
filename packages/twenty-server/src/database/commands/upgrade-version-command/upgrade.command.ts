@@ -1,10 +1,9 @@
 import { InjectDataSource } from '@nestjs/typeorm';
 
-import chalk from 'chalk';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { isDefined } from 'twenty-shared/utils';
 import { WorkspaceActivationStatus } from 'twenty-shared/workspace';
-import { DataSource } from 'typeorm';
+import { DataSource, type MigrationInterface } from 'typeorm';
 
 import { CommandLogger } from 'src/database/commands/logger';
 import { InstanceCommandRunnerService } from 'src/engine/core-modules/upgrade/services/instance-command-runner.service';
@@ -12,6 +11,8 @@ import { UpgradeCommandRegistryService } from 'src/engine/core-modules/upgrade/s
 import { UpgradeMigrationService } from 'src/engine/core-modules/upgrade/services/upgrade-migration.service';
 import { UpgradeSequenceReaderService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-reader.service';
 import { UpgradeSequenceRunnerService } from 'src/engine/core-modules/upgrade/services/upgrade-sequence-runner.service';
+import { UpgradeStatusService } from 'src/engine/core-modules/upgrade/services/upgrade-status.service';
+import { formatUpgradeLog } from 'src/engine/core-modules/upgrade/utils/format-upgrade-log.util';
 import { WorkspaceVersionService } from 'src/engine/workspace-manager/workspace-version/services/workspace-version.service';
 import { compareVersionMajorAndMinor } from 'src/utils/version/compare-version-minor-and-major';
 
@@ -45,6 +46,7 @@ export class UpgradeCommand extends CommandRunner {
     protected readonly instanceCommandRunnerService: InstanceCommandRunnerService,
     protected readonly upgradeMigrationService: UpgradeMigrationService,
     protected readonly workspaceVersionService: WorkspaceVersionService,
+    protected readonly upgradeStatusService: UpgradeStatusService,
     @InjectDataSource()
     protected readonly dataSource: DataSource,
   ) {
@@ -128,6 +130,15 @@ export class UpgradeCommand extends CommandRunner {
       });
     }
 
+    if (
+      isDefined(options.workspaceId) &&
+      isDefined(options.startFromWorkspaceId)
+    ) {
+      throw new Error(
+        'Cannot use --start-from-workspace-id together with -w/--workspace-id',
+      );
+    }
+
     try {
       await this.runLegacyPendingTypeOrmMigrations();
       await this.runBootstrapMigrations();
@@ -138,17 +149,30 @@ export class UpgradeCommand extends CommandRunner {
       const sequence = this.upgradeSequenceReaderService.getUpgradeSequence();
 
       this.logger.log(
-        chalk.blue(
-          [
-            'Initialized upgrade sequence:',
-            `- ${sequence.length} step(s)`,
-            ...sequence.map(
-              (step, index) =>
-                `  [${index}] ${step.kind} — ${step.name} (${step.version})`,
-            ),
-          ].join('\n   '),
-        ),
+        formatUpgradeLog({
+          humanMessage: `Initialized upgrade sequence: ${sequence.length} step(s)`,
+          event: 'sequence.initialized',
+          logFields: {
+            stepCount: sequence.length,
+            dryRun: options.dryRun ?? false,
+          },
+        }),
       );
+
+      for (const [index, step] of sequence.entries()) {
+        this.logger.verbose(
+          formatUpgradeLog({
+            humanMessage: `  [${index}] ${step.kind} — ${step.name} (${step.version})`,
+            event: 'sequence.step',
+            logFields: {
+              index,
+              kind: step.kind,
+              name: step.name,
+              version: step.version,
+            },
+          }),
+        );
+      }
 
       const { totalSuccesses, totalFailures } =
         await this.upgradeSequenceRunnerService.run({
@@ -162,9 +186,15 @@ export class UpgradeCommand extends CommandRunner {
         });
 
       this.logger.log(
-        chalk.blue(
-          `Upgrade summary: ${totalSuccesses} workspace(s) succeeded, ${totalFailures} workspace(s) failed`,
-        ),
+        formatUpgradeLog({
+          humanMessage: `Upgrade summary: ${totalSuccesses} workspace(s) succeeded, ${totalFailures} workspace(s) failed`,
+          event: 'summary',
+          logFields: {
+            totalSuccesses,
+            totalFailures,
+            dryRun: options.dryRun ?? false,
+          },
+        }),
       );
 
       if (totalFailures > 0) {
@@ -173,23 +203,64 @@ export class UpgradeCommand extends CommandRunner {
         );
       }
     } catch (error) {
-      this.logger.error(chalk.red(`Upgrade failed: ${error.message}`));
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        formatUpgradeLog({
+          humanMessage: `Upgrade failed: ${errorMessage}`,
+          event: 'aborted',
+        }),
+      );
       throw error;
+    } finally {
+      await this.safeInvalidateUpgradeStatusCache();
+    }
+  }
+
+  private async safeInvalidateUpgradeStatusCache(): Promise<void> {
+    try {
+      await this.upgradeStatusService.invalidateInstanceAndAllWorkspacesStatus();
+    } catch (error) {
+      this.logger.error(
+        formatUpgradeLog({
+          humanMessage: `Failed to invalidate upgrade-status cache: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          event: 'cache.invalidate.failed',
+        }),
+      );
     }
   }
 
   private async runLegacyPendingTypeOrmMigrations(): Promise<void> {
-    this.logger.log('Running legacy TypeORM migrations...');
+    this.logger.log(
+      formatUpgradeLog({
+        humanMessage: 'Running legacy TypeORM migrations...',
+        event: 'legacy-typeorm.start',
+      }),
+    );
 
     const migrations = await this.dataSource.runMigrations({
       transaction: 'each',
     });
 
     if (migrations.length === 0) {
-      this.logger.log('No pending legacy migrations');
+      this.logger.log(
+        formatUpgradeLog({
+          humanMessage: 'No pending legacy TypeORM migrations',
+          event: 'legacy-typeorm.none',
+        }),
+      );
     } else {
       this.logger.log(
-        `Executed ${migrations.length} legacy migration(s): ${migrations.map((migration) => migration.name).join(', ')}`,
+        formatUpgradeLog({
+          humanMessage: `Executed ${migrations.length} legacy migration(s): ${migrations.map((migration) => migration.name).join(', ')}`,
+          event: 'legacy-typeorm.completed',
+          logFields: {
+            migrationCount: migrations.length,
+          },
+        }),
       );
     }
   }
@@ -200,7 +271,11 @@ export class UpgradeCommand extends CommandRunner {
 
     if (hasStartedCursorBased1_22Upgrade) {
       this.logger.log(
-        'Skipping legacy 1.21 instance command replay: 1.22 cursor-based upgrade has already started',
+        formatUpgradeLog({
+          humanMessage:
+            'Skipping legacy 1.21 instance command replay: 1.22 cursor-based upgrade has already started',
+          event: 'legacy-1-21-instance.skipped',
+        }),
       );
 
       return;
@@ -273,7 +348,11 @@ export class UpgradeCommand extends CommandRunner {
 
     if (!hasVersionColumn) {
       this.logger.log(
-        'Skipping legacy workspace.version guard: column no longer exists',
+        formatUpgradeLog({
+          humanMessage:
+            'Skipping legacy workspace.version guard: column no longer exists',
+          event: 'legacy-workspace-version.skipped',
+        }),
       );
 
       return;
@@ -366,9 +445,14 @@ export class UpgradeCommand extends CommandRunner {
     }
 
     this.logger.log(
-      chalk.blue(
-        `Backfilling initial cursor for ${workspacesWithoutCursor.length} workspace(s) → "${lastWorkspaceCommand.name}"`,
-      ),
+      formatUpgradeLog({
+        humanMessage: `Backfilling initial cursor for ${workspacesWithoutCursor.length} workspace(s) → "${lastWorkspaceCommand.name}"`,
+        event: 'legacy-workspace-cursor.backfill',
+        logFields: {
+          workspaceCount: workspacesWithoutCursor.length,
+          commandName: lastWorkspaceCommand.name,
+        },
+      }),
     );
 
     for (const workspaceId of workspacesWithoutCursor) {
@@ -409,7 +493,7 @@ export class UpgradeCommand extends CommandRunner {
     }
 
     const migration = this.dataSource.migrations.find(
-      (migration) => migration.name === BOOTSTRAP_MIGRATION,
+      (migration: MigrationInterface) => migration.name === BOOTSTRAP_MIGRATION,
     );
 
     if (!migration) {

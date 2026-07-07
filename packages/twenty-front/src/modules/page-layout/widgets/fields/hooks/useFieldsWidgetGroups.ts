@@ -1,5 +1,7 @@
+import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { useLabelIdentifierFieldMetadataItem } from '@/object-metadata/hooks/useLabelIdentifierFieldMetadataItem';
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { type FieldsWidgetDisplayMode } from '@/page-layout/widgets/fields/types/FieldsWidgetDisplayMode';
 import {
   type FieldsWidgetGroup,
@@ -29,6 +31,10 @@ export const useFieldsWidgetGroups = ({
       objectNameSingular,
     });
 
+  const currentWorkspace = useAtomStateValue(currentWorkspaceState);
+  const workspaceCustomApplicationId =
+    currentWorkspace?.workspaceCustomApplication?.id;
+
   const { groups, displayMode } = useMemo<{
     groups: FieldsWidgetGroup[];
     displayMode: FieldsWidgetDisplayMode;
@@ -36,6 +42,10 @@ export const useFieldsWidgetGroups = ({
     if (!isDefined(objectMetadataItem)) {
       return { groups: [], displayMode: 'grouped' };
     }
+
+    const activeFields = objectMetadataItem.fields.filter(
+      (field) => field.isActive,
+    );
 
     if (isDefined(view) && isNonEmptyArray(view.viewFieldGroups)) {
       const sortedGroups = view.viewFieldGroups.toSorted(
@@ -54,7 +64,7 @@ export const useFieldsWidgetGroups = ({
           const fields: FieldsWidgetGroupField[] = groupFields
             .filter((field) => field.isVisible)
             .map((viewField) => {
-              const fieldMetadataItem = objectMetadataItem.fields.find(
+              const fieldMetadataItem = activeFields.find(
                 (f) => f.id === viewField.fieldMetadataId,
               );
 
@@ -93,7 +103,7 @@ export const useFieldsWidgetGroups = ({
         .sort((a, b) => a.position - b.position)
         .filter((viewField) => viewField.isVisible)
         .map((viewField) => {
-          const fieldMetadataItem = objectMetadataItem.fields.find(
+          const fieldMetadataItem = activeFields.find(
             (f) => f.id === viewField.fieldMetadataId,
           );
 
@@ -133,11 +143,18 @@ export const useFieldsWidgetGroups = ({
           fields: objectMetadataItem.fields,
           labelIdentifierFieldMetadataItemId:
             labelIdentifierFieldMetadataItem?.id,
+          workspaceCustomApplicationId,
         }),
       ),
       displayMode: 'grouped',
     };
-  }, [objectMetadataItem, labelIdentifierFieldMetadataItem, view, viewId]);
+  }, [
+    objectMetadataItem,
+    labelIdentifierFieldMetadataItem,
+    view,
+    viewId,
+    workspaceCustomApplicationId,
+  ]);
 
   return {
     groups,

@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { type Manifest } from 'twenty-shared/application';
 import { isDefined } from 'twenty-shared/utils';
-import { IsNull, type Repository } from 'typeorm';
+import { type Repository } from 'typeorm';
 import { v4 } from 'uuid';
 
 import { ALL_OAUTH_SCOPES } from 'src/engine/core-modules/application/application-oauth/constants/oauth-scopes';
@@ -19,12 +19,17 @@ import {
 import { type ApplicationRegistrationStatsDTO } from 'src/engine/core-modules/application/application-registration/dtos/application-registration-stats.dto';
 import { type CreateApplicationRegistrationInput } from 'src/engine/core-modules/application/application-registration/dtos/create-application-registration.input';
 import { type PublicApplicationRegistrationDTO } from 'src/engine/core-modules/application/application-registration/dtos/public-application-registration.dto';
-import { type UpdateApplicationRegistrationInput } from 'src/engine/core-modules/application/application-registration/dtos/update-application-registration.input';
+import {
+  type UpdateApplicationRegistrationInput,
+  type UpdateApplicationRegistrationPayload,
+} from 'src/engine/core-modules/application/application-registration/dtos/update-application-registration.input';
 import { ApplicationRegistrationSourceType } from 'src/engine/core-modules/application/application-registration/enums/application-registration-source-type.enum';
 import { ApplicationEntity } from 'src/engine/core-modules/application/application.entity';
 import { validateRedirectUri } from 'src/engine/core-modules/auth/utils/validate-redirect-uri.util';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { ApplicationRegistrationVariableService } from 'src/engine/core-modules/application/application-registration-variable/application-registration-variable.service';
+import { MARKETPLACE_CURATED_APPLICATIONS } from 'src/engine/core-modules/application/application-marketplace/constants/marketplace-curated-applications.constant';
+
 const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
@@ -59,10 +64,7 @@ export class ApplicationRegistrationService {
     ownerWorkspaceId: string,
   ): Promise<ApplicationRegistrationEntity> {
     const registration = await this.applicationRegistrationRepository.findOne({
-      where: [
-        { id, ownerWorkspaceId },
-        { id, ownerWorkspaceId: IsNull() },
-      ],
+      where: { id, ownerWorkspaceId },
     });
 
     if (!registration) {
@@ -187,7 +189,26 @@ export class ApplicationRegistrationService {
     const { id, update } = input;
 
     await this.findOneById(id, ownerWorkspaceId);
+    await this.applyUpdate(id, update);
 
+    return this.findOneById(id, ownerWorkspaceId);
+  }
+
+  async updateGlobal(
+    input: UpdateApplicationRegistrationInput,
+  ): Promise<ApplicationRegistrationEntity> {
+    const { id, update } = input;
+
+    await this.findOneByIdGlobal(id);
+    await this.applyUpdate(id, update);
+
+    return this.findOneByIdGlobal(id);
+  }
+
+  private async applyUpdate(
+    id: string,
+    update: UpdateApplicationRegistrationPayload,
+  ): Promise<void> {
     if (isDefined(update.oAuthRedirectUris)) {
       this.validateRedirectUris(update.oAuthRedirectUris);
     }
@@ -204,18 +225,23 @@ export class ApplicationRegistrationService {
     if (isDefined(update.oAuthScopes))
       updateData.oAuthScopes = update.oAuthScopes;
     if (isDefined(update.isListed)) updateData.isListed = update.isListed;
+    if (isDefined(update.isPreInstalled))
+      updateData.isPreInstalled = update.isPreInstalled;
 
     if (Object.keys(updateData).length > 0) {
       await this.applicationRegistrationRepository.update(id, updateData);
     }
-
-    return this.findOneById(id, ownerWorkspaceId);
   }
 
-  async updateFromManifest(
-    applicationRegistrationId: string,
-    manifest: Manifest,
-  ): Promise<void> {
+  async updateFromManifest({
+    applicationRegistrationId,
+    manifest,
+    sourceType,
+  }: {
+    applicationRegistrationId: string;
+    manifest: Manifest;
+    sourceType?: ApplicationRegistrationSourceType;
+  }): Promise<void> {
     const existing = await this.applicationRegistrationRepository.findOneOrFail(
       { where: { id: applicationRegistrationId } },
     );
@@ -224,6 +250,7 @@ export class ApplicationRegistrationService {
       ...existing,
       name: manifest.application.displayName,
       manifest,
+      ...(sourceType !== undefined && { sourceType }),
     });
   }
 
@@ -269,15 +296,20 @@ export class ApplicationRegistrationService {
       | 'sourceType'
       | 'sourcePackage'
       | 'latestAvailableVersion'
-      | 'isListed'
-      | 'isFeatured'
       | 'manifest'
-      | 'ownerWorkspaceId'
     >,
   ): Promise<void> {
     const existing = await this.findOneByUniversalIdentifier(
       params.universalIdentifier,
     );
+
+    const curatedIdentifiers = new Set(
+      MARKETPLACE_CURATED_APPLICATIONS.map(
+        (entry) => entry.universalIdentifier,
+      ),
+    );
+
+    const isFeatured = curatedIdentifiers.has(params.universalIdentifier);
 
     if (isDefined(existing)) {
       await this.applicationRegistrationRepository.save({
@@ -287,8 +319,7 @@ export class ApplicationRegistrationService {
         sourcePackage: params.sourcePackage,
         latestAvailableVersion: params.latestAvailableVersion,
         manifest: params.manifest,
-        isListed: params.isListed,
-        isFeatured: params.isFeatured,
+        isFeatured,
       });
     } else {
       const registration = this.applicationRegistrationRepository.create({
@@ -297,13 +328,13 @@ export class ApplicationRegistrationService {
         sourceType: params.sourceType,
         sourcePackage: params.sourcePackage,
         latestAvailableVersion: params.latestAvailableVersion,
-        isListed: params.isListed,
-        isFeatured: params.isFeatured,
+        isListed: true,
+        isFeatured,
         manifest: params.manifest,
         oAuthClientId: v4(),
         oAuthRedirectUris: [],
         oAuthScopes: [],
-        ownerWorkspaceId: params.ownerWorkspaceId,
+        ownerWorkspaceId: null,
       });
 
       await this.applicationRegistrationRepository.save(registration);

@@ -1,7 +1,6 @@
 ---
 title: إرسال رسائل البريد الإلكتروني عبر سير العمل
 description: أرسل رسائل بريد إلكتروني مُخصّصة تلقائياً باستخدام إجراءات سير العمل.
-image: /images/user-guide/workflows/workflow.png
 ---
 
 أرسل رسائل البريد الإلكتروني تلقائياً عند حدوث أحداث معيّنة في نظام إدارة علاقات العملاء (CRM) لديك—رحّب بجهات الاتصال الجديدة، وتابع الفرص، أو أخطر أعضاء الفريق.
@@ -43,14 +42,14 @@ image: /images/user-guide/workflows/workflow.png
 استدعِ البيانات من الخطوات السابقة باستخدام صيغة `{{variable}}`:
 
 ```text
-مرحباً {{trigger.object.firstName}},
+Hi {{trigger.object.firstName}},
 
-شكراً لتواصلك معنا!
+Thank you for connecting with us!
 
-تم الآن إدراج شركتك، {{trigger.object.company.name}}، في نظامنا.
+Your company, {{trigger.object.company.name}}, is now in our system.
 
-أطيب التحيات،
-الفريق
+Best regards,
+The Team
 ```
 
 ### المتغيرات المتاحة من المشغّلات

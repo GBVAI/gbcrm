@@ -13,7 +13,7 @@ import { useAtomComponentSelectorValue } from '@/ui/utilities/state/jotai/hooks/
 import { type DropResult } from '@hello-pangea/dnd';
 import { t } from '@lingui/core/macro';
 import { isDefined } from 'twenty-shared/utils';
-import { IconEyeOff, useIcons } from 'twenty-ui/display';
+import { IconEyeOff, useIcons } from 'twenty-ui/icon';
 import { MenuItemDraggable, MenuItemNavigate } from 'twenty-ui/navigation';
 import { sortByProperty } from '~/utils/array/sortByProperty';
 
@@ -21,12 +21,17 @@ type RecordTableFieldsDropdownVisibleFieldsContentProps = {
   objectMetadataId: string;
   recordIndexId: string;
   onShowHiddenFields: () => void;
+  onFieldUpdated?: (
+    viewFieldId: string,
+    update: Partial<{ position: number; isVisible: boolean }>,
+  ) => void;
 };
 
 export const RecordTableFieldsDropdownVisibleFieldsContent = ({
   objectMetadataId,
   recordIndexId,
   onShowHiddenFields,
+  onFieldUpdated,
 }: RecordTableFieldsDropdownVisibleFieldsContentProps) => {
   const { objectMetadataItem } = useObjectMetadataItemById({
     objectId: objectMetadataId,
@@ -71,14 +76,24 @@ export const RecordTableFieldsDropdownVisibleFieldsContent = ({
       return;
     }
 
-    reorderVisibleRecordFields({
+    const updatedField = reorderVisibleRecordFields({
       fromIndex: result.source.index - 1,
       toIndex: result.destination.index - 1,
     });
+
+    if (isDefined(updatedField)) {
+      onFieldUpdated?.(updatedField.id, { position: updatedField.position });
+    }
   };
 
   const handleHideField = (fieldMetadataId: string) => {
-    updateRecordField(fieldMetadataId, { isVisible: false });
+    const updatedField = updateRecordField(fieldMetadataId, {
+      isVisible: false,
+    });
+
+    if (isDefined(updatedField)) {
+      onFieldUpdated?.(updatedField.id, { isVisible: false });
+    }
   };
 
   return (

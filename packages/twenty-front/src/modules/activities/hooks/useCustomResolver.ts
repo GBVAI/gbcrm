@@ -9,7 +9,6 @@ import { useState } from 'react';
 import { type ActivityTargetableObject } from '@/activities/types/ActivityTargetableEntity';
 import { useSnackBarOnQueryError } from '@/apollo/hooks/useSnackBarOnQueryError';
 import { useApolloCoreClient } from '@/object-metadata/hooks/useApolloCoreClient';
-import { CoreObjectNameSingular } from 'twenty-shared/types';
 
 type CustomResolverQueryResult<
   T extends {
@@ -36,6 +35,7 @@ export const useCustomResolver = <
   firstQueryLoading: boolean;
   isFetchingMore: boolean;
   fetchMoreRecords: () => Promise<void>;
+  refetch: () => Promise<unknown>;
 } => {
   const apolloCoreClient = useApolloCoreClient();
 
@@ -47,26 +47,20 @@ export const useCustomResolver = <
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
   const queryVariables = {
-    ...(activityTargetableObject.targetObjectNameSingular ===
-    CoreObjectNameSingular.Person
-      ? { personId: activityTargetableObject.id }
-      : activityTargetableObject.targetObjectNameSingular ===
-          CoreObjectNameSingular.Opportunity
-        ? { opportunityId: activityTargetableObject.id }
-        : { companyId: activityTargetableObject.id }),
+    objectNameSingular: activityTargetableObject.targetObjectNameSingular,
+    recordId: activityTargetableObject.id,
     page: 1,
     pageSize,
   };
 
-  const {
-    data,
-    loading: firstQueryLoading,
-    fetchMore,
-    error,
-  } = useQuery<CustomResolverQueryResult<T>>(query, {
+  const { data, loading, fetchMore, refetch, error } = useQuery<
+    CustomResolverQueryResult<T>
+  >(query, {
     client: apolloCoreClient,
     variables: queryVariables,
   });
+
+  const firstQueryLoading = loading && !data;
 
   useSnackBarOnQueryError(error);
 
@@ -120,5 +114,6 @@ export const useCustomResolver = <
     firstQueryLoading,
     isFetchingMore,
     fetchMoreRecords,
+    refetch,
   };
 };

@@ -3,8 +3,9 @@ import { AiChatLastMessageWithStreamingState } from '@/ai/components/AiChatLastM
 import { AiChatNonLastMessageIdsList } from '@/ai/components/AiChatNonLastMessageIdsList';
 import { AiChatScrollToBottomButton } from '@/ai/components/AiChatScrollToBottomButton';
 import { AgentChatScrollToBottomOnDisplayedThreadChangeLayoutEffect } from '@/ai/components/AgentChatScrollToBottomOnDisplayedThreadChangeLayoutEffect';
+import { AgentChatScrollToBottomOnMountLayoutEffect } from '@/ai/components/AgentChatScrollToBottomOnMountLayoutEffect';
 import { AI_CHAT_SCROLL_WRAPPER_ID } from '@/ai/constants/AiChatScrollWrapperId';
-import { agentChatHasMessageComponentSelector } from '@/ai/states/agentChatHasMessageComponentSelector';
+import { agentChatHasMessageComponentSelector } from '@/ai/states/selectors/agentChatHasMessageComponentSelector';
 import { agentChatIsInitialScrollPendingOnThreadChangeState } from '@/ai/states/agentChatIsInitialScrollPendingOnThreadChangeState';
 import { ScrollWrapper } from '@/ui/utilities/scroll/components/ScrollWrapper';
 import { useAtomComponentSelectorValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentSelectorValue';
@@ -16,11 +17,16 @@ const StyledScrollWrapperContainer = styled.div`
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: ${themeCssVariables.spacing[2]};
   overflow-y: auto;
-  padding: ${themeCssVariables.spacing[3]};
   position: relative;
-  width: calc(100% - 24px);
+  width: 100%;
+`;
+
+const StyledMessageListContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${themeCssVariables.spacing[2]};
+  padding: ${themeCssVariables.spacing[4]};
 `;
 
 export const AiChatTabMessageList = () => {
@@ -45,10 +51,13 @@ export const AiChatTabMessageList = () => {
       }}
     >
       <ScrollWrapper componentInstanceId={AI_CHAT_SCROLL_WRAPPER_ID}>
-        <AiChatNonLastMessageIdsList />
-        <AiChatLastMessageWithStreamingState />
-        <AiChatErrorUnderMessageList />
+        <StyledMessageListContent>
+          <AiChatNonLastMessageIdsList />
+          <AiChatLastMessageWithStreamingState />
+          <AiChatErrorUnderMessageList />
+        </StyledMessageListContent>
         <AgentChatScrollToBottomOnDisplayedThreadChangeLayoutEffect />
+        <AgentChatScrollToBottomOnMountLayoutEffect />
       </ScrollWrapper>
       <AiChatScrollToBottomButton />
     </StyledScrollWrapperContainer>

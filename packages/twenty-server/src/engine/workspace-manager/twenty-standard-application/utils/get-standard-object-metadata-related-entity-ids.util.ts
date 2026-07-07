@@ -28,6 +28,17 @@ export type StandardObjectMetadataRelatedEntityIds = {
   };
 };
 
+type StandardObjectDefinitionWithOptionalViews = {
+  views?: Record<
+    string,
+    {
+      viewFields: Record<string, unknown>;
+      viewGroups?: Record<string, unknown>;
+      viewFieldGroups?: Record<string, unknown>;
+    }
+  >;
+};
+
 const computeStandardViewObjectIds = <O extends AllStandardObjectName>({
   objectName,
 }: {
@@ -35,26 +46,18 @@ const computeStandardViewObjectIds = <O extends AllStandardObjectName>({
 }): StandardObjectViewIds<O> | undefined => {
   const objectDefinition = STANDARD_OBJECTS[objectName];
 
-  const objectDefinitionWithOptionalViews = objectDefinition as {
-    views?: Record<
-      string,
-      {
-        viewFields: Record<string, unknown>;
-        viewGroups?: Record<string, unknown>;
-        viewFieldGroups?: Record<string, unknown>;
-      }
-    >;
-  };
-
-  if (!Object.prototype.hasOwnProperty.call(objectDefinition, 'views')) {
+  if (!('views' in objectDefinition)) {
     return undefined;
   }
 
-  const viewDefinitions = objectDefinitionWithOptionalViews.views;
+  const viewDefinitions = (
+    objectDefinition as StandardObjectDefinitionWithOptionalViews
+  ).views;
 
   if (!viewDefinitions) {
     return undefined;
   }
+
   const viewNames = Object.keys(
     viewDefinitions,
   ) as AllStandardObjectViewName<O>[];
