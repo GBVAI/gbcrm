@@ -50,6 +50,10 @@ export class UpgradeMigrationService {
     name: string;
     workspaceId: string | null;
   }): Promise<boolean> {
+    if (!(await this.upgradeMigrationTableExists())) {
+      return false;
+    }
+
     const latestAttempt = await this.upgradeMigrationRepository.findOne({
       where: {
         name,
@@ -194,6 +198,12 @@ export class UpgradeMigrationService {
     name: string;
     status: UpgradeMigrationStatus;
   }> {
+    if (!(await this.upgradeMigrationTableExists())) {
+      throw new Error(
+        'No upgrade migration found — the database may not have been initialized',
+      );
+    }
+
     const queryBuilder = this.upgradeMigrationRepository
       .createQueryBuilder('migration')
       .select(['migration.name', 'migration.status'])
@@ -236,6 +246,10 @@ export class UpgradeMigrationService {
     workspaceIds: string[],
   ): Promise<Map<string, WorkspaceLastAttemptedCommand>> {
     if (workspaceIds.length === 0) {
+      return new Map();
+    }
+
+    if (!(await this.upgradeMigrationTableExists())) {
       return new Map();
     }
 
@@ -324,6 +338,10 @@ export class UpgradeMigrationService {
       return true;
     }
 
+    if (!(await this.upgradeMigrationTableExists())) {
+      return false;
+    }
+
     const completedCount = await this.upgradeMigrationRepository
       .createQueryBuilder('migration')
       .where({
@@ -351,6 +369,10 @@ export class UpgradeMigrationService {
     errorMessage: string | null;
     createdAt: Date;
   } | null> {
+    if (!(await this.upgradeMigrationTableExists())) {
+      return null;
+    }
+
     const migration = await this.upgradeMigrationRepository
       .createQueryBuilder('migration')
       .select([
@@ -399,5 +421,20 @@ export class UpgradeMigrationService {
     }
 
     return result;
+  }
+
+  private async upgradeMigrationTableExists(): Promise<boolean> {
+    const [row] = await this.upgradeMigrationRepository.manager.query<
+      Array<{ exists: boolean }>
+    >(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'core'
+          AND table_name = 'upgradeMigration'
+      )`,
+    );
+
+    return row?.exists === true;
   }
 }
