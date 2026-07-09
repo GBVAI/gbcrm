@@ -10,7 +10,9 @@ import { RegisteredWorkspaceCommand } from 'src/engine/core-modules/upgrade/deco
 import { findFlatEntityByUniversalIdentifier } from 'src/engine/metadata-modules/flat-entity/utils/find-flat-entity-by-universal-identifier.util';
 import { type FlatObjectMetadata } from 'src/engine/metadata-modules/flat-object-metadata/types/flat-object-metadata.type';
 import { ObjectMetadataService } from 'src/engine/metadata-modules/object-metadata/object-metadata.service';
+import { type GlobalWorkspaceDataSource } from 'src/engine/twenty-orm/global-workspace-datasource/global-workspace-datasource';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
+import { getWorkspaceSchemaName } from 'src/engine/workspace-datasource/utils/get-workspace-schema-name.util';
 
 // Hard-coded because the matching STANDARD_OBJECTS entries no longer exist
 // in twenty-shared after the favorite → navigationMenuItem migration.
@@ -54,6 +56,7 @@ export class DropFavoriteObjectsCommand extends ActiveOrSuspendedWorkspaceComman
   override async runOnWorkspace({
     workspaceId,
     options,
+    dataSource,
   }: RunOnWorkspaceArgs): Promise<void> {
     const isDryRun = options.dryRun ?? false;
 
@@ -92,14 +95,104 @@ export class DropFavoriteObjectsCommand extends ActiveOrSuspendedWorkspaceComman
         continue;
       }
 
-      await this.objectMetadataService.deleteOneObject({
-        deleteObjectInput: { id: flatObjectMetadata.id },
-        workspaceId,
-        isSystemBuild: true,
-        ownerFlatApplication: twentyStandardFlatApplication,
-      });
+      try {
+        await this.objectMetadataService.deleteOneObject({
+          deleteObjectInput: { id: flatObjectMetadata.id },
+          workspaceId,
+          isSystemBuild: true,
+          ownerFlatApplication: twentyStandardFlatApplication,
+        });
 
-      this.logger.log(`Deleted ${label} object for workspace ${workspaceId}`);
+        this.logger.log(`Deleted ${label} object for workspace ${workspaceId}`);
+      } catch (error) {
+        if (!isDefined(dataSource)) {
+          throw error;
+        }
+
+        this.logger.warn(
+          `Falling back to raw legacy ${label} object cleanup for workspace ${workspaceId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+
+        await this.rawDeleteLegacyFavoriteObject({
+          dataSource,
+          workspaceId,
+          objectMetadataId: flatObjectMetadata.id,
+          label,
+        });
+      }
     }
+  }
+
+  private async rawDeleteLegacyFavoriteObject({
+    dataSource,
+    workspaceId,
+    objectMetadataId,
+    label,
+  }: {
+    dataSource: GlobalWorkspaceDataSource;
+    workspaceId: string;
+    objectMetadataId: string;
+    label: string;
+  }): Promise<void> {
+    const workspaceSchemaName = getWorkspaceSchemaName(workspaceId);
+
+    const legacyFields = await dataSource.coreDataSource.query<
+      Array<{ id: string }>
+    >(
+      `SELECT id
+         FROM core."fieldMetadata"
+        WHERE "objectMetadataId" = $1
+           OR "relationTargetObjectMetadataId" = $1`,
+      [objectMetadataId],
+    );
+
+    const legacyFieldIds = legacyFields.map(({ id }) => id);
+
+    if (legacyFieldIds.length > 0) {
+      await dataSource.coreDataSource.query(
+        `UPDATE core."fieldMetadata"
+            SET "relationTargetFieldMetadataId" = NULL
+          WHERE "relationTargetFieldMetadataId" = ANY($1::uuid[])`,
+        [legacyFieldIds],
+      );
+    }
+
+    await dataSource.coreDataSource.query(
+      `DELETE FROM core."objectMetadata" WHERE id = $1`,
+      [objectMetadataId],
+    );
+
+    await dataSource.query(
+      `DROP TABLE IF EXISTS "${workspaceSchemaName}"."${label}" CASCADE`,
+      undefined,
+      undefined,
+      { shouldBypassPermissionChecks: true },
+    );
+
+    await this.workspaceCacheService.invalidateAndRecompute(workspaceId, [
+      'flatObjectMetadataMaps',
+      'flatFieldMetadataMaps',
+      'flatIndexMaps',
+      'flatViewMaps',
+      'flatViewFieldMaps',
+      'flatViewFieldGroupMaps',
+      'flatViewGroupMaps',
+      'flatViewFilterMaps',
+      'flatViewFilterGroupMaps',
+      'flatViewSortMaps',
+      'flatSearchFieldMetadataMaps',
+      'flatNavigationMenuItemMaps',
+      'flatCommandMenuItemMaps',
+      'flatPageLayoutMaps',
+      'flatPageLayoutWidgetMaps',
+      'flatPageLayoutTabMaps',
+      'flatObjectPermissionMaps',
+      'flatFieldPermissionMaps',
+      'ORMEntityMetadatas',
+    ]);
+
+    this.logger.log(
+      `Raw cleanup deleted legacy ${label} object for workspace ${workspaceId}`,
+    );
   }
 }

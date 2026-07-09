@@ -20,6 +20,10 @@ export class IndexFieldMetadataEntity implements Required<IndexFieldMetadataEnti
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @WasIntroducedInUpgrade({
+    upgradeCommandName:
+      '1.22.0_AddWorkspaceIdToIndirectEntitiesFastInstanceCommand_1775758621017',
+  })
   @Column({ nullable: false, type: 'uuid' })
   @Index()
   workspaceId: string;

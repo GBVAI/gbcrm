@@ -16,6 +16,7 @@ import { WorkspaceMigrationBuilderException } from 'src/engine/workspace-manager
 import { WorkspaceMigrationValidateBuildAndRunService } from 'src/engine/workspace-manager/workspace-migration/services/workspace-migration-validate-build-and-run-service';
 import { computeObjectTargetTable } from 'src/engine/utils/compute-object-target-table.util';
 import { getWorkspaceSchemaName } from 'src/engine/workspace-datasource/utils/get-workspace-schema-name.util';
+import { type FlatFieldMetadata } from 'src/engine/metadata-modules/flat-field-metadata/types/flat-field-metadata.type';
 import { nullifyEmptyCompositeDefaultValue } from 'src/engine/metadata-modules/flat-field-metadata/utils/nullify-empty-composite-default-value.util';
 import { CompositeFieldMetadataType } from 'src/engine/metadata-modules/field-metadata/types/composite-field-metadata-type.type';
 
@@ -51,10 +52,11 @@ export class NormalizeCompositeFieldDefaultsCommand extends ActiveOrSuspendedWor
         'flatObjectMetadataMaps',
       ]);
 
-    const affectedFields = Object.values(
+    const flatFieldMetadatas = Object.values(
       flatFieldMetadataMaps.byUniversalIdentifier,
-    )
-      .filter(isDefined)
+    ).filter(isDefined) as FlatFieldMetadata[];
+
+    const affectedFields = flatFieldMetadatas
       .filter((field) => isCompositeFieldMetadataType(field.type))
       .filter((field) => {
         const compositeType = compositeTypeDefinitions.get(
@@ -82,6 +84,22 @@ export class NormalizeCompositeFieldDefaultsCommand extends ActiveOrSuspendedWor
             return true;
           }
         }
+      })
+      .filter((field) => {
+        const flatObjectMetadata =
+          flatObjectMetadataMaps.byUniversalIdentifier[
+            field.objectMetadataUniversalIdentifier
+          ];
+
+        if (!isDefined(flatObjectMetadata)) {
+          this.logger.warn(
+            `Object metadata not found for field ${field.name} (${field.id}), skipping default normalization for this field`,
+          );
+
+          return false;
+        }
+
+        return true;
       });
 
     if (affectedFields.length === 0) {
@@ -111,9 +129,6 @@ export class NormalizeCompositeFieldDefaultsCommand extends ActiveOrSuspendedWor
         ];
 
       if (!isDefined(flatObjectMetadata)) {
-        this.logger.warn(
-          `Object metadata not found for field ${field.name} (${field.id}), skipping data backfill for this field`,
-        );
         continue;
       }
 

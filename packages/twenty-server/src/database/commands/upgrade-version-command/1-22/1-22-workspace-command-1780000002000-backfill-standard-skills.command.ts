@@ -57,13 +57,19 @@ export class BackfillStandardSkillsCommand extends ActiveOrSuspendedWorkspaceCom
       standardAllFlatEntityMaps.flatSkillMaps.byUniversalIdentifier,
     ).filter(isDefined);
 
+    const existingSkillNames = new Set(
+      Object.values(existingFlatSkillMaps.byUniversalIdentifier)
+        .filter(isDefined)
+        .map((skill) => skill.name),
+    );
+
     const skillsToCreate = standardSkills.filter(
       (skill) =>
         !isDefined(
           existingFlatSkillMaps.byUniversalIdentifier[
             skill.universalIdentifier
           ],
-        ),
+        ) && !existingSkillNames.has(skill.name),
     );
 
     if (skillsToCreate.length === 0) {

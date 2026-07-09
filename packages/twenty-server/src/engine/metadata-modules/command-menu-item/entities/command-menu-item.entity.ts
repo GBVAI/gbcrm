@@ -120,6 +120,10 @@ export class CommandMenuItemEntity
   @JoinColumn({ name: 'availabilityObjectMetadataId' })
   availabilityObjectMetadata: Relation<ObjectMetadataEntity> | null;
 
+  @WasIntroducedInUpgrade({
+    upgradeCommandName:
+      '1.23.0_AddPageLayoutIdToCommandMenuItemFastInstanceCommand_1776168404836',
+  })
   @Column({ nullable: true, type: 'uuid' })
   pageLayoutId: string | null;
 
