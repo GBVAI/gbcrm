@@ -7,6 +7,6 @@
   "deploy": {
     "startCommand": "node -e \"setInterval(() => {}, 2147483647)\"",
     "restartPolicyType": "NEVER",
-    "restartPolicyMaxRetries": 0
+    "restartPolicyMaxRetries": 1
   }
 }

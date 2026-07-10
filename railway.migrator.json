@@ -7,6 +7,6 @@
   "deploy": {
     "startCommand": "yarn command:prod upgrade --verbose",
     "restartPolicyType": "NEVER",
-    "restartPolicyMaxRetries": 0
+    "restartPolicyMaxRetries": 1
   }
 }
