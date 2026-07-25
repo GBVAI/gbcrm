@@ -5,14 +5,16 @@
   "private": true,
   "license": "AGPL-3.0",
   "scripts": {
-    "nx": "NX_DEFAULT_PROJECT=twenty-server node ../../node_modules/nx/bin/nx.js",
-    "start:prod": "node dist/main",
+    "clickhouse:migrate:prod": "node dist/database/clickHouse/migrations/run-migrations.js",
     "command:prod": "node dist/command/command",
-    "worker:prod": "node dist/queue-worker/queue-worker",
     "database:init:prod": "sh -c 'if [ \"$DISABLE_DB_MIGRATIONS\" = \"true\" ]; then echo \"Database setup and migrations are disabled, skipping...\"; else node dist/database/scripts/setup-db.js && yarn database:migrate:prod --force --include-slow; fi'",
     "database:migrate:prod": "node dist/command/command run-instance-commands",
-    "clickhouse:migrate:prod": "node dist/database/clickHouse/migrations/run-migrations.js",
-    "typeorm": "../../node_modules/typeorm/.bin/typeorm"
+    "nx": "NX_DEFAULT_PROJECT=twenty-server node ../../node_modules/nx/bin/nx.js",
+    "start:prod": "node dist/main",
+    "test": "npx jest --config jest.config.mjs",
+    "test:wildix": "npx jest --config jest.config.mjs src/modules/wildix",
+    "typeorm": "../../node_modules/typeorm/.bin/typeorm",
+    "worker:prod": "node dist/queue-worker/queue-worker"
   },
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^4.0.116",
