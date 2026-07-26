@@ -64,7 +64,10 @@ describe('mergeSortAndSliceContactPoints', () => {
       pageSize: 2,
     });
 
-    expect(result.contactPoints.map(({ id }) => id)).toEqual(['newer', 'middle']);
+    expect(result.contactPoints.map(({ id }) => id)).toEqual([
+      'newer',
+      'middle',
+    ]);
     expect(result.totalCount).toBe(3);
     expect(result.pageInfo).toEqual({ page: 1, pageSize: 2, hasMore: true });
   });

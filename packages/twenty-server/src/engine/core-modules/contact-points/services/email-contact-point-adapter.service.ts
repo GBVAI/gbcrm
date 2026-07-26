@@ -30,13 +30,14 @@ export class EmailContactPointAdapterService {
       return [];
     }
 
-    const { timelineThreads } = await this.getMessagesService.getMessagesFromPersonIds(
-      currentWorkspaceMemberId,
-      personIds,
-      workspaceId,
-      1,
-      pageSize,
-    );
+    const { timelineThreads } =
+      await this.getMessagesService.getMessagesFromPersonIds(
+        currentWorkspaceMemberId,
+        personIds,
+        workspaceId,
+        1,
+        pageSize,
+      );
 
     return timelineThreads.map(mapTimelineThreadToContactPoint);
   }

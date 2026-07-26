@@ -36,46 +36,51 @@ export class CallContactPointAdapterService {
 
     const authContext = buildSystemAuthContext(workspaceId);
 
-    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
-      const phoneCallRepository =
-        await this.globalWorkspaceOrmManager.getRepository<PhoneCallWorkspaceEntity>(
-          workspaceId,
-          'phoneCall',
-        );
+    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
+      async () => {
+        const phoneCallRepository =
+          await this.globalWorkspaceOrmManager.getRepository<PhoneCallWorkspaceEntity>(
+            workspaceId,
+            'phoneCall',
+          );
 
-      const phoneCalls = await phoneCallRepository.find({
-        where: {
-          phoneCallTargets: {
-            targetPersonId: Any(personIds),
+        const phoneCalls = await phoneCallRepository.find({
+          where: {
+            phoneCallTargets: {
+              targetPersonId: Any(personIds),
+            },
           },
-        },
-        relations: {
-          phoneCallTargets: true,
-        },
-        take: pageSize,
-        order: {
-          startedAt: 'DESC',
-          createdAt: 'DESC',
-        },
-      });
+          relations: {
+            phoneCallTargets: true,
+          },
+          take: pageSize,
+          order: {
+            startedAt: 'DESC',
+            createdAt: 'DESC',
+          },
+        });
 
-      const dedupedPhoneCalls = [...new Map(
-        phoneCalls.map((phoneCall) => [phoneCall.id, phoneCall]),
-      ).values()];
+        const dedupedPhoneCalls = [
+          ...new Map(
+            phoneCalls.map((phoneCall) => [phoneCall.id, phoneCall]),
+          ).values(),
+        ];
 
-      return dedupedPhoneCalls.map((phoneCall) => {
-        const contactPoint = mapPhoneCallToContactPoint(phoneCall);
-        const target = phoneCall.phoneCallTargets?.find((phoneCallTarget) =>
-          personIds.includes(phoneCallTarget.targetPersonId ?? ''),
-        );
+        return dedupedPhoneCalls.map((phoneCall) => {
+          const contactPoint = mapPhoneCallToContactPoint(phoneCall);
+          const target = phoneCall.phoneCallTargets?.find((phoneCallTarget) =>
+            personIds.includes(phoneCallTarget.targetPersonId ?? ''),
+          );
 
-        return {
-          ...contactPoint,
-          personId: target?.targetPersonId ?? null,
-          companyId: target?.targetCompanyId ?? null,
-          opportunityId: target?.targetOpportunityId ?? null,
-        };
-      });
-    }, authContext);
+          return {
+            ...contactPoint,
+            personId: target?.targetPersonId ?? null,
+            companyId: target?.targetCompanyId ?? null,
+            opportunityId: target?.targetOpportunityId ?? null,
+          };
+        });
+      },
+      authContext,
+    );
   }
 }

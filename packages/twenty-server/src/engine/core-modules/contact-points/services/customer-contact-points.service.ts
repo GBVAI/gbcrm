@@ -78,12 +78,14 @@ export class CustomerContactPointsService {
         sourceDiagnostics,
         contactPoints,
         loader: () =>
-          this.whatsAppContactPointAdapterService.getContactPointsFromPersonIds({
-            personIds,
-            workspaceId,
-            pageSize: sourcePageSize,
-            channels,
-          }),
+          this.whatsAppContactPointAdapterService.getContactPointsFromPersonIds(
+            {
+              personIds,
+              workspaceId,
+              pageSize: sourcePageSize,
+              channels,
+            },
+          ),
       }),
     ]);
 
@@ -108,7 +110,10 @@ export class CustomerContactPointsService {
     pageSize: number;
     channels?: ContactPointChannel[] | null;
   }): Promise<CustomerContactPointsResultDTO> {
-    const personIds = await this.getPersonIdsByCompanyId({ workspaceId, companyId });
+    const personIds = await this.getPersonIdsByCompanyId({
+      workspaceId,
+      companyId,
+    });
 
     return this.getContactPointsFromPersonIds({
       currentWorkspaceMemberId,
@@ -198,25 +203,28 @@ export class CustomerContactPointsService {
   }): Promise<string[]> {
     const authContext = buildSystemAuthContext(workspaceId);
 
-    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
-      const personRepository =
-        await this.globalWorkspaceOrmManager.getRepository<PersonWorkspaceEntity>(
-          workspaceId,
-          'person',
-          { shouldBypassPermissionChecks: true },
-        );
+    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
+      async () => {
+        const personRepository =
+          await this.globalWorkspaceOrmManager.getRepository<PersonWorkspaceEntity>(
+            workspaceId,
+            'person',
+            { shouldBypassPermissionChecks: true },
+          );
 
-      const people = await personRepository.find({
-        where: {
-          companyId,
-        },
-        select: {
-          id: true,
-        },
-      });
+        const people = await personRepository.find({
+          where: {
+            companyId,
+          },
+          select: {
+            id: true,
+          },
+        });
 
-      return people.map(({ id }) => id);
-    }, authContext);
+        return people.map(({ id }) => id);
+      },
+      authContext,
+    );
   }
 
   private async getOpportunityCompanyId({
@@ -228,24 +236,27 @@ export class CustomerContactPointsService {
   }): Promise<string | null> {
     const authContext = buildSystemAuthContext(workspaceId);
 
-    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(async () => {
-      const opportunityRepository =
-        await this.globalWorkspaceOrmManager.getRepository<OpportunityWorkspaceEntity>(
-          workspaceId,
-          'opportunity',
-          { shouldBypassPermissionChecks: true },
-        );
+    return this.globalWorkspaceOrmManager.executeInWorkspaceContext(
+      async () => {
+        const opportunityRepository =
+          await this.globalWorkspaceOrmManager.getRepository<OpportunityWorkspaceEntity>(
+            workspaceId,
+            'opportunity',
+            { shouldBypassPermissionChecks: true },
+          );
 
-      const opportunity = await opportunityRepository.findOne({
-        where: {
-          id: opportunityId,
-        },
-        select: {
-          companyId: true,
-        },
-      });
+        const opportunity = await opportunityRepository.findOne({
+          where: {
+            id: opportunityId,
+          },
+          select: {
+            companyId: true,
+          },
+        });
 
-      return opportunity?.companyId ?? null;
-    }, authContext);
+        return opportunity?.companyId ?? null;
+      },
+      authContext,
+    );
   }
 }

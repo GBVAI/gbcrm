@@ -56,7 +56,12 @@ export class ContactPointsResolver {
 
   @Query(() => CustomerContactPointsResultDTO)
   async getContactPointsFromPersonId(
-    @Args() { personId, page, pageSize, channels }: GetContactPointsFromPersonIdArgs,
+    @Args() {
+      personId,
+      page,
+      pageSize,
+      channels,
+    }: GetContactPointsFromPersonIdArgs,
     @AuthWorkspaceMemberId() workspaceMemberId: string,
     @AuthWorkspace() workspace: WorkspaceEntity,
   ) {
@@ -72,7 +77,12 @@ export class ContactPointsResolver {
 
   @Query(() => CustomerContactPointsResultDTO)
   async getContactPointsFromCompanyId(
-    @Args() { companyId, page, pageSize, channels }: GetContactPointsFromCompanyIdArgs,
+    @Args() {
+      companyId,
+      page,
+      pageSize,
+      channels,
+    }: GetContactPointsFromCompanyIdArgs,
     @AuthWorkspaceMemberId() workspaceMemberId: string,
     @AuthWorkspace() workspace: WorkspaceEntity,
   ) {
@@ -89,7 +99,12 @@ export class ContactPointsResolver {
   @Query(() => CustomerContactPointsResultDTO)
   async getContactPointsFromOpportunityId(
     @Args()
-    { opportunityId, page, pageSize, channels }: GetContactPointsFromOpportunityIdArgs,
+    {
+      opportunityId,
+      page,
+      pageSize,
+      channels,
+    }: GetContactPointsFromOpportunityIdArgs,
     @AuthWorkspaceMemberId() workspaceMemberId: string,
     @AuthWorkspace() workspace: WorkspaceEntity,
   ) {
