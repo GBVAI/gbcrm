@@ -3,7 +3,10 @@ import { join } from 'node:path';
 
 import {
   ContactPointChannel,
+  ContactPointDirection,
   ContactPointOpenActionType,
+  ContactPointSourceSystem,
+  ContactPointVisibility,
 } from '@/activities/contact-points/enums/ContactPointEnums';
 
 // The frontend enums are a hand-written mirror of the server enums, standing in for
@@ -33,26 +36,37 @@ const membersOf = (fileName: string): string[] => {
 const mirrorOf = (enumObject: Record<string, string>): string[] =>
   Object.entries(enumObject).map(([key, value]) => `${key}=${value}`);
 
+// Every mirrored enum, paired with the server file that defines it. Table-driven so
+// adding a sixth enum to the mirror without pinning it here is not possible.
+const MIRRORS: [string, string, Record<string, string>][] = [
+  ['ContactPointChannel', 'contact-point-channel.enum.ts', ContactPointChannel],
+  ['ContactPointDirection', 'contact-point-direction.enum.ts', ContactPointDirection],
+  [
+    'ContactPointOpenActionType',
+    'contact-point-open-action-type.enum.ts',
+    ContactPointOpenActionType,
+  ],
+  [
+    'ContactPointSourceSystem',
+    'contact-point-source-system.enum.ts',
+    ContactPointSourceSystem,
+  ],
+  ['ContactPointVisibility', 'contact-point-visibility.enum.ts', ContactPointVisibility],
+];
+
 describe('contact-point enums mirror the server', () => {
   it('reads the server enum files', () => {
     // Guards the relative path above: a repo reshuffle must fail loudly here
-    // rather than silently comparing against nothing.
-    expect(membersOf('contact-point-channel.enum.ts').length).toBeGreaterThan(0);
-    expect(
-      membersOf('contact-point-open-action-type.enum.ts').length,
-    ).toBeGreaterThan(0);
+    // rather than silently comparing against nothing. An earlier version of this
+    // parser sliced from the file's first brace — which belongs to the
+    // `import { registerEnumType }` line — and passed against an empty list.
+    for (const [, fileName] of MIRRORS) {
+      expect(membersOf(fileName).length).toBeGreaterThan(0);
+    }
   });
 
-  it('ContactPointChannel matches the server exactly', () => {
-    expect(mirrorOf(ContactPointChannel).sort()).toEqual(
-      membersOf('contact-point-channel.enum.ts').sort(),
-    );
-  });
-
-  it('ContactPointOpenActionType matches the server exactly', () => {
-    expect(mirrorOf(ContactPointOpenActionType).sort()).toEqual(
-      membersOf('contact-point-open-action-type.enum.ts').sort(),
-    );
+  it.each(MIRRORS)('%s matches the server exactly', (_name, fileName, mirror) => {
+    expect(mirrorOf(mirror).sort()).toEqual(membersOf(fileName).sort());
   });
 
   it('covers the three channels the adapters produce', () => {

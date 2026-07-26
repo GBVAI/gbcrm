@@ -10,12 +10,22 @@
 // Source of truth:
 //   packages/twenty-server/src/engine/core-modules/contact-points/enums/
 //     contact-point-channel.enum.ts
+//     contact-point-direction.enum.ts
 //     contact-point-open-action-type.enum.ts
+//     contact-point-source-system.enum.ts
+//     contact-point-visibility.enum.ts
 
 export enum ContactPointChannel {
   EMAIL = 'EMAIL',
   CALL = 'CALL',
   WHATSAPP = 'WHATSAPP',
+}
+
+export enum ContactPointDirection {
+  INBOUND = 'INBOUND',
+  OUTBOUND = 'OUTBOUND',
+  INTERNAL = 'INTERNAL',
+  UNKNOWN = 'UNKNOWN',
 }
 
 export enum ContactPointOpenActionType {
@@ -24,4 +34,17 @@ export enum ContactPointOpenActionType {
   SWITCHBORD_CONVERSATION = 'SWITCHBORD_CONVERSATION',
   EXTERNAL_URL = 'EXTERNAL_URL',
   NONE = 'NONE',
+}
+
+// Lower-case values, unlike the others — these mirror the server verbatim.
+export enum ContactPointSourceSystem {
+  TWENTY_EMAIL = 'twenty_email',
+  GB_CALL_INTELLIGENCE = 'gb_call_intelligence',
+  SWITCHBORD = 'switchbord',
+}
+
+export enum ContactPointVisibility {
+  METADATA = 'METADATA',
+  SUMMARY = 'SUMMARY',
+  FULL = 'FULL',
 }
