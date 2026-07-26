@@ -74,6 +74,9 @@ export class FlatPageLayoutWidgetTypeValidatorService {
       EMAILS: validateSimpleRecordPageWidgetForCreation(
         WidgetConfigurationType.EMAILS,
       ),
+      CONTACT_POINTS: validateSimpleRecordPageWidgetForCreation(
+        WidgetConfigurationType.CONTACT_POINTS,
+      ),
       CALENDAR: validateSimpleRecordPageWidgetForCreation(
         WidgetConfigurationType.CALENDAR,
       ),
@@ -127,6 +130,9 @@ export class FlatPageLayoutWidgetTypeValidatorService {
       ),
       EMAILS: validateSimpleRecordPageWidgetForUpdate(
         WidgetConfigurationType.EMAILS,
+      ),
+      CONTACT_POINTS: validateSimpleRecordPageWidgetForUpdate(
+        WidgetConfigurationType.CONTACT_POINTS,
       ),
       CALENDAR: validateSimpleRecordPageWidgetForUpdate(
         WidgetConfigurationType.CALENDAR,

@@ -27,6 +27,7 @@ import { CaptchaModule } from 'src/engine/core-modules/captcha/captcha.module';
 import { CloudflareModule } from 'src/engine/core-modules/cloudflare/cloudflare.module';
 import { CodeInterpreterModule } from 'src/engine/core-modules/code-interpreter/code-interpreter.module';
 import { CodeInterpreterSessionCleanupModule } from 'src/engine/core-modules/code-interpreter/crons/code-interpreter-session-cleanup.module';
+import { ContactPointsModule } from 'src/engine/core-modules/contact-points/contact-points.module';
 import { DnsManagerModule } from 'src/engine/core-modules/dns-manager/dns-manager.module';
 import { DpaModule } from 'src/engine/core-modules/dpa/dpa.module';
 import { EmailModule } from 'src/engine/core-modules/email/email.module';
@@ -171,6 +172,7 @@ import { FileModule } from './file/file.module';
     PreInstalledAppsModule,
     AppBillingModule,
     WildixModule,
+    ContactPointsModule,
   ],
   providers: [
     {

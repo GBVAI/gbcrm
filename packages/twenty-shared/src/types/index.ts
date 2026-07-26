@@ -200,6 +200,7 @@ export type {
   NotesConfiguration,
   FilesConfiguration,
   EmailsConfiguration,
+  ContactPointsConfiguration,
   EmailThreadConfiguration,
   CalendarConfiguration,
   WorkflowConfiguration,

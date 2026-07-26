@@ -149,6 +149,13 @@ export type EmailsConfiguration = {
   configurationType: 'EMAILS';
 };
 
+// Unified customer contact-points timeline (calls + email + WhatsApp).
+// Carries no settings yet: the widget always shows every channel the
+// workspace has enabled, scoped to the record it is rendered on.
+export type ContactPointsConfiguration = {
+  configurationType: 'CONTACT_POINTS';
+};
+
 export type EmailThreadConfiguration = {
   configurationType: 'EMAIL_THREAD';
 };
@@ -187,6 +194,7 @@ export type PageLayoutWidgetConfiguration =
   | NotesConfiguration
   | FilesConfiguration
   | EmailsConfiguration
+  | ContactPointsConfiguration
   | CalendarConfiguration
   | WorkflowConfiguration
   | WorkflowVersionConfiguration

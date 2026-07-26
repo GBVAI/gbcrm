@@ -2,6 +2,7 @@ import { isNotEmptyObject, type ValidationError } from 'class-validator';
 
 import { AggregateChartConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/aggregate-chart-configuration.dto';
 import { BarChartConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/bar-chart-configuration.dto';
+import { ContactPointsConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/contact-points-configuration.dto';
 import { FieldConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/field-configuration.dto';
 import { FrontComponentConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/front-component-configuration.dto';
 import { IframeConfigurationDTO } from 'src/engine/metadata-modules/page-layout-widget/dtos/iframe-configuration.dto';
@@ -162,6 +163,14 @@ export const validateWidgetConfigurationInput = ({
         'Emails configuration is not supported yet',
         PageLayoutWidgetExceptionCode.INVALID_PAGE_LAYOUT_WIDGET_DATA,
       );
+    // Contact points carries no user-editable settings, so there is nothing
+    // to validate beyond the discriminant that got us into this branch.
+    case WidgetConfigurationType.CONTACT_POINTS:
+      errors = validateWidgetConfigurationByDto(
+        ContactPointsConfigurationDTO,
+        configuration,
+      );
+      break;
     case WidgetConfigurationType.CALENDAR:
       throw new PageLayoutWidgetException(
         'Calendar configuration is not supported yet',

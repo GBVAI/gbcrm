@@ -53,6 +53,7 @@ const WIDGET_TYPE_TO_CONFIGURATION_TYPE: Partial<
   [WidgetType.NOTES]: WidgetConfigurationType.NOTES,
   [WidgetType.FILES]: WidgetConfigurationType.FILES,
   [WidgetType.EMAILS]: WidgetConfigurationType.EMAILS,
+  [WidgetType.CONTACT_POINTS]: WidgetConfigurationType.CONTACT_POINTS,
   [WidgetType.CALENDAR]: WidgetConfigurationType.CALENDAR,
   [WidgetType.FIELD_RICH_TEXT]: WidgetConfigurationType.FIELD_RICH_TEXT,
   [WidgetType.WORKFLOW]: WidgetConfigurationType.WORKFLOW,
