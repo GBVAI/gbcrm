@@ -40,7 +40,11 @@ const mirrorOf = (enumObject: Record<string, string>): string[] =>
 // adding a sixth enum to the mirror without pinning it here is not possible.
 const MIRRORS: [string, string, Record<string, string>][] = [
   ['ContactPointChannel', 'contact-point-channel.enum.ts', ContactPointChannel],
-  ['ContactPointDirection', 'contact-point-direction.enum.ts', ContactPointDirection],
+  [
+    'ContactPointDirection',
+    'contact-point-direction.enum.ts',
+    ContactPointDirection,
+  ],
   [
     'ContactPointOpenActionType',
     'contact-point-open-action-type.enum.ts',
@@ -51,7 +55,11 @@ const MIRRORS: [string, string, Record<string, string>][] = [
     'contact-point-source-system.enum.ts',
     ContactPointSourceSystem,
   ],
-  ['ContactPointVisibility', 'contact-point-visibility.enum.ts', ContactPointVisibility],
+  [
+    'ContactPointVisibility',
+    'contact-point-visibility.enum.ts',
+    ContactPointVisibility,
+  ],
 ];
 
 describe('contact-point enums mirror the server', () => {
@@ -65,9 +73,12 @@ describe('contact-point enums mirror the server', () => {
     }
   });
 
-  it.each(MIRRORS)('%s matches the server exactly', (_name, fileName, mirror) => {
-    expect(mirrorOf(mirror).sort()).toEqual(membersOf(fileName).sort());
-  });
+  it.each(MIRRORS)(
+    '%s matches the server exactly',
+    (_name, fileName, mirror) => {
+      expect(mirrorOf(mirror).sort()).toEqual(membersOf(fileName).sort());
+    },
+  );
 
   it('covers the three channels the adapters produce', () => {
     expect(Object.values(ContactPointChannel)).toEqual(

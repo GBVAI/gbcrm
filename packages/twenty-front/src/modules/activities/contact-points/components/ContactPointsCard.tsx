@@ -57,7 +57,10 @@ export const ContactPointsCard = () => {
       ? [getContactPointsFromPersonId, 'getContactPointsFromPersonId']
       : targetRecord.targetObjectNameSingular === CoreObjectNameSingular.Company
         ? [getContactPointsFromCompanyId, 'getContactPointsFromCompanyId']
-        : [getContactPointsFromOpportunityId, 'getContactPointsFromOpportunityId'];
+        : [
+            getContactPointsFromOpportunityId,
+            'getContactPointsFromOpportunityId',
+          ];
 
   const { data, firstQueryLoading, isFetchingMore, fetchMoreRecords } =
     useCustomResolver<ContactPointsResult>(
@@ -95,7 +98,8 @@ export const ContactPointsCard = () => {
           </AnimatedPlaceholderEmptyTitle>
           <AnimatedPlaceholderEmptySubTitle>
             <Trans>
-              No email, call, or WhatsApp exchange has been linked to this record yet.
+              No email, call, or WhatsApp exchange has been linked to this
+              record yet.
             </Trans>
           </AnimatedPlaceholderEmptySubTitle>
         </AnimatedPlaceholderEmptyTextContainer>
@@ -125,7 +129,10 @@ export const ContactPointsCard = () => {
         )}
         <ActivityList>
           {contactPoints?.map((contactPoint) => (
-            <ContactPointRow key={contactPoint.id} contactPoint={contactPoint} />
+            <ContactPointRow
+              key={contactPoint.id}
+              contactPoint={contactPoint}
+            />
           ))}
         </ActivityList>
         <CustomResolverFetchMoreLoader

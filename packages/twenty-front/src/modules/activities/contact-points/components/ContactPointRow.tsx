@@ -1,10 +1,6 @@
 import { useOpenEmailThreadInSidePanel } from '@/side-panel/hooks/useOpenEmailThreadInSidePanel';
 import { styled } from '@linaria/react';
-import {
-  IconMail,
-  IconMessage,
-  IconPhone,
-} from 'twenty-ui/icon';
+import { IconMail, IconMessage, IconPhone } from 'twenty-ui/icon';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 import {
   ContactPointChannel,
@@ -30,7 +26,9 @@ const StyledRow = styled.div<{ disabled?: boolean }>`
 
   &:hover {
     background: ${({ disabled }) =>
-      disabled ? 'transparent' : themeCssVariables.background.transparent.lighter};
+      disabled
+        ? 'transparent'
+        : themeCssVariables.background.transparent.lighter};
   }
 `;
 
@@ -133,7 +131,8 @@ export const ContactPointRow = ({ contactPoint }: ContactPointRowProps) => {
     }
 
     if (
-      contactPoint.openAction.type === ContactPointOpenActionType.EMAIL_THREAD &&
+      contactPoint.openAction.type ===
+        ContactPointOpenActionType.EMAIL_THREAD &&
       contactPoint.openAction.targetId
     ) {
       openEmailThreadInSidePanel(contactPoint.openAction.targetId);
@@ -141,7 +140,8 @@ export const ContactPointRow = ({ contactPoint }: ContactPointRowProps) => {
     }
 
     if (
-      contactPoint.openAction.type === ContactPointOpenActionType.EXTERNAL_URL &&
+      contactPoint.openAction.type ===
+        ContactPointOpenActionType.EXTERNAL_URL &&
       contactPoint.openAction.url
     ) {
       window.open(contactPoint.openAction.url, '_blank', 'noopener,noreferrer');
@@ -163,7 +163,9 @@ export const ContactPointRow = ({ contactPoint }: ContactPointRowProps) => {
         <StyledTitleLine>
           <StyledBadge>{getChannelLabel(contactPoint.channel)}</StyledBadge>
           <StyledTitle>{contactPoint.title}</StyledTitle>
-          {contactPoint.status && <StyledBadge>{contactPoint.status}</StyledBadge>}
+          {contactPoint.status && (
+            <StyledBadge>{contactPoint.status}</StyledBadge>
+          )}
           {contactPoint.itemCount && contactPoint.itemCount > 1 && (
             <StyledBadge>{contactPoint.itemCount}</StyledBadge>
           )}
@@ -180,7 +182,9 @@ export const ContactPointRow = ({ contactPoint }: ContactPointRowProps) => {
           )}
         </StyledMeta>
       </StyledContent>
-      <StyledDate>{formatToHumanReadableDate(contactPoint.occurredAt)}</StyledDate>
+      <StyledDate>
+        {formatToHumanReadableDate(contactPoint.occurredAt)}
+      </StyledDate>
     </StyledRow>
   );
 };
