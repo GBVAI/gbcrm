@@ -4,7 +4,7 @@ import {
   IconMail,
   IconMessage,
   IconPhone,
-} from 'twenty-ui/display';
+} from 'twenty-ui/icon';
 import { themeCssVariables } from 'twenty-ui/theme-constants';
 import {
   ContactPointChannel,
