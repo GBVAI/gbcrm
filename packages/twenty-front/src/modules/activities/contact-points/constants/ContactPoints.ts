@@ -1,0 +1,1 @@
+export const CONTACT_POINTS_DEFAULT_PAGE_SIZE = 20;
