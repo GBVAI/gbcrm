@@ -28,7 +28,9 @@ import { FeatureFlagModule } from 'src/engine/core-modules/feature-flag/feature-
       UserWorkspaceEntity,
     ]),
   ],
-  exports: [],
+  // ContactPointsModule injects GetMessagesService via EmailContactPointAdapterService.
+  // Nest only exposes providers across module boundaries when they are exported.
+  exports: [GetMessagesService],
   providers: [
     TimelineMessagingResolver,
     TimelineMessagingService,
